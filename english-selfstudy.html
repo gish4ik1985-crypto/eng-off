@@ -1845,7 +1845,14 @@ if ('speechSynthesis' in window) speechSynthesis.getVoices();
 // ждём не меньше minMs и, пока робот не договорит (но не дольше maxMs), и только потом идём дальше —
 // иначе следующее задание начинается, пока ещё звучит ответ на предыдущее
 let epoch = 0; // «поколение» экрана: после выхода из урока отложенные переходы больше не срабатывают
-function stopAll() { epoch++; try { speechSynthesis.cancel(); } catch (e) {} }
+// надёжно останавливает речь: на планшетах одиночный cancel() иногда не срабатывает сразу, поэтому повторяем
+function hardStop() {
+  try {
+    speechSynthesis.cancel();
+    setTimeout(() => { try { speechSynthesis.cancel(); } catch (e) {} }, 80);
+  } catch (e) {}
+}
+function stopAll() { epoch++; hardStop(); }
 function waitSpeech(minMs, cb, maxMs = 5000) {
   const t0 = Date.now(), e0 = epoch;
   const check = () => {
@@ -1949,6 +1956,7 @@ function applyTheme() {
 
 /* ---------- каркас экранов ---------- */
 function frame(ctx, inner) {
+  hardStop(); // новый экран: то, что говорилось на предыдущем, больше не звучит
   const dots = ctx.steps.map((s, k) => `<i class="${k < ctx.cur ? 'd' : k === ctx.cur ? 'c' : ''}"></i>`).join('');
   app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div><div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${inner}`;
   $('exit').onclick = () => { stopAll(); map(); };
@@ -2046,6 +2054,7 @@ function welcome() {
 // уже пройденная локация остаётся открытой, даже если порядок в мире поменялся
 function unlocked(i) { return S.unlockAll || i === 0 || (S.lessons[W().lessons[i].id] || {}).done || (S.lessons[W().lessons[i - 1].id] || {}).done; }
 function map() {
+  epoch++; hardStop();
   applyTheme();
   const WL = W().lessons, BS = W().boss;
   const nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done);
@@ -2861,6 +2870,7 @@ const audioOpen = a => S.unlockAll || (S.lessons[a.req] || {}).done;
 
 let audWorld = -1;
 function listening() {
+  hardStop();
   if (audWorld < 0) audWorld = Math.min(S.world, WORLDS.length - 1);
   const list = AUDIOS.filter(a => a.world === audWorld);
   const doneN = list.filter(a => (S.audio[a.id] || {}).done).length, openN = list.filter(audioOpen).length;
@@ -2901,12 +2911,16 @@ function listenCard(ctx, a, cb) {
     <p><button class="btn small sec" id="slow">🐢 Медленнее</button><button class="btn small sec" id="st">⏹ Стоп</button></p>
     <p><button class="btn gold" id="go">К вопросам ➜</button></p></div>`);
   const dots = app.querySelectorAll('#dots i');
-  const stop = () => { token++; try { speechSynthesis.cancel(); } catch (e) {} dots.forEach(d => d.classList.remove('d')); };
+  const plBtn = $('pl');
+  const stop = () => { token++; hardStop(); dots.forEach(d => d.classList.remove('d')); };
   const play = async rate => {
     const my = ++token; dots.forEach(d => d.classList.remove('d'));
     for (let k = 0; k < a.text.length; k++) {
       if (my !== token) return;
-      await speakP(a.text[k].en, rate); dots[k].classList.add('d');
+      if (!plBtn.isConnected) { hardStop(); return; } // экран уже сменился
+      await speakP(a.text[k].en, rate);
+      if (my !== token || !plBtn.isConnected) { if (!plBtn.isConnected) hardStop(); return; }
+      dots[k].classList.add('d');
       await new Promise(r => setTimeout(r, 450));
     }
   };
@@ -2986,6 +3000,7 @@ function speakP(t, rate) {
 const songOpen = s => S.unlockAll || (S.lessons[s.req] || {}).done;
 
 function songs() {
+  hardStop();
   const cards = WORLDS.map((wd, wi) => `<h3>${wd.name}</h3><div class="shop">` + SONGS.filter(s => s.world === wi).map(s => {
     const rec = S.songs[s.id] || {}, ok = songOpen(s);
     return `<div class="item" style="${ok ? '' : 'opacity:.6'}"><div class="ie">${ok ? s.icon : '🔒'}</div><b>${s.title}</b><br>
@@ -3010,18 +3025,21 @@ function songCard(ctx, s, cb, sing) {
     const lines = app.querySelectorAll('.sl');
     const hl = k => lines.forEach((x, j) => x.classList.toggle('on', j === k));
     lines.forEach((x, k) => x.onclick = () => { token++; hl(k); speak(s.lines[k].en); });
-    $('pl').onclick = async () => {
+    const plBtn = $('pl');
+    plBtn.onclick = async () => {
       const my = ++token;
       for (let k = 0; k < s.lines.length; k++) {
         if (my !== token) return;
+        if (!plBtn.isConnected) { hardStop(); return; } // экран уже сменился
         hl(k); await speakP(s.lines[k].en, .7);
+        if (my !== token || !plBtn.isConnected) { if (!plBtn.isConnected) hardStop(); return; }
         await new Promise(r => setTimeout(r, 250));
       }
       if (my === token) hl(-1);
     };
-    $('st').onclick = () => { token++; try { speechSynthesis.cancel(); } catch (e) {} hl(-1); };
-    $('tr').onclick = () => { token++; showRu = !showRu; draw(); };
-    $('go').onclick = () => { token++; try { speechSynthesis.cancel(); } catch (e) {} cb(); };
+    $('st').onclick = () => { token++; hardStop(); hl(-1); };
+    $('tr').onclick = () => { token++; hardStop(); showRu = !showRu; draw(); };
+    $('go').onclick = () => { token++; hardStop(); cb(); };
   };
   draw();
 }
@@ -3056,6 +3074,7 @@ function lessonTitle(id) {
 const dlgOpen = d => S.unlockAll || (S.lessons[d.req] || {}).done;
 
 function dialogs() {
+  hardStop();
   const cards = WORLDS.map((wd, wi) => {
     const list = DIALOGS.filter(d => d.world === wi);
     return `<h3>${wd.name}</h3><div class="shop">` + list.map(d => {
@@ -3074,6 +3093,7 @@ function dialogs() {
 function playDialog(d) {
   const hist = []; let i = 0, ok1 = 0, showRu = false;
   const render = () => {
+    hardStop();
     const t = d.turns[i]; let tries = 0, locked = false;
     const log = hist.map(h => `<div class="bub npc"><span class="av">${d.npc.e}</span><p>${h.en}</p></div><div class="bub me"><p>${h.ans}</p><span class="av">${hero(34)}</span></div>`).join('');
     app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Диалоги</button><div class="stepname">${d.icon} ${d.title} · ${i + 1}/${d.turns.length}</div></div>
