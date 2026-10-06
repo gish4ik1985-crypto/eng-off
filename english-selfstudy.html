@@ -1771,7 +1771,7 @@ const HEROES = [0, 140, 260];
 
 const defState = () => ({
   name: '', hue: 0, emeralds: 0, owned: ['theme0'], hat: null, theme: 'theme0',
-  face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
+  rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
   sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
@@ -1817,8 +1817,26 @@ function unlockAudio() {
   try { if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } } catch (e) {}
 }
 ['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { once: false, passive: true }));
-function tones(freqs) {
+/* Речь: одно «состояние речи» на всё приложение.
+   seq — номер последней фразы (старые фразы и их отложенные запуски отменяются),
+   until — когда фраза должна закончиться по расчёту, ended — подтвердил ли браузер конец,
+   sfxUntil — до какого момента звучит звуковой сигнал (речь стартует после него, чтобы они не мешали друг другу). */
+const SPK = { seq: 0, until: 0, ended: true, sfxUntil: 0 };
+const speechOn = () => 'speechSynthesis' in window;
+let enVoice = null;
+function pickVoice() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    enVoice = vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+  } catch (e) {}
+  return enVoice;
+}
+if (speechOn()) { pickVoice(); try { speechSynthesis.addEventListener('voiceschanged', () => { pickVoice(); setTimeout(() => { try { voiceCheck(); } catch (e) {} }, 300); }); } catch (e) {} }
+
+function tones(freqs, kind) {
   if (S.mute) return;
+  if (kind === 'bad' && !SPK.ended && Date.now() < SPK.until) return; // не перебиваем речь сигналом ошибки
+  SPK.sfxUntil = Date.now() + freqs.length * 120 + 80;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     freqs.forEach((f, k) => {
@@ -1829,27 +1847,51 @@ function tones(freqs) {
     });
   } catch (e) {}
 }
-const sfx = k => tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 784, 1047, 1319] }[k]);
-function speak(t) {
-  if (!('speechSynthesis' in window)) return;
-  try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = .8;
-    const vs = speechSynthesis.getVoices();
-    const v = vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang));
-    if (v) u.voice = v;
-    speechSynthesis.speak(u);
-  } catch (e) {}
+const sfx = k => tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 784, 1047, 1319] }[k], k);
+
+// say: говорит t (rate — скорость). Если уже что-то говорится, сначала останавливает, ждёт немного (иначе на Android
+// слово «съедается») и говорит новое. done вызывается, когда фраза закончилась или отменена.
+function say(t, rate, delay, done) {
+  if (!speechOn()) { if (done) setTimeout(done, t.length * 90 + 800); return; }
+  const my = ++SPK.seq;
+  let busy = false;
+  try { busy = speechSynthesis.speaking || speechSynthesis.pending; if (busy) speechSynthesis.cancel(); } catch (e) {}
+  const wait = Math.max(delay || 0, SPK.sfxUntil - Date.now(), 0) + (busy ? 90 : 0);
+  SPK.ended = false; SPK.until = Date.now() + wait + Math.max(900, t.length * 90 + 500);
+  let fin = false; const finish = () => { if (!fin) { fin = true; if (done) done(); } };
+  if (done) setTimeout(finish, wait + t.length * 130 + 3500);
+  const start = attempt => {
+    if (my !== SPK.seq) return finish(); // за это время запросили другую фразу или остановили речь
+    let started = false, retrying = false;
+    try {
+      const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = rate || .8;
+      try { const v = enVoice || pickVoice(); if (v) u.voice = v; } catch (e) { enVoice = null; } // сбой голоса не должен заглушать речь
+      u.onstart = () => { started = true; };
+      u.onend = u.onerror = () => { if (retrying) return; started = true; if (my === SPK.seq) SPK.ended = true; finish(); };
+      speechSynthesis.speak(u);
+      // контроль: если браузер «проглотил» фразу и она не началась за 1,2 с — один раз повторяем
+      setTimeout(() => {
+        if (started || my !== SPK.seq || attempt > 0) return;
+        retrying = true;
+        try { speechSynthesis.cancel(); } catch (e) {}
+        setTimeout(() => start(1), 120);
+      }, 1200);
+    } catch (e) { finish(); }
+  };
+  setTimeout(() => start(0), wait);
 }
-if ('speechSynthesis' in window) speechSynthesis.getVoices();
+const speak = (t, delay) => say(t, S.rate || .8, delay);
 // ждём не меньше minMs и, пока робот не договорит (но не дольше maxMs), и только потом идём дальше —
 // иначе следующее задание начинается, пока ещё звучит ответ на предыдущее
 let epoch = 0; // «поколение» экрана: после выхода из урока отложенные переходы больше не срабатывают
 // надёжно останавливает речь: на планшетах одиночный cancel() иногда не срабатывает сразу, поэтому повторяем
 function hardStop() {
+  SPK.seq++; SPK.ended = true; SPK.until = 0; // отменяет и ещё не начавшиеся фразы
+  const my = SPK.seq;
   try {
     speechSynthesis.cancel();
-    setTimeout(() => { try { speechSynthesis.cancel(); } catch (e) {} }, 80);
+    // повтор через 80 мс — только если за это время не началась новая фраза
+    setTimeout(() => { if (SPK.seq === my) { try { speechSynthesis.cancel(); } catch (e) {} } }, 80);
   } catch (e) {}
 }
 function stopAll() { epoch++; newScreen(); }
@@ -1864,7 +1906,8 @@ function waitSpeech(minMs, cb, maxMs = 5000) {
   const t0 = Date.now(), e0 = epoch;
   const check = () => {
     if (e0 !== epoch) return; // ребёнок уже вышел на карту
-    const busy = 'speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending);
+    // занят, пока браузер не подтвердил конец фразы (расчётное время и флаг speaking — на случай, если события не приходят)
+    const busy = !SPK.ended && (Date.now() < SPK.until || (speechOn() && speechSynthesis.speaking));
     const el = Date.now() - t0;
     if (el >= minMs && (!busy || el >= maxMs)) cb(); else setTimeout(check, 120);
   };
@@ -1978,6 +2021,23 @@ function runSteps(ctx, final) {
   go();
 }
 
+/* если на устройстве нет английского голоса, слова читаются русским голосом и ничего не понятно — предупреждаем родителей */
+let voiceDismissed = false; // «Понятно» нажато — до перезапуска больше не напоминаем
+const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => /^en/i.test(v.lang)); } catch (e) { return false; } };
+const voiceCount = () => { try { return speechSynthesis.getVoices().length; } catch (e) { return 0; } };
+function voiceCheck() {
+  const box = $('vw');
+  if (voiceDismissed || !box || !speechOn()) return;
+  if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или английский есть
+  box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет английского голоса.</b> Английские слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
+    <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «Google US English».</li>
+    <li><b>Windows:</b> Параметры → Время и язык → Язык и регион → Добавить язык → English (United States) → после установки включите «Преобразование текста в речь», затем перезапустите браузер.</li>
+    <li><b>Android:</b> Настройки → Язык и ввод → Синтез речи → Google → Установить голосовые данные → English.</li>
+    <li><b>iPad:</b> Настройки → Универсальный доступ → Устный контент → Голоса → English.</li></ul>
+    <button class="btn small sec" id="vwx">Понятно</button></div>`;
+  $('vwx').onclick = () => { voiceDismissed = true; box.innerHTML = ''; };
+}
+
 /* ---------- игроки ---------- */
 let newPlayerFrom = null; // id игрока, с которого перешли к созданию нового (чтобы можно было отменить)
 function useProfile(id) {
@@ -2088,6 +2148,7 @@ function map() {
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
       <div>${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="dlgb">💬 Диалоги</button><button class="btn small sec" id="sgb">🎵 Песенки</button><button class="btn small sec" id="aub">🎧 Аудирование</button><button class="btn small sec" id="vcb">📖 Словарик</button><button class="btn small sec" id="who">👤 Сменить игрока</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button><button class="btn small sec" id="parent">👨‍👩‍👧 Родителям</button><button class="btn small sec" id="mute">${S.mute ? '🔇' : '🔊'}</button></div>
     </div>
+    <div id="vw"></div>
     <div class="center">${tabs}</div>
     <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (S.world + 1 < WORLDS.length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
     <div class="map">${rows}</div>`;
@@ -2101,6 +2162,7 @@ function map() {
   $('awb').onclick = awards;
   $('who').onclick = players;
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
+  setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
@@ -2539,6 +2601,8 @@ function parent() {
       ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${(p.text || '').replace(/"/g, '&quot;')}"></p>`).join('')}</div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
+      <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
+        ${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small" id="dgp">🔎 Разведка (определить уровень)</button>
       <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
       <button class="btn small red" id="rs">Сбросить всё</button>
@@ -2548,12 +2612,16 @@ function parent() {
       <button class="btn small" id="im">Загрузить из текста</button></div>`;
   $('bk').onclick = map;
   $('rpt').onclick = weeklyReport;
+  $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });
-  $('vc').onclick = () => {
-    speak('Hello! I am a robot.');
-    const has = 'speechSynthesis' in window && speechSynthesis.getVoices().some(v => /^en/i.test(v.lang));
-    $('vm').textContent = has ? 'Английский голос найден. Если звука нет — проверьте громкость.' : 'Английский голос не найден. Установите голос English в настройках Windows/Android или откройте в Chrome/Edge.';
+  const vstat = () => {
+    let list = ''; try { list = speechSynthesis.getVoices().map(v => v.name + ' (' + v.lang + ')').join('; '); } catch (e) {}
+    $('vm').innerHTML = hasEnVoice()
+      ? '✅ Английский голос найден: ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
+      : '❌ Английский голос не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
   };
+  vstat();
+  $('vc').onclick = () => { speak('Hello! I am a robot.'); vstat(); };
   $('dgp').onclick = diagIntro;
   $('ua').onclick =() => { S.unlockAll = !S.unlockAll; save(); parent(); };
   $('rs').onclick = () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } };
@@ -2991,21 +3059,7 @@ function playAudio(a) {
 
 /* ---------- песенки и рифмовки ---------- */
 // читает фразу и сообщает, когда закончила (с запасным таймером, если озвучки нет)
-function speakP(t, rate) {
-  return new Promise(res => {
-    let done = false; const fin = () => { if (!done) { done = true; res(); } };
-    setTimeout(fin, t.length * 130 + 3000);
-    if (!('speechSynthesis' in window)) return setTimeout(fin, t.length * 90 + 800);
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = rate || .7;
-      const vs = speechSynthesis.getVoices();
-      const v = vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang));
-      if (v) u.voice = v;
-      u.onend = fin; u.onerror = fin; speechSynthesis.speak(u);
-    } catch (e) { setTimeout(fin, 1500); }
-  });
-}
+function speakP(t, rate) { return new Promise(res => say(t, rate || .7, 0, res)); }
 const songOpen = s => S.unlockAll || (S.lessons[s.req] || {}).done;
 
 function songs() {
