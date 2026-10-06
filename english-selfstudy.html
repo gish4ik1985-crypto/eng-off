@@ -1399,6 +1399,27 @@ const HANDS = {
   i_pick: { e: '⛏️', n: 'Кирка', p: 15 }, i_guitar: { e: '🎸', n: 'Гитара', p: 15 }, i_tele: { e: '🔭', n: 'Телескоп', p: 18 },
   i_sword: { e: '🗡️', n: 'Меч', p: 20 }, i_bow: { e: '🏹', n: 'Лук', p: 20 }, i_wand: { e: '🪄', n: 'Волшебная палочка', p: 25 }
 };
+// ---- ещё товары ----
+Object.assign(HATS, {
+  h_flower: { e: '🌸', n: 'Цветочный венок', p: 8 }, h_bee: { e: '🐝', n: 'Пчёлка', p: 9 }, h_donut: { e: '🍩', n: 'Пончик', p: 10 },
+  h_mushroom: { e: '🍄', n: 'Гриб', p: 10 }, h_cowboy: { e: '🤠', n: 'Ковбой', p: 14 }, h_pumpkin: { e: '🎃', n: 'Тыква', p: 14 },
+  h_snowman: { e: '☃️', n: 'Снеговик', p: 16 }, h_santa: { e: '🎅', n: 'Дед Мороз', p: 20 }, h_unicorn: { e: '🦄', n: 'Единорог', p: 25 },
+  h_ufo: { e: '🛸', n: 'Летающая тарелка', p: 30 }
+});
+Object.assign(FACES, {
+  f_mask2: { e: '😷', n: 'Медицинская маска', p: 10 }, f_monocle: { e: '🧐', n: 'Монокль', p: 12 }, f_nerd: { e: '🤓', n: 'Умник', p: 12 },
+  f_heart: { e: '😍', n: 'Влюблённый', p: 14 }, f_cool: { e: '😎', n: 'Круто!', p: 16 }
+});
+Object.assign(BACKS, {
+  b_kite: { e: '🪁', n: 'Воздушный змей', p: 12 }, b_squirrel: { e: '🐿️', n: 'Белка', p: 14 }, b_star: { e: '🌟', n: 'Звезда-спутница', p: 16 },
+  b_parrot: { e: '🦜', n: 'Попугай', p: 18 }, b_parachute: { e: '🪂', n: 'Парашют', p: 30 }
+});
+Object.assign(HANDS, {
+  i_carrot: { e: '🥕', n: 'Морковка', p: 5 }, i_icecream: { e: '🍦', n: 'Мороженое', p: 8 }, i_ball: { e: '⚽', n: 'Мяч', p: 8 },
+  i_book: { e: '📖', n: 'Книга', p: 10 }, i_wrench: { e: '🔧', n: 'Гаечный ключ', p: 10 }, i_flask: { e: '🧪', n: 'Колба', p: 12 },
+  i_brush: { e: '🎨', n: 'Палитра', p: 12 }, i_mic: { e: '🎤', n: 'Микрофон', p: 14 }, i_cup: { e: '🏆', n: 'Кубок', p: 25 },
+  i_trident: { e: '🔱', n: 'Трезубец', p: 30 }
+});
 const ITEMS = Object.assign({}, HATS, FACES, BACKS, HANDS);
 const HUES = [
   { h: 0, n: 'Классика', p: 0 }, { h: 140, n: 'Мята', p: 0 }, { h: 260, n: 'Лёд', p: 0 },
@@ -1419,11 +1440,30 @@ const PET_LINES = {
 // пороги роста питомца (xp) и названия стадий
 const PET_STAGES = [[0, '🥚', 'Яйцо'], [3, '🐣', 'Малыш'], [8, '🐥', 'Подросток'], [15, '🦖', 'Взрослый'], [28, '🐉', 'Силач'], [50, '🐲', 'Легенда']];
 const petE = k => (PET_LINES[S.pet] || PET_LINES.dragon).line[k];
+// ---- ещё товары: цвета, фоны, питомцы, звания ----
+HUES.push({ h: 100, n: 'Мох', p: 12 }, { h: 160, n: 'Бирюза', p: 12 }, { h: 280, n: 'Сирень', p: 15 }, { h: 350, n: 'Малина', p: 15 });
+Object.assign(THEMES, {
+  theme8: { n: 'Джунгли', p: 25, bg: '#2e7d32' }, theme9: { n: 'Конфетный', p: 25, bg: 'linear-gradient(#ffd1e8,#c9e7ff)' },
+  theme10: { n: 'Вулкан', p: 30, bg: 'linear-gradient(#ff7043,#4e342e)' }, theme11: { n: 'Подводный мир', p: 30, bg: 'linear-gradient(#2a7fa5,#0b3d5c)' },
+  theme12: { n: 'Космос', p: 35, bg: 'linear-gradient(#0b1030,#3a1c71)' }
+});
+Object.assign(PET_LINES, {
+  bugs: { n: 'Букашки', p: 30, line: ['🥚', '🐛', '🐜', '🐝', '🦋', '🐞'] },
+  bird: { n: 'Птичка', p: 40, line: ['🥚', '🐤', '🐥', '🦆', '🦢', '🦅'] },
+  forest: { n: 'Лесной друг', p: 45, line: ['🥚', '🐿️', '🦊', '🐺', '🦌', '🐻'] },
+  dino: { n: 'Динозавр', p: 55, line: ['🥚', '🦎', '🐊', '🦕', '🦖', '🐉'] }
+});
+// звания: показываются рядом с именем игрока
+const TITLES = {
+  t_explorer: { e: '🧭', n: 'Юный исследователь', p: 5 }, t_hero: { e: '🛡️', n: 'Герой слов', p: 10 }, t_robot: { e: '🤖', n: 'Друг роботов', p: 10 },
+  t_miner: { e: '⛏️', n: 'Шахтёр знаний', p: 15 }, t_knight: { e: '⚔️', n: 'Рыцарь грамматики', p: 20 }, t_wizard: { e: '🧙', n: 'Волшебник английского', p: 25 },
+  t_captain: { e: '⚓', n: 'Капитан острова', p: 30 }, t_legend: { e: '👑', n: 'Легенда Spotlight', p: 50 }
+};
 const HEROES = [0, 140, 260];
 
 const defState = () => ({
   name: '', hue: 0, emeralds: 0, owned: ['theme0'], hat: null, theme: 'theme0',
-  face: null, back: null, hand: null, pet: 'dragon', petName: 'Кубик',
+  face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
   sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
@@ -1719,7 +1759,7 @@ function map() {
   const tabs = WORLDS.map((wd, k) => `<button class="btn small ${k === S.world ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
-      <div class="grow"><h2>Привет, ${S.name}!</h2>
+      <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
       <div>${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="dlgb">💬 Диалоги</button><button class="btn small sec" id="sgb">🎵 Песенки</button><button class="btn small sec" id="aub">🎧 Аудирование</button><button class="btn small sec" id="vcb">📖 Словарик</button><button class="btn small sec" id="who">👤 Сменить игрока</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button><button class="btn small sec" id="parent">👨‍👩‍👧 Родителям</button><button class="btn small sec" id="mute">${S.mute ? '🔇' : '🔊'}</button></div>
@@ -2087,7 +2127,8 @@ function startBoss() {
 const SHOP_TABS = [
   { k: 'hat', t: '🎩 Шляпы', src: HATS, none: 'Без шляпы' }, { k: 'face', t: '😎 Лицо', src: FACES, none: 'Без украшения' },
   { k: 'back', t: '🧣 Спина', src: BACKS, none: 'Без украшения' }, { k: 'hand', t: '⛏️ В руке', src: HANDS, none: 'Пусто' },
-  { k: 'hue', t: '🎨 Цвет' }, { k: 'pet', t: '🐾 Питомцы' }, { k: 'theme', t: '🗺️ Фон' }
+  { k: 'hue', t: '🎨 Цвет' }, { k: 'pet', t: '🐾 Питомцы' }, { k: 'theme', t: '🗺️ Фон' },
+  { k: 'title', t: '🏷️ Звание', src: TITLES, none: 'Без звания' }
 ];
 let shopTab = 'hat';
 const owns = (key, p) => p === 0 || S.owned.includes(key);
@@ -2099,7 +2140,7 @@ function shop() {
     : `<button class="btn small ${S.emeralds >= p ? '' : 'sec'}" data-buy="${key}" data-p="${p}">💎 ${p}</button>`;
   let cards = '', head = '';
   if (tab.src) {
-    cards = Object.keys(tab.src).map(k => {
+    cards = Object.keys(tab.src).sort((a, b) => tab.src[a].p - tab.src[b].p).map(k => {
       const it = tab.src[k];
       return `<div class="item"><div class="ie">${it.e}</div>${it.n}<br>${btn(owns(k, 0) && S.owned.includes(k), S[tab.k] === k, k, it.p, 'Надето ✓', 'Надеть')}</div>`;
     }).join('') + (S[tab.k] ? `<div class="item"><div class="ie">🚫</div>${tab.none}<br><button class="btn small sec" data-eq="">Снять</button></div>` : '');
@@ -2110,12 +2151,12 @@ function shop() {
     }).join('');
   } else if (tab.k === 'pet') {
     head = `<p>Имя питомца: <input type="text" id="pn" maxlength="12" value="${(S.petName || 'Кубик').replace(/"/g, '&quot;')}" style="max-width:220px"></p>`;
-    cards = Object.keys(PET_LINES).map(k => {
+    cards = Object.keys(PET_LINES).sort((a, b) => PET_LINES[a].p - PET_LINES[b].p).map(k => {
       const p = PET_LINES[k], key = 'pet_' + k;
       return `<div class="item"><div class="ie">${p.line[3]}</div>${p.n}<br><small>${p.line.slice(1).join(' ')}</small><br>${btn(owns(key, p.p), S.pet === k, key, p.p, 'Мой питомец ✓', 'Выбрать')}</div>`;
     }).join('');
   } else {
-    cards = Object.keys(THEMES).map(k => {
+    cards = Object.keys(THEMES).sort((a, b) => THEMES[a].p - THEMES[b].p).map(k => {
       const t = THEMES[k];
       return `<div class="item"><div class="swatch" style="background:${t.bg}"></div>Фон: ${t.n}<br>${btn(owns(k, t.p) || S.owned.includes(k), S.theme === k, k, t.p, 'Выбран ✓', 'Выбрать')}</div>`;
     }).join('');
