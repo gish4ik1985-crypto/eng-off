@@ -1496,9 +1496,12 @@ function speak(t) {
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
 // ждём не меньше minMs и, пока робот не договорит (но не дольше maxMs), и только потом идём дальше —
 // иначе следующее задание начинается, пока ещё звучит ответ на предыдущее
+let epoch = 0; // «поколение» экрана: после выхода из урока отложенные переходы больше не срабатывают
+function stopAll() { epoch++; try { speechSynthesis.cancel(); } catch (e) {} }
 function waitSpeech(minMs, cb, maxMs = 5000) {
-  const t0 = Date.now();
+  const t0 = Date.now(), e0 = epoch;
   const check = () => {
+    if (e0 !== epoch) return; // ребёнок уже вышел на карту
     const busy = 'speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending);
     const el = Date.now() - t0;
     if (el >= minMs && (!busy || el >= maxMs)) cb(); else setTimeout(check, 120);
@@ -1600,7 +1603,7 @@ function applyTheme() {
 function frame(ctx, inner) {
   const dots = ctx.steps.map((s, k) => `<i class="${k < ctx.cur ? 'd' : k === ctx.cur ? 'c' : ''}"></i>`).join('');
   app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div><div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${inner}`;
-  $('exit').onclick = () => { if (confirm('Выйти на карту? Этот урок придётся начать заново.')) map(); };
+  $('exit').onclick = () => { stopAll(); map(); };
   window.scrollTo(0, 0);
 }
 function runSteps(ctx, final) {
@@ -2697,7 +2700,7 @@ function playDialog(d) {
         <p class="center"><button class="btn small sec" id="tr">${showRu ? 'Скрыть перевод' : '🇷🇺 Показать перевод'}</button></p>
         <div id="msg" class="msg center">Выбери ответ:</div>
         <div class="opts gapo long">${shuffle(t.opts).map(x => `<button class="opt gapb" data-v="${x.replace(/"/g, '&quot;')}"><span class="ot">${x}</span></button>`).join('')}</div></div>`;
-    $('exit').onclick = () => { if (confirm('Выйти из диалога? Придётся начать заново.')) dialogs(); };
+    $('exit').onclick = () => { stopAll(); dialogs(); };
     $('sp').onclick = () => speak(t.en);
     $('tr').onclick = () => { showRu = !showRu; render(); };
     setTimeout(() => speak(t.en), 300);
@@ -2820,7 +2823,7 @@ function diag() {
     app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="stepname">Разведка · вопрос ${asked + 1}</div></div>
       <div class="card center">${prompt}<div id="msg" class="msg">&nbsp;</div>
       <div class="opts ${q.kind === 'word' ? 'see' : 'gapo' + (q.long ? ' long' : '')}">${optHTML}</div></div>`;
-    $('exit').onclick = () => { if (confirm('Остановить разведку? Уже пройденное сохранится.')) { stopped = true; map(); } };
+    $('exit').onclick = () => { stopped = true; stopAll(); map(); };
     let locked = false;
     app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
       if (locked) return; locked = true;
