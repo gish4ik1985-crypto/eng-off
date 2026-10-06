@@ -155,9 +155,12 @@ const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
 try { const r = JSON.parse(localStorage.getItem(PKEY)); if (r && r.list) PR = r; } catch (e) {}
 const savePR = () => { try { localStorage.setItem(PKEY, JSON.stringify(PR)); } catch (e) {} };
+const snapOf = o => JSON.stringify(o, (k, v) => k === '_ts' ? undefined : v);
+const lastSnap = {}; // снимок состояния при последнем сохранении: по нему видно, что игрок реально что-то изменил
 function loadState(key) {
   let s = defState();
   try { const r = JSON.parse(localStorage.getItem(key)); if (r) s = Object.assign(defState(), r); } catch (e) {}
+  lastSnap[key] = snapOf(s);
   return s;
 }
 if (!PR.list.length) {
@@ -169,6 +172,8 @@ let S = loadState(KEYNOW);
 function save() {
   try {
     if (!PR.list.length && S.name) { PR = { list: [{ id: 'p0', name: S.name, key: KEYNOW }], cur: 'p0' }; savePR(); }
+    const sn = snapOf(S);
+    if (sn !== lastSnap[KEYNOW]) { lastSnap[KEYNOW] = sn; S._ts = Date.now(); cloudDirty(); }
     localStorage.setItem(KEYNOW, JSON.stringify(S));
     const p = PR.list.find(x => x.id === PR.cur);
     if (p && S.name && p.name !== S.name) { p.name = S.name; savePR(); }
@@ -414,7 +419,7 @@ function voiceCheck() {
 let newPlayerFrom = null; // id игрока, с которого перешли к созданию нового (чтобы можно было отменить)
 function useProfile(id) {
   const p = PR.list.find(x => x.id === id); if (!p) return;
-  PR.cur = id; savePR(); KEYNOW = p.key; S = loadState(KEYNOW); applyTheme(); map();
+  PR.cur = id; savePR(); KEYNOW = p.key; S = loadState(KEYNOW); applyTheme(); syncSoon(true); map();
 }
 function addPlayer() {
   newPlayerFrom = PR.cur;
@@ -439,8 +444,10 @@ function players() {
   }).join('');
   app.innerHTML = `<div class="card top">${S.name ? '<button class="btn small sec" id="bk">⬅ Карта</button>' : ''}<div class="grow center"><h2>👤 Кто занимается?</h2></div></div>
     <div class="card"><div class="shop">${cards}<div class="item"><div class="ie">➕</div><b>Новый игрок</b><br><button class="btn small gold" id="np">Добавить</button></div></div>
-      <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. Данные хранятся на этом устройстве.</small></p></div>`;
+      <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button></p>
+      <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. ${cloudOn() ? 'Прогресс синхронизируется с облаком.' : 'Данные хранятся на этом устройстве.'}</small></p></div>`;
   if ($('bk')) $('bk').onclick = map;
+  $('cl').onclick = () => cloudScreen(players);
   $('np').onclick = addPlayer;
   app.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => useProfile(b.dataset.pl));
   app.querySelectorAll('[data-ren]').forEach(b => b.onclick = () => {
@@ -465,6 +472,142 @@ function players() {
   });
 }
 
+/* ---------- облако: семейный код и синхронизация ---------- */
+const CK = 'engAdventure_cloud';
+let CL = { url: '', code: '', last: 0, err: '' };
+try { const r = JSON.parse(localStorage.getItem(CK)); if (r) CL = Object.assign(CL, r); } catch (e) {}
+const saveCL = () => { try { localStorage.setItem(CK, JSON.stringify(CL)); } catch (e) {} };
+const cloudUrl = () => CL.url || (typeof CLOUD_URL === 'string' ? CLOUD_URL : '');
+const cloudOn = () => !!(cloudUrl() && CL.code);
+const cloudStatus = () => CL.err ? 'Нет связи с облаком (' + CL.err + '). Данные сохранены на устройстве и отправятся позже.' : CL.last ? 'Последняя синхронизация: ' + new Date(CL.last).toLocaleString('ru-RU') + '.' : 'Ещё не синхронизировалось.';
+async function api(op, data) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const r = await fetch(cloudUrl(), { method: 'POST', body: JSON.stringify(Object.assign({ op, code: CL.code }, data)), signal: ctl.signal });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.err || 'ошибка облака');
+    return j;
+  } finally { clearTimeout(t); }
+}
+const newCid = () => 'c' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+const genCode = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += a[Math.floor(Math.random() * a.length)]; return c; };
+// слияние двух версий прогресса: ничего не теряется, одиночные значения берём из более свежей версии
+function mergeState(a, b) {
+  const newer = (a._ts || 0) >= (b._ts || 0) ? a : b, older = newer === a ? b : a;
+  const m = Object.assign(defState(), older, newer);
+  const keyed = (x, y, pick) => { const o = {}; new Set([...Object.keys(x || {}), ...Object.keys(y || {})]).forEach(k => { const p = (x || {})[k], q = (y || {})[k]; o[k] = !p ? q : !q ? p : pick(p, q); }); return o; };
+  const prog = (p, q) => Object.assign({}, q, p, { done: !!(p.done || q.done), stars: Math.max(p.stars || 0, q.stars || 0) });
+  ['lessons', 'dlg', 'songs', 'audio'].forEach(k => { m[k] = keyed(a[k], b[k], prog); });
+  m.words = keyed(a.words, b.words, (p, q) => { const w = (p.seen || 0) >= (q.seen || 0) ? p : q; return Object.assign({}, w, { first: [p.first, q.first].filter(Boolean).sort()[0] || w.first }); });
+  m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
+  m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
+  ['sets', 'ach', 'bonusGiven'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
+  m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
+  m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
+  ['totalDays', 'maxStreak', 'maxEm', 'petXp'].forEach(k => { m[k] = Math.max(a[k] || 0, b[k] || 0); });
+  m._ts = Math.max(a._ts || 0, b._ts || 0);
+  return m;
+}
+const curPlayer = () => PR.list.find(x => x.id === PR.cur);
+let syncBusy = false, pushTimer = 0, lastSync = 0, needPush = false;
+function cloudDirty() {
+  if (!cloudOn()) return;
+  needPush = true; clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => cloudSync(false), 6000);
+}
+function syncSoon(force) { if (cloudOn() && (force || Date.now() - lastSync > 120000)) cloudSync(true); }
+// pull = true: сначала забрать из облака и слить; потом всегда отправить
+async function cloudSync(pull) {
+  if (!cloudOn() || syncBusy) return;
+  const p = curPlayer(); if (!p || !S.name) return;
+  syncBusy = true;
+  try {
+    if (!p.cid) { p.cid = newCid(); savePR(); }
+    const cid = p.cid, key = KEYNOW;
+    let changed = false;
+    if (pull) {
+      const r = await api('pull', { id: cid });
+      if (r.state && KEYNOW === key) {
+        const remote = JSON.parse(r.state), before = snapOf(S), merged = mergeState(S, remote);
+        Object.keys(S).forEach(k => delete S[k]); Object.assign(S, merged);
+        changed = snapOf(S) !== before;
+        lastSnap[key] = snapOf(S);
+        try { localStorage.setItem(key, JSON.stringify(S)); } catch (e) {}
+        if (S.name && p.name !== S.name) { p.name = S.name; savePR(); }
+      }
+    }
+    if (KEYNOW === key) await api('push', { id: cid, name: S.name, ts: S._ts || 0, state: JSON.stringify(S) });
+    needPush = false; CL.last = Date.now(); CL.err = ''; lastSync = Date.now(); saveCL();
+    if (changed && document.getElementById('vw')) { applyTheme(); map(); } // мы на карте: показать полученное
+  } catch (e) { CL.err = String(e.message || e).slice(0, 40); saveCL(); }
+  syncBusy = false;
+}
+async function cloudPin() {
+  if (!cloudOn() || !getPin()) return;
+  try { await api('setpin', { pin: getPin() }); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && needPush) cloudSync(false); });
+window.addEventListener('online', () => { if (needPush) cloudSync(false); });
+
+function cloudScreen(back) {
+  epoch++; newScreen();
+  let msg = '', cloudPlayers = null;
+  const draw = () => {
+    const urlBlock = cloudUrl() ? '' : '<p>1) Вставьте ссылку на облако (её выдаёт тот, кто настраивал, см. cloud/НАСТРОЙКА.md):</p><input type="text" id="cu" placeholder="https://script.google.com/macros/s/.../exec">';
+    let body;
+    if (!cloudOn()) {
+      body = `${urlBlock}<p>${cloudUrl() ? '' : '2) '}Семейный код (6 знаков):</p><input type="text" id="cc" maxlength="12" placeholder="ABC234" style="text-transform:uppercase">
+        <p><button class="btn gold" id="cj">Войти по коду</button> <button class="btn small sec" id="cn">Создать новый семейный код</button></p>
+        <p><small>Новый код создаёт родитель один раз на первом устройстве. Остальные устройства входят по этому же коду, потом выбирают игрока.</small></p>`;
+    } else {
+      const have = new Set(PR.list.map(x => x.cid).filter(Boolean));
+      const remote = (cloudPlayers || []).map(c => `<p><b>${esc(c.name)}</b> ${have.has(c.id) ? '(уже на этом устройстве)' : ''} <button class="btn small gold" data-dl="${c.id}">${have.has(c.id) ? 'Играть' : 'Загрузить сюда'}</button></p>`).join('') || '<p>В облаке пока нет игроков.</p>';
+      const up = PR.list.filter(x => !x.cid).map(x => `<p>${esc(x.name)} <button class="btn small" data-up="${x.id}">Отправить в облако</button></p>`).join('');
+      body = `<p>Семейный код: <b style="font-size:1.6rem;letter-spacing:3px">${esc(CL.code)}</b></p><p><small>${esc(cloudStatus())}</small></p>
+        <h3>Игроки в облаке</h3>${remote}${up ? '<h3>Только на этом устройстве</h3>' + up : ''}
+        <p><button class="btn small" id="cs">🔄 Синхронизировать сейчас</button> <button class="btn small red" id="co">Выйти с этого устройства</button></p>`;
+    }
+    app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>☁️ Облако</h2>${body}<p class="pmsg">${esc(msg)}</p></div>`;
+    $('bk').onclick = back;
+    const run = async (fn) => { let pr; try { pr = fn(); } catch (e) { pr = Promise.reject(e); } msg = 'Подождите...'; draw(); const my = screenId; try { await pr; msg = ''; } catch (e) { msg = 'Не получилось: ' + String(e.message || e); } if (screenId === my) draw(); };
+    const readUrl = () => { if ($('cu')) { const u = $('cu').value.trim(); if (u) { CL.url = u; saveCL(); } } if (!cloudUrl()) throw new Error('вставьте ссылку на облако'); };
+    const login = async (code, create) => {
+      readUrl();
+      CL.code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const r = await api('init', {});
+      if (!create && r.created) { CL.code = ''; throw new Error('такого кода нет'); }
+      if (create && !r.created) { CL.code = ''; throw new Error('код занят, попробуйте ещё раз'); }
+      CL.err = ''; saveCL(); cloudPlayers = r.players;
+      if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
+    };
+    if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false); });
+    if ($('cn')) $('cn').onclick = () => run(() => login(genCode(), true));
+    if ($('cs')) $('cs').onclick = () => run(async () => {
+      if (S.name && curPlayer()) { syncBusy = false; await cloudSync(true); if (CL.err) throw new Error(CL.err); }
+      cloudPlayers = (await api('join', {})).players;
+    });
+    if ($('co')) $('co').onclick = () => { if (!confirm('Выйти из облака на этом устройстве? Прогресс на устройстве останется.')) return; CL.code = ''; saveCL(); cloudPlayers = null; draw(); };
+    app.querySelectorAll('[data-up]').forEach(b => b.onclick = () => run(async () => {
+      const p = PR.list.find(x => x.id === b.dataset.up); p.cid = newCid(); savePR();
+      const st = loadState(p.key); await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
+      cloudPlayers = (await api('join', {})).players;
+    }));
+    app.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => run(async () => {
+      const cid = b.dataset.dl;
+      let p = PR.list.find(x => x.cid === cid);
+      if (!p) {
+        const r = await api('pull', { id: cid }); if (!r.state) throw new Error('данные не найдены');
+        const id = 'p' + Date.now().toString(36);
+        p = { id, name: r.name || 'Игрок', key: KEY + '_' + id, cid };
+        PR.list.push(p); try { localStorage.setItem(p.key, r.state); } catch (e) {}
+      }
+      newPlayerFrom = null; savePR(); useProfile(p.id);
+    }));
+  };
+  draw();
+  if (cloudOn() && !cloudPlayers) (async () => { try { cloudPlayers = (await api('join', {})).players; draw(); } catch (e) { msg = 'Нет связи: ' + String(e.message || e); draw(); } })();
+}
+
 /* ---------- приветствие ---------- */
 function welcome() {
   let hue = S.hue;
@@ -474,8 +617,10 @@ function welcome() {
     <p>Как тебя зовут?</p><input type="text" id="nm" maxlength="14" placeholder="Твоё имя" value="${esc(S.name)}">
     <p>Выбери своего робота:</p><div id="heroes"></div>
     <p><button class="btn gold" id="go">Начать приключение ➜</button></p>
-    ${newPlayerFrom ? '<p><button class="btn small sec" id="wb">⬅ Назад к игрокам</button></p>' : ''}</div>`;
+    ${newPlayerFrom ? '<p><button class="btn small sec" id="wb">⬅ Назад к игрокам</button></p>' : ''}
+    <p><button class="btn small sec" id="clw">☁️ У меня уже есть семейный код</button></p></div>`;
   if ($('wb')) $('wb').onclick = cancelNewPlayer;
+  $('clw').onclick = () => cloudScreen(welcome);
   const draw = () => {
     $('heroes').innerHTML = HEROES.map(h => `<button class="btn ${h === hue ? 'gold' : 'sec'}" data-h="${h}"><span style="font-size:60px;filter:hue-rotate(${h}deg)">🤖</span></button>`).join('');
     $('heroes').querySelectorAll('button').forEach(b => b.onclick = () => { hue = +b.dataset.h; draw(); });
@@ -536,6 +681,7 @@ function map() {
   };
   $('awb').onclick = awards;
   $('who').onclick = players;
+  syncSoon();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
@@ -986,7 +1132,7 @@ function parentGate() {
         cur = ''; return draw('Неверный код, попробуйте ещё раз');
       }
       if (step === 'new') { first = cur; cur = ''; step = 'again'; return draw(); }
-      if (cur === first) { try { localStorage.setItem(PIN_KEY, cur); } catch (e) {} return parent(); }
+      if (cur === first) { try { localStorage.setItem(PIN_KEY, cur); } catch (e) {} cloudPin(); return parent(); }
       cur = ''; first = ''; step = 'new'; draw('Коды не совпали, начните заново');
     });
   };
@@ -1011,6 +1157,9 @@ function parent() {
     <div class="card"><h3>🎁 Семейные призы</h3>
       <p>Договоритесь с ребёнком о награде в жизни за получение наград в игре (например, «поход в кино» или «выбрать мультфильм»). Ребёнок увидит их на экране «Награды».</p>
       ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${(p.text || '').replace(/"/g, '&quot;')}"></p>`).join('')}</div>
+    <div class="card"><h3>☁️ Синхронизация между устройствами</h3>
+      <p>${cloudOn() ? 'Включена. Семейный код: <b>' + esc(CL.code) + '</b>. ' + esc(cloudStatus()) : 'Не включена: прогресс хранится только на этом устройстве.'}</p>
+      <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
@@ -1024,6 +1173,7 @@ function parent() {
       <button class="btn small" id="im">Загрузить из текста</button></div>`;
   $('bk').onclick = map;
   $('rpt').onclick = weeklyReport;
+  $('clp').onclick = () => cloudScreen(parent);
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });
   const vstat = () => {
@@ -1747,6 +1897,7 @@ function diag() {
 
 /* ---------- старт ---------- */
 applyTheme();
+syncSoon(true);
 if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается
 else S.name ? map() : welcome();
 })();
