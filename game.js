@@ -73,9 +73,31 @@ const defState = () => ({
 });
 const W = () => WORLDS[S.world] || WORLDS[0];
 const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WORLDS[k - 1].boss.id] || {}).done;
-let S = defState();
-try { const r = JSON.parse(localStorage.getItem(KEY)); if (r) S = Object.assign(defState(), r); } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+/* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
+const PKEY = 'engAdventure_profiles';
+let PR = { list: [], cur: null };
+try { const r = JSON.parse(localStorage.getItem(PKEY)); if (r && r.list) PR = r; } catch (e) {}
+const savePR = () => { try { localStorage.setItem(PKEY, JSON.stringify(PR)); } catch (e) {} };
+function loadState(key) {
+  let s = defState();
+  try { const r = JSON.parse(localStorage.getItem(key)); if (r) s = Object.assign(defState(), r); } catch (e) {}
+  return s;
+}
+if (!PR.list.length) {
+  let legacy = null; try { legacy = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  if (legacy) { PR = { list: [{ id: 'p0', name: legacy.name || 'Игрок', key: KEY }], cur: 'p0' }; savePR(); }
+}
+let KEYNOW = (PR.list.find(p => p.id === PR.cur) || {}).key || KEY;
+let S = loadState(KEYNOW);
+function save() {
+  try {
+    if (!PR.list.length && S.name) { PR = { list: [{ id: 'p0', name: S.name, key: KEYNOW }], cur: 'p0' }; savePR(); }
+    localStorage.setItem(KEYNOW, JSON.stringify(S));
+    const p = PR.list.find(x => x.id === PR.cur);
+    if (p && S.name && p.name !== S.name) { p.name = S.name; savePR(); }
+  } catch (e) {}
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /* ---------- звук и озвучка ---------- */
 let ac;
@@ -193,9 +215,10 @@ function touchStreak() {
 }
 const shownStreak = () => (S.lastDay && dayDiff(S.lastDay, today()) <= 1) ? S.streak : 0;
 function petStage(xp = S.petXp) { let k = 0; PET_STAGES.forEach((p, i) => { if (xp >= p[0]) k = i; }); return k; }
-function hero(size, hue) {
-  const h = hue === undefined ? S.hue : hue;
-  const it = (slot, cls) => (S[slot] && ITEMS[S[slot]] ? `<span class="${cls}">${ITEMS[S[slot]].e}</span>` : '');
+function hero(size, hue, st) {
+  const s = st || S;
+  const h = hue === undefined ? s.hue : hue;
+  const it = (slot, cls) => (s[slot] && ITEMS[s[slot]] ? `<span class="${cls}">${ITEMS[s[slot]].e}</span>` : '');
   return `<span class="hero" style="font-size:${size}px"><span style="filter:hue-rotate(${h}deg)">🤖</span>${it('hat', 'hat')}${it('face', 'face')}${it('back', 'back')}${it('hand', 'hand')}</span>`;
 }
 function applyTheme() {
@@ -221,24 +244,81 @@ function runSteps(ctx, final) {
   go();
 }
 
+/* ---------- игроки ---------- */
+let newPlayerFrom = null; // id игрока, с которого перешли к созданию нового (чтобы можно было отменить)
+function useProfile(id) {
+  const p = PR.list.find(x => x.id === id); if (!p) return;
+  PR.cur = id; savePR(); KEYNOW = p.key; S = loadState(KEYNOW); applyTheme(); map();
+}
+function addPlayer() {
+  newPlayerFrom = PR.cur;
+  const id = 'p' + Date.now().toString(36);
+  PR.list.push({ id, name: 'Новый игрок', key: KEY + '_' + id }); PR.cur = id; savePR();
+  KEYNOW = KEY + '_' + id; S = defState(); applyTheme(); welcome();
+}
+function cancelNewPlayer() {
+  const id = PR.cur;
+  try { localStorage.removeItem(KEYNOW); } catch (e) {}
+  PR.list = PR.list.filter(x => x.id !== id);
+  PR.cur = (PR.list.find(x => x.id === newPlayerFrom) || PR.list[0] || {}).id || null;
+  const p = PR.list.find(x => x.id === PR.cur); KEYNOW = p ? p.key : KEY; S = loadState(KEYNOW);
+  newPlayerFrom = null; savePR(); applyTheme(); players();
+}
+function players() {
+  const cards = PR.list.map(p => {
+    const st = loadState(p.key), done = Object.values(st.lessons || {}).filter(x => x.done).length;
+    return `<div class="item"><div class="ie">${hero(56, st.hue, st)}</div><b>${esc(p.name)}</b><br><small>💎 ${st.emeralds || 0} · пройдено локаций: ${done}</small><br>
+      <button class="btn small ${p.id === PR.cur ? 'gold' : ''}" data-pl="${p.id}">Играть</button><br>
+      <button class="btn small sec" data-ren="${p.id}" title="Переименовать">✏️</button><button class="btn small sec" data-del="${p.id}" title="Удалить">🗑</button></div>`;
+  }).join('');
+  app.innerHTML = `<div class="card top">${S.name ? '<button class="btn small sec" id="bk">⬅ Карта</button>' : ''}<div class="grow center"><h2>👤 Кто занимается?</h2></div></div>
+    <div class="card"><div class="shop">${cards}<div class="item"><div class="ie">➕</div><b>Новый игрок</b><br><button class="btn small gold" id="np">Добавить</button></div></div>
+      <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. Данные хранятся на этом устройстве.</small></p></div>`;
+  if ($('bk')) $('bk').onclick = map;
+  $('np').onclick = addPlayer;
+  app.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => useProfile(b.dataset.pl));
+  app.querySelectorAll('[data-ren]').forEach(b => b.onclick = () => {
+    const p = PR.list.find(x => x.id === b.dataset.ren);
+    const nn = (prompt('Новое имя игрока:', p.name) || '').replace(/[<>&"]/g, '').trim().slice(0, 14);
+    if (!nn) return;
+    p.name = nn;
+    if (p.id === PR.cur) { S.name = nn; save(); } else { const st = loadState(p.key); st.name = nn; try { localStorage.setItem(p.key, JSON.stringify(st)); } catch (e) {} }
+    savePR(); players();
+  });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const p = PR.list.find(x => x.id === b.dataset.del);
+    if (!confirm(`Удалить игрока «${p.name}» и весь его прогресс? Это нельзя отменить.`)) return;
+    try { localStorage.removeItem(p.key); } catch (e) {}
+    PR.list = PR.list.filter(x => x.id !== p.id);
+    if (PR.cur === p.id) {
+      if (PR.list.length) { PR.cur = PR.list[0].id; KEYNOW = PR.list[0].key; S = loadState(KEYNOW); } else { PR.cur = null; KEYNOW = KEY; S = defState(); }
+    }
+    savePR(); applyTheme();
+    if (!PR.list.length) return welcome();
+    players();
+  });
+}
+
 /* ---------- приветствие ---------- */
 function welcome() {
   let hue = S.hue;
   app.innerHTML = `<div class="card center">
     <h1>⛏️ Остров английских слов 🤖</h1>
     <p>Злой Забывака украл английские слова! Только ты можешь их вернуть.</p>
-    <p>Как тебя зовут?</p><input type="text" id="nm" maxlength="14" placeholder="Твоё имя" value="${S.name}">
+    <p>Как тебя зовут?</p><input type="text" id="nm" maxlength="14" placeholder="Твоё имя" value="${esc(S.name)}">
     <p>Выбери своего робота:</p><div id="heroes"></div>
-    <p><button class="btn gold" id="go">Начать приключение ➜</button></p></div>`;
+    <p><button class="btn gold" id="go">Начать приключение ➜</button></p>
+    ${newPlayerFrom ? '<p><button class="btn small sec" id="wb">⬅ Назад к игрокам</button></p>' : ''}</div>`;
+  if ($('wb')) $('wb').onclick = cancelNewPlayer;
   const draw = () => {
     $('heroes').innerHTML = HEROES.map(h => `<button class="btn ${h === hue ? 'gold' : 'sec'}" data-h="${h}"><span style="font-size:60px;filter:hue-rotate(${h}deg)">🤖</span></button>`).join('');
     $('heroes').querySelectorAll('button').forEach(b => b.onclick = () => { hue = +b.dataset.h; draw(); });
   };
   draw();
   $('go').onclick = () => {
-    const n = $('nm').value.trim();
+    const n = $('nm').value.replace(/[<>&"]/g, '').trim();
     if (!n) { toast('Напиши, как тебя зовут 🙂'); return; }
-    S.name = n; S.hue = hue; save();
+    S.name = n; S.hue = hue; newPlayerFrom = null; save();
     Object.keys(S.lessons).length || S.diagDone ? map() : diagIntro();
   };
 }
@@ -271,7 +351,7 @@ function map() {
       <div class="grow"><h2>Привет, ${S.name}!</h2>
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
-      <div>${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="dlgb">💬 Диалоги</button><button class="btn small sec" id="sgb">🎵 Песенки</button><button class="btn small sec" id="aub">🎧 Аудирование</button><button class="btn small sec" id="vcb">📖 Словарик</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button><button class="btn small sec" id="parent">👨‍👩‍👧 Родителям</button><button class="btn small sec" id="mute">${S.mute ? '🔇' : '🔊'}</button></div>
+      <div>${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="dlgb">💬 Диалоги</button><button class="btn small sec" id="sgb">🎵 Песенки</button><button class="btn small sec" id="aub">🎧 Аудирование</button><button class="btn small sec" id="vcb">📖 Словарик</button><button class="btn small sec" id="who">👤 Сменить игрока</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button><button class="btn small sec" id="parent">👨‍👩‍👧 Родителям</button><button class="btn small sec" id="mute">${S.mute ? '🔇' : '🔊'}</button></div>
     </div>
     <div class="center">${tabs}</div>
     <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (S.world + 1 < WORLDS.length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
@@ -284,6 +364,7 @@ function map() {
   $('aub').onclick = listening;
   $('vcb').onclick = vocab;
   $('awb').onclick = awards;
+  $('who').onclick = players;
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
@@ -728,7 +809,7 @@ function parent() {
   };
   $('dgp').onclick = diagIntro;
   $('ua').onclick =() => { S.unlockAll = !S.unlockAll; save(); parent(); };
-  $('rs').onclick = () => { if (confirm('Удалить весь прогресс?')) { S = defState(); save(); applyTheme(); welcome(); } };
+  $('rs').onclick = () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } };
   $('im').onclick = () => {
     try { S = Object.assign(defState(), JSON.parse($('ex').value)); save(); applyTheme(); toast('Прогресс загружен ✅'); map(); }
     catch (e) { toast('Не получилось прочитать текст ❌'); }
@@ -1418,5 +1499,6 @@ function diag() {
 
 /* ---------- старт ---------- */
 applyTheme();
-S.name ? map() : welcome();
+if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается
+else S.name ? map() : welcome();
 })();
