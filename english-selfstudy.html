@@ -190,6 +190,20 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 @keyframes pulse{50%{transform:scale(1.07)}}
 @media (max-width:560px){.opts.mine{grid-template-columns:repeat(2,1fr)}.mem{grid-template-columns:repeat(3,1fr)}}
 
+/* главная карта: крупная «Играть», мелкие иконки */
+.tbtns{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.btn.play{font-size:1.5rem;padding:.55em 1.3em;background:#4caf50;color:#fff}
+.mini{display:flex;gap:6px;width:100%;justify-content:flex-end}
+.ib{font:inherit;font-size:1.1rem;padding:4px 10px;border:3px solid #1b1b1b;border-radius:8px;background:#e8e8e8;opacity:.75;cursor:pointer}
+.moregrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.pinbox{text-align:center;max-width:340px;margin:0 auto}
+.dots{display:flex;gap:12px;justify-content:center;margin:8px 0}
+.dots i{width:22px;height:22px;border:3px solid #1b1b1b;border-radius:50%;background:#fff}
+.dots i.on{background:#1b1b1b}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pad .btn{font-size:1.5rem;padding:.5em 0}
+.pmsg{color:#c62828;min-height:1.4em}
+
 </style>
 </head>
 <body>
@@ -2146,19 +2160,22 @@ function map() {
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
-      <div>${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="dlgb">💬 Диалоги</button><button class="btn small sec" id="sgb">🎵 Песенки</button><button class="btn small sec" id="aub">🎧 Аудирование</button><button class="btn small sec" id="vcb">📖 Словарик</button><button class="btn small sec" id="who">👤 Сменить игрока</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button><button class="btn small sec" id="parent">👨‍👩‍👧 Родителям</button><button class="btn small sec" id="mute">${S.mute ? '🔇' : '🔊'}</button></div>
+      <div class="tbtns">${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="more">📚 Ещё</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
+        <div class="mini"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
     <div id="vw"></div>
     <div class="center">${tabs}</div>
     <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (S.world + 1 < WORLDS.length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
     <div class="map">${rows}</div>`;
-  $('shop').onclick = shop; $('parent').onclick = parent;
+  $('shop').onclick = shop; $('parent').onclick = parentGate;
   if ($('dg')) $('dg').onclick = diagIntro;
   $('trn').onclick = training;
-  $('dlgb').onclick = dialogs;
-  $('sgb').onclick = songs;
-  $('aub').onclick = listening;
-  $('vcb').onclick = vocab;
+  $('more').onclick = more;
+  $('play').onclick = () => {
+    if (cur) return startLesson(nextI);
+    if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
+    toast('Мир пройден! Выбери урок на карте или загляни в «Тренировку» 🏆');
+  };
   $('awb').onclick = awards;
   $('who').onclick = players;
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
@@ -2581,6 +2598,43 @@ function shop() {
 }
 
 /* ---------- родителям ---------- */
+/* ---------- «Ещё» и PIN для родителей ---------- */
+function more() {
+  epoch++; newScreen();
+  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button></div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab;
+}
+const PIN_KEY = 'engAdventure_pin';
+const getPin = () => { try { return localStorage.getItem(PIN_KEY) || ''; } catch (e) { return ''; } };
+function parentGate() {
+  epoch++; newScreen();
+  const have = getPin();
+  let step = have ? 'enter' : 'new', first = '', cur = '';
+  const draw = (msg) => {
+    const title = step === 'enter' ? 'Введите PIN-код' : step === 'new' ? 'Придумайте PIN-код (4 цифры)' : 'Повторите PIN-код';
+    app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🔒 Для родителей</h2>
+      <p>${title}</p><div class="dots">${[0, 1, 2, 3].map(i => `<i class="${i < cur.length ? 'on' : ''}"></i>`).join('')}</div>
+      <p class="pmsg">${msg || '&nbsp;'}</p>
+      <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, ''].map(k => k === '' ? '<span></span>' : `<button class="btn" data-k="${k}">${k}</button>`).join('')}</div>
+      ${step === 'enter' ? '<p><small>Забыли код? Откройте «Родителям» после сброса: удалите ключ engAdventure_pin в данных сайта браузера.</small></p>' : ''}</div>`;
+    $('bk').onclick = map;
+    app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const k = b.dataset.k;
+      if (k === '⌫') cur = cur.slice(0, -1); else if (cur.length < 4) cur += k;
+      if (cur.length < 4) return draw();
+      if (step === 'enter') {
+        if (cur === have) return parent();
+        cur = ''; return draw('Неверный код, попробуйте ещё раз');
+      }
+      if (step === 'new') { first = cur; cur = ''; step = 'again'; return draw(); }
+      if (cur === first) { try { localStorage.setItem(PIN_KEY, cur); } catch (e) {} return parent(); }
+      cur = ''; first = ''; step = 'new'; draw('Коды не совпали, начните заново');
+    });
+  };
+  draw();
+}
+
 function parent() {
   const rows = WORLDS.map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
