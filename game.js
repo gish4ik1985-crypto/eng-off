@@ -63,6 +63,24 @@ Object.assign(HANDS, {
   i_brush: { e: '🎨', n: 'Палитра', p: 12 }, i_mic: { e: '🎤', n: 'Микрофон', p: 14 }, i_cup: { e: '🏆', n: 'Кубок', p: 25 },
   i_trident: { e: '🔱', n: 'Трезубец', p: 30 }
 });
+// ---- редкие предметы: нельзя купить, открываются за ачивки (a — id ачивки) ----
+Object.assign(HATS, {
+  r_h1: { e: '👾', n: 'Трофей Забывака', p: 999, a: 'b1' }, r_h2: { e: '👹', n: 'Маска Путаницы', p: 999, a: 'b2' },
+  r_h3: { e: '🔮', n: 'Магический шар', p: 999, a: 'b3' }, r_h4: { e: '💫', n: 'Кометный венец', p: 999, a: 'all' },
+  r_h5: { e: '🏅', n: 'Золотая медаль', p: 999, a: 'g25' }, r_h6: { e: '🎶', n: 'Музыка в голове', p: 999, a: 'aud60' }
+});
+Object.assign(FACES, {
+  r_f1: { e: '🤩', n: 'Звёздный взгляд', p: 999, a: 't30' }, r_f2: { e: '🥷', n: 'Ниндзя-знаток', p: 999, a: 'tale' },
+  r_f3: { e: '👂', n: 'Супер-слух', p: 999, a: 'aud25' }
+});
+Object.assign(BACKS, {
+  r_b1: { e: '🦅', n: 'Орёл стойкости', p: 999, a: 'st30' }, r_b2: { e: '🐉', n: 'Дракон за спиной', p: 999, a: 'p5' },
+  r_b3: { e: '🌈', n: 'Радужный плащ', p: 999, a: 's100' }
+});
+Object.assign(HANDS, {
+  r_i1: { e: '📚', n: 'Волшебная библиотека', p: 999, a: 'w200' }, r_i2: { e: '🔥', n: 'Факел недели', p: 999, a: 'st7' },
+  r_i3: { e: '🗝️', n: 'Ключ знаний', p: 999, a: 'diag' }
+});
 const ITEMS = Object.assign({}, HATS, FACES, BACKS, HANDS);
 const HUES = [
   { h: 0, n: 'Классика', p: 0 }, { h: 140, n: 'Мята', p: 0 }, { h: 260, n: 'Лёд', p: 0 },
@@ -100,8 +118,27 @@ Object.assign(PET_LINES, {
 const TITLES = {
   t_explorer: { e: '🧭', n: 'Юный исследователь', p: 5 }, t_hero: { e: '🛡️', n: 'Герой слов', p: 10 }, t_robot: { e: '🤖', n: 'Друг роботов', p: 10 },
   t_miner: { e: '⛏️', n: 'Шахтёр знаний', p: 15 }, t_knight: { e: '⚔️', n: 'Рыцарь грамматики', p: 20 }, t_wizard: { e: '🧙', n: 'Волшебник английского', p: 25 },
-  t_captain: { e: '⚓', n: 'Капитан острова', p: 30 }, t_legend: { e: '👑', n: 'Легенда Spotlight', p: 50 }
+  t_captain: { e: '⚓', n: 'Капитан острова', p: 30 }, t_legend: { e: '👑', n: 'Легенда Spotlight', p: 50 },
+  t_r1: { e: '👾', n: 'Победитель Забывака', p: 999, a: 'b1' }, t_r2: { e: '🌍', n: 'Мастер всех миров', p: 999, a: 'all' },
+  t_r3: { e: '📚', n: 'Король словаря', p: 999, a: 'w200' }, t_r4: { e: '🔥', n: 'Железная воля', p: 999, a: 'st30' },
+  t_r5: { e: '📜', n: 'Сказочный герой', p: 999, a: 'tale' }, t_r6: { e: '🎧', n: 'Мастер слуха', p: 999, a: 'aud60' },
+  t_r7: { e: '🏆', n: 'Мастер острова', p: 999, a: 'l60' }
 };
+// редкие питомцы и фоны
+Object.assign(PET_LINES, {
+  legend: { n: 'Звёздный дракон', p: 999, a: 'l60', line: ['🥚', '✨', '🌠', '🦄', '🐲', '👑'] },
+  phoenix: { n: 'Огненная птица', p: 999, a: 'st14', line: ['🥚', '🔥', '🐦', '🦚', '🦅', '🐲'] }
+});
+Object.assign(THEMES, {
+  theme13: { n: 'Золотой остров', p: 999, a: 'e300', bg: 'linear-gradient(#ffe082,#ff8f00)' },
+  theme14: { n: 'Радужное небо', p: 999, a: 't10', bg: 'linear-gradient(#ffb3ba,#ffdfba,#ffffba,#baffc9,#bae1ff)' }
+});
+// какие редкие предметы открывает ачивка
+function rareFor(achId) {
+  const out = [];
+  [ITEMS, TITLES, PET_LINES, THEMES].forEach(src => Object.keys(src).forEach(k => { if (src[k].a === achId) out.push((src[k].e || '🎁') + ' ' + src[k].n); }));
+  return out;
+}
 const HEROES = [0, 140, 260];
 
 const defState = () => ({
@@ -774,6 +811,14 @@ const SHOP_TABS = [
   { k: 'title', t: '🏷️ Звание', src: TITLES, none: 'Без звания' }
 ];
 let shopTab = 'hat';
+// карточка редкого предмета: открыт, если получена нужная ачивка
+function rareCard(it, pic, key, on, onLabel, offLabel, extra = '') {
+  const a = ACH.find(x => x.id === it.a);
+  if (S.ach[it.a]) {
+    return `<div class="item rare">${pic}⭐ ${it.n}<br>${extra}<button class="btn small ${on ? 'gold' : 'sec'}" data-eq="${key}">${on ? onLabel : offLabel}</button></div>`;
+  }
+  return `<div class="item rare lock"><div class="ie">🔒</div>${it.n}<br><small>🏆 Награда за «${a ? a.t : '?'}»</small></div>`;
+}
 const owns = (key, p) => p === 0 || S.owned.includes(key);
 
 function shop() {
@@ -785,6 +830,7 @@ function shop() {
   if (tab.src) {
     cards = Object.keys(tab.src).sort((a, b) => tab.src[a].p - tab.src[b].p).map(k => {
       const it = tab.src[k];
+      if (it.a) return rareCard(it, `<div class="ie">${it.e}</div>`, k, S[tab.k] === k, 'Надето ✓', 'Надеть');
       return `<div class="item"><div class="ie">${it.e}</div>${it.n}<br>${btn(owns(k, 0) && S.owned.includes(k), S[tab.k] === k, k, it.p, 'Надето ✓', 'Надеть')}</div>`;
     }).join('') + (S[tab.k] ? `<div class="item"><div class="ie">🚫</div>${tab.none}<br><button class="btn small sec" data-eq="">Снять</button></div>` : '');
   } else if (tab.k === 'hue') {
@@ -796,11 +842,13 @@ function shop() {
     head = `<p>Имя питомца: <input type="text" id="pn" maxlength="12" value="${(S.petName || 'Кубик').replace(/"/g, '&quot;')}" style="max-width:220px"></p>`;
     cards = Object.keys(PET_LINES).sort((a, b) => PET_LINES[a].p - PET_LINES[b].p).map(k => {
       const p = PET_LINES[k], key = 'pet_' + k;
+      if (p.a) return rareCard(p, `<div class="ie">${p.line[3]}</div>`, k, S.pet === k, 'Мой питомец ✓', 'Выбрать', `<small>${p.line.slice(1).join(' ')}</small><br>`);
       return `<div class="item"><div class="ie">${p.line[3]}</div>${p.n}<br><small>${p.line.slice(1).join(' ')}</small><br>${btn(owns(key, p.p), S.pet === k, key, p.p, 'Мой питомец ✓', 'Выбрать')}</div>`;
     }).join('');
   } else {
     cards = Object.keys(THEMES).sort((a, b) => THEMES[a].p - THEMES[b].p).map(k => {
       const t = THEMES[k];
+      if (t.a) return rareCard(t, `<div class="swatch" style="background:${t.bg}"></div>`, k, S.theme === k, 'Выбран ✓', 'Выбрать');
       return `<div class="item"><div class="swatch" style="background:${t.bg}"></div>Фон: ${t.n}<br>${btn(owns(k, t.p) || S.owned.includes(k), S.theme === k, k, t.p, 'Выбран ✓', 'Выбрать')}</div>`;
     }).join('');
   }
@@ -909,6 +957,8 @@ const ACH = [
   A('Разнообразие', 'song', '🎤', 'Артист', 'Спой 5 рифмовок', 5, 10, () => cntDone(S.songs)),
   A('Разнообразие', 'dlg', '💬', 'Болтун', 'Пройди 5 диалогов', 5, 10, () => cntDone(S.dlg)),
   A('Разнообразие', 'aud', '🎧', 'Слухач', 'Пройди 5 аудирований', 5, 10, () => cntDone(S.audio)),
+  A('Разнообразие', 'aud25', '👂', 'Тонкий слух', 'Пройди 25 аудирований', 25, 25, () => cntDone(S.audio)),
+  A('Разнообразие', 'aud60', '🎶', 'Мастер слуха', 'Пройди 60 аудирований', 60, 40, () => cntDone(S.audio)),
   A('Разнообразие', 'tale', '📜', 'Сказочник', 'Прочитай 5 сказок и басен', 5, 15, () => TALES.filter(t => (S.lessons[t.id] || {}).done).length),
   A('Разнообразие', 'tr', '💪', 'Тренер', 'Пройди 5 тренировок слабых мест', 5, 10, () => (S.cnt || {}).tr || 0),
   A('Разнообразие', 'card', '🃏', 'Мастер карточек', 'Пройди 10 сессий с карточками', 10, 10, () => (S.cnt || {}).card || 0),
@@ -938,6 +988,7 @@ function checkAch() {
   ov.innerHTML = `<div class="card center wc"><h2>🏆 Новая награда!</h2>
     ${shown.map(a => `<div class="story ${tierOf(a)}"><span style="font-size:2.6rem">${a.i}</span><br><b>${a.t}</b><br><small>${a.d}</small><br><span class="chip">+${a.r} 💎</span></div>`).join('')}
     ${got.length > 3 ? `<p>…и ещё ${got.length - 3}! Загляни в «Награды».</p>` : ''}
+    ${got.map(a => rareFor(a.id)).flat().length ? `<div class="story gold">🎁 Открыт редкий предмет:<br><b>${got.map(a => rareFor(a.id)).flat().join(', ')}</b><br><small>Загляни в магазин!</small></div>` : ''}
     <p><button class="btn gold" id="ax">Ура! ➜</button></p></div>`;
   document.body.appendChild(ov);
   $('ax').onclick = () => { ov.remove(); if (document.getElementById('awc')) awards(); };
@@ -952,7 +1003,7 @@ function awards() {
       const pct = Math.min(100, Math.round(v / a.goal * 100));
       return got
         ? `<div class="item ach ${tierOf(a)}"><div class="ie">${a.i}</div><b>${a.t}</b><br><small>${a.d}</small><br><small>✅ ${new Date(got + 'T00:00:00').toLocaleDateString('ru-RU')}</small></div>`
-        : `<div class="item ach lock"><div class="ie">🔒</div><b>${a.t}</b><br><small>${a.d}</small><div class="bar"><i style="width:${pct}%"></i></div><small>${Math.min(v, a.goal)} / ${a.goal} · +${a.r} 💎</small></div>`;
+        : `<div class="item ach lock"><div class="ie">🔒</div><b>${a.t}</b><br><small>${a.d}</small>${rareFor(a.id).length ? `<br><small>🎁 ${rareFor(a.id).join(', ')}</small>` : ''}<div class="bar"><i style="width:${pct}%"></i></div><small>${Math.min(v, a.goal)} / ${a.goal} · +${a.r} 💎</small></div>`;
     }).join('') + '</div>';
   }).join('');
   const prizes = (S.prizes || []).filter(p => p.text && p.text.trim()).map(p => {
@@ -1180,17 +1231,36 @@ function weeklyReport() {
 /* ---------- аудирование ---------- */
 const audioOpen = a => S.unlockAll || (S.lessons[a.req] || {}).done;
 
+let audWorld = -1;
 function listening() {
-  const cards = WORLDS.map((wd, wi) => `<h3>${wd.name}</h3><div class="shop">` + AUDIOS.filter(a => a.world === wi).map(a => {
-    const rec = S.audio[a.id] || {}, ok = audioOpen(a);
-    return `<div class="item" style="${ok ? '' : 'opacity:.6'}"><div class="ie">${ok ? a.icon : '🔒'}</div><b>${a.title}</b><br>
-      ${ok ? `<div>${rec.done ? '⭐'.repeat(rec.stars) : '&nbsp;'}</div><button class="btn small ${rec.done ? 'sec' : 'gold'}" data-a="${a.id}">${rec.done ? 'Ещё раз' : 'Слушать'}</button>`
-           : `<small>Нужно пройти: ${lessonTitle(a.req)}</small>`}</div>`;
-  }).join('') + '</div>').join('');
-  app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>🎧 Аудирование</h2></div></div>
-    <div class="card"><p>Слушай короткие рассказы. Текст спрятан — нужно понять всё на слух! Слушать можно сколько угодно раз, в том числе медленнее.</p>${cards}</div>`;
+  if (audWorld < 0) audWorld = Math.min(S.world, WORLDS.length - 1);
+  const list = AUDIOS.filter(a => a.world === audWorld);
+  const doneN = list.filter(a => (S.audio[a.id] || {}).done).length, openN = list.filter(audioOpen).length;
+  const groups = [];
+  list.forEach(a => { const g = a.grp || 'Первые рассказы'; let o = groups.find(x => x.g === g); if (!o) { o = { g, items: [] }; groups.push(o); } o.items.push(a); });
+  const secs = groups.map(gr => {
+    const open = gr.items.filter(audioOpen), lockedN = gr.items.length - open.length;
+    const reqs = [...new Set(gr.items.filter(a => !audioOpen(a)).map(a => a.req))].map(lessonTitle).join(', ');
+    const cards = open.map(a => {
+      const rec = S.audio[a.id] || {};
+      return `<div class="item"><div class="ie">${a.icon}</div><b>${a.title}</b><br><div>${rec.done ? '⭐'.repeat(rec.stars) : '&nbsp;'}</div><button class="btn small ${rec.done ? 'sec' : 'gold'}" data-a="${a.id}">${rec.done ? 'Ещё раз' : 'Слушать'}</button></div>`;
+    }).join('');
+    const lock = lockedN ? `<div class="item" style="opacity:.6"><div class="ie">🔒</div><b>Ещё ${lockedN}</b><br><small>Нужно пройти: ${reqs}</small></div>` : '';
+    return `<h3>${gr.g} <small>${gr.items.filter(a => (S.audio[a.id] || {}).done).length}/${gr.items.length}</small></h3><div class="shop">${cards}${lock}</div>`;
+  }).join('');
+  const chips = WORLDS.map((wd, i) => `<button class="btn small ${i === audWorld ? 'gold' : 'sec'}" data-aw="${i}">${wd.name}</button>`).join('');
+  app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>🎧 Аудирование</h2></div><button class="btn small gold" id="rnd">🎲 Случайный рассказ</button></div>
+    <div class="card"><p>Слушай короткие рассказы. Текст спрятан — нужно понять всё на слух! Слушать можно сколько угодно раз, в том числе медленнее.</p>
+      <div class="center">${chips}</div><p>Прослушано в этом мире: <b>${doneN}</b> из ${list.length} (открыто: ${openN})</p>${secs}</div>`;
   $('bk').onclick = map;
+  app.querySelectorAll('[data-aw]').forEach(b => b.onclick = () => { audWorld = +b.dataset.aw; listening(); });
   app.querySelectorAll('[data-a]').forEach(b => b.onclick = () => playAudio(AUDIOS.find(a => a.id === b.dataset.a)));
+  $('rnd').onclick = () => {
+    const pool = list.filter(a => audioOpen(a) && !(S.audio[a.id] || {}).done), any = list.filter(audioOpen);
+    const src = pool.length ? pool : any;
+    if (!src.length) return toast('Пройди хотя бы одну локацию этого мира 🙂');
+    playAudio(src[Math.random() * src.length | 0]);
+  };
 }
 
 // экран с рассказом: только звук, без текста

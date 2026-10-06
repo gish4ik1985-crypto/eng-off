@@ -110,6 +110,11 @@ textarea{max-width:100%;font-size:.8rem;height:100px}
 .sw.f{background:var(--em);border:3px solid var(--ink)}
 .tile.wt{width:auto;height:auto;padding:8px 14px;font-size:1.4rem;text-transform:none}
 
+/* редкие предметы */
+.item.rare{background:#fff3b0;border-color:#d4a300}
+.item.rare.lock{background:#e4e4e4;border-color:#999}
+.item.rare.lock .ie{filter:grayscale(1);opacity:.6}
+
 /* награды */
 .ach{font-size:.95rem}
 .ach.bronze{background:#fbe3cf;border-color:#b36a2e}
