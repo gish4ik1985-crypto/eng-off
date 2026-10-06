@@ -1494,6 +1494,17 @@ function speak(t) {
   } catch (e) {}
 }
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
+// ждём не меньше minMs и, пока робот не договорит (но не дольше maxMs), и только потом идём дальше —
+// иначе следующее задание начинается, пока ещё звучит ответ на предыдущее
+function waitSpeech(minMs, cb, maxMs = 5000) {
+  const t0 = Date.now();
+  const check = () => {
+    const busy = 'speechSynthesis' in window && (speechSynthesis.speaking || speechSynthesis.pending);
+    const el = Date.now() - t0;
+    if (el >= minMs && (!busy || el >= maxMs)) cb(); else setTimeout(check, 120);
+  };
+  setTimeout(check, 200);
+}
 
 /* ---------- повторение слов (интервалы) ---------- */
 const INTERVALS = [0, 1, 3, 7, 14, 30];
@@ -1814,7 +1825,7 @@ function storyOrder(ctx, cb) {
       speak(ev[k].en); sfx('ok'); pos++;
       if (pos === ev.length) {
         $('msg').textContent = praise(); ctx.asked++; if (wrong === 0) ctx.ok++; logQ(wrong === 0);
-        setTimeout(cb, 1600);
+        waitSpeech(1600, cb);
       }
     } else {
       wrong++; b.classList.add('bad'); sfx('bad'); $('msg').textContent = 'Почти! Что было раньше всего? 💪';
@@ -1849,7 +1860,7 @@ function gapQuiz(o, done) {
         $('msg').textContent = praise();
         if (o.counted) { ctx.asked++; if (tries === 0) ctx.ok++; }
         grSrs(g, tries === 0); save();
-        i++; setTimeout(next, 1700);
+        i++; waitSpeech(1700, next);
       } else {
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Прочитай перевод и попробуй ещё 💪';
         if (tries >= 2) app.querySelectorAll('.opt').forEach(x => { if (x.dataset.v === g.ans) x.classList.add('hint'); });
@@ -1878,7 +1889,7 @@ function sentBuild(ctx, items, cb) {
         slots[pos].textContent = tk[pos]; slots[pos].classList.add('f'); t.disabled = true; pos++; sfx('ok');
         if (pos === tk.length) {
           $('msg').textContent = praise(); speak(s.en); ctx.asked++; if (wrong === 0) ctx.ok++; logQ(wrong === 0);
-          i++; setTimeout(ask, 1700);
+          i++; waitSpeech(1700, ask);
         }
       } else {
         wrong++; t.classList.add('bad'); sfx('bad'); $('msg').textContent = 'Почти! Подумай, какое слово идёт дальше 💪';
@@ -1945,7 +1956,7 @@ function quiz(o, done) {
         $('msg').textContent = praise();
         if (o.counted) { ctx.asked++; if (tries === 0) ctx.ok++; }
         srs(w.id, tries === 0); save(); i++;
-        setTimeout(next, 1200);
+        waitSpeech(1200, next);
       } else {
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad');
         $('msg').textContent = 'Почти! Попробуй ещё 💪';
@@ -1979,7 +1990,7 @@ function memory(ctx, cb) {
         ctx.asked += ids.length; ctx.ok += ids.length - Math.min(ids.length, Math.floor(mism / 2));
         logQn(ids.length, ids.length - Math.min(ids.length, Math.floor(mism / 2)));
         ids.forEach(id => ensureWord(id)); save(); sfx('win');
-        setTimeout(cb, 1400);
+        waitSpeech(1400, cb);
       }
     } else {
       mism++; lock = true; sfx('bad'); $('msg').textContent = 'Не пара. Запомни и попробуй ещё!';
@@ -2010,7 +2021,7 @@ function build(ctx, cb) {
         if (pos === word.length) {
           $('msg').textContent = praise(); speak(word);
           ctx.asked++; if (wrong === 0) ctx.ok++;
-          srs(w.id, wrong === 0); save(); i++; setTimeout(ask, 1300);
+          srs(w.id, wrong === 0); save(); i++; waitSpeech(1300, ask);
         }
       } else {
         wrong++; t.classList.add('bad'); sfx('bad'); $('msg').textContent = 'Почти! Попробуй другую букву 💪';
@@ -2538,7 +2549,7 @@ function listenPick(ctx, items, cb) {
       if (locked) return;
       if (b.dataset.v === it.say) {
         locked = true; b.classList.add('good'); sfx('ok'); $('msg').textContent = praise();
-        ctx.asked++; if (tries === 0) ctx.ok++; logQ(tries === 0); i++; setTimeout(ask, 1300);
+        ctx.asked++; if (tries === 0) ctx.ok++; logQ(tries === 0); i++; waitSpeech(1300, ask);
       } else {
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Нажми 🔊 или 🐢 и послушай ещё раз 💪';
         if (tries >= 2) app.querySelectorAll('.opt').forEach(x => { if (x.dataset.v === it.say) x.classList.add('hint'); });
@@ -2697,7 +2708,7 @@ function playDialog(d) {
         if (tries === 0) ok1++;
         grSrs(t, tries === 0); save();
         hist.push(t); i++;
-        setTimeout(() => (i >= d.turns.length ? finish() : render()), 1500);
+        waitSpeech(1500, () => (i >= d.turns.length ? finish() : render()));
       } else {
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad');
         $('msg').textContent = 'Почти! Нажми «Показать перевод» и подумай ещё 💪';
@@ -2819,7 +2830,7 @@ function diag() {
       sfx(ok ? 'ok' : 'bad'); speak(sayOk);
       $('msg').textContent = ok ? praise() : 'Ничего, запомним: ' + sayOk;
       asked++;
-      setTimeout(() => { if (!stopped) cb(ok); }, ok ? 1000 : 2200);
+      waitSpeech(ok ? 1000 : 2200, () => { if (!stopped) cb(ok); });
     });
   }
 
