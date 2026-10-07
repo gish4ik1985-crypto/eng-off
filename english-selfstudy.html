@@ -2310,7 +2310,7 @@ function map() {
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
       <div class="tbtns">${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="more">📚 Ещё</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
-        <div class="mini"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
+        <div class="mini">${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
     <div id="vw"></div>
     <div class="center">${tabs}</div>
@@ -2327,6 +2327,7 @@ function map() {
   };
   $('awb').onclick = awards;
   $('who').onclick = players;
+  if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   syncSoon();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   setTimeout(voiceCheck, 1500);
@@ -2756,6 +2757,24 @@ function more() {
   $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab;
 }
 const PIN_KEY = 'engAdventure_pin';
+// сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
+function pinReset() {
+  epoch++; newScreen();
+  const a = 37 + Math.floor(Math.random() * 40), b = 23 + Math.floor(Math.random() * 40);
+  const viaCloud = cloudOn();
+  app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>Сброс PIN-кода</h2>
+    <p>${viaCloud ? 'Введите семейный код (он показан в облаке на любом другом устройстве):' : 'Для родителей: сколько будет ' + a + ' × ' + b + '?'}</p>
+    <input type="text" id="pa" maxlength="12" ${viaCloud ? 'style="text-transform:uppercase"' : 'inputmode="numeric"'}>
+    <p><button class="btn gold" id="ok">Сбросить</button></p><p class="pmsg" id="pm">&nbsp;</p></div>`;
+  $('bk').onclick = parentGate;
+  $('ok').onclick = () => {
+    const v = $('pa').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const good = viaCloud ? v === CL.code : +v === a * b;
+    if (!good) { $('pm').textContent = 'Неверно'; return; }
+    try { localStorage.removeItem(PIN_KEY); } catch (e) {}
+    parentGate();
+  };
+}
 const getPin = () => { try { return localStorage.getItem(PIN_KEY) || ''; } catch (e) { return ''; } };
 function parentGate() {
   epoch++; newScreen();
@@ -2767,7 +2786,8 @@ function parentGate() {
       <p>${title}</p><div class="dots">${[0, 1, 2, 3].map(i => `<i class="${i < cur.length ? 'on' : ''}"></i>`).join('')}</div>
       <p class="pmsg">${msg || '&nbsp;'}</p>
       <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, ''].map(k => k === '' ? '<span></span>' : `<button class="btn" data-k="${k}">${k}</button>`).join('')}</div>
-      ${step === 'enter' ? '<p><small>Забыли код? Откройте «Родителям» после сброса: удалите ключ engAdventure_pin в данных сайта браузера.</small></p>' : ''}</div>`;
+      ${step === 'enter' ? '<p><button class="btn small sec" id="fg">Забыли код?</button></p>' : ''}</div>`;
+    if ($('fg')) $('fg').onclick = pinReset;
     $('bk').onclick = map;
     app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
       const k = b.dataset.k;
@@ -2795,10 +2815,16 @@ function parent() {
     .map(id => `<tr><td>${WORDS[id].e} ${WORDS[id].en}</td><td>${WORDS[id].ru}</td><td>ошибок: ${S.words[id].miss}</td></tr>`).join('')
     + wk.gaps.slice(0, 8).map(k => `<tr><td colspan="2">${GAPIDX[k].en.replace('___', '<b>' + GAPIDX[k].ans + '</b>')}</td><td>ошибок: ${S.gr[k].miss}</td></tr>`).join('');
   const learned = Object.keys(S.words).filter(id => S.words[id].seen > 0).length;
+  const wkStart = addDays(today(), -6);
+  const fam = PR.list.length > 1 ? `<div class="card"><h3>👨‍👩‍👧 Все игроки (последние 7 дней)</h3><table><tr><th>Игрок</th><th>Минут</th><th>Верно</th><th>Локаций</th><th>Серия</th></tr>${PR.list.map(pl => {
+    const st = pl.id === PR.cur ? S : loadState(pl.key); let sec = 0, q = 0, ok = 0;
+    Object.keys(st.log || {}).forEach(d => { if (d >= wkStart) { const x = st.log[d]; sec += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } });
+    return `<tr><td>${esc(pl.name)}</td><td>${Math.round(sec / 60)}</td><td>${q ? Math.round(100 * ok / q) + '%' : '—'}</td><td>${Object.values(st.lessons || {}).filter(x => x.done).length}</td><td>${st.streak || 0}</td></tr>`;
+  }).join('')}</table><p><small>Подробный отчёт по каждому: выберите игрока на экране «Кто занимается?», затем «Родителям».</small></p></div>` : '';
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="rpt">📊 Недельный отчёт</button><h2>Для родителей</h2>
     <p>Выучено слов: <b>${learned}</b> из ${Object.keys(WORDS).length}. Серия: <b>${shownStreak()}</b> дн. Изумрудов: ${S.emeralds}.</p>
     <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
-    <div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
+    ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
     <div class="card"><h3>Слабые места (слова и правила; уходят после 3 верных ответов подряд)</h3>${weak ? `<table>${weak}</table><p>Совет: повторите их без экрана — покажите предмет и попросите назвать, спрячьте карточки по комнате, сыграйте «Покажи и назови».</p>` : '<p>Пока нет данных — всё идёт хорошо!</p>'}</div>
     <div class="card"><h3>🎁 Семейные призы</h3>
       <p>Договоритесь с ребёнком о награде в жизни за получение наград в игре (например, «поход в кино» или «выбрать мультфильм»). Ребёнок увидит их на экране «Награды».</p>
