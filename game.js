@@ -1327,8 +1327,50 @@ document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
 function mathQuiz(o, done) {
   const ctx = o.ctx, total = o.items.length; let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
+  function askWord(sp, q) {
+    let tries = 0, locked = false, buf = '';
+    const norm = s => s.toLowerCase().replace(/ё/g, 'е');
+    const head = o.boss
+      ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
+      : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const letters = [...'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'];
+    const box = () => `<b class="mbox wbox">${buf || '&nbsp;'}</b>`;
+    frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
+      <div class="mq long">${q.q}</div><p class="clue">${q.clue}</p>
+      ${speechOn() ? '<p><button class="btn sec" id="rsay">🔊 Послушать слово</button></p>' : ''}
+      <div class="mans" id="mans">${box()}</div>
+      <div class="rukeys">${letters.map(c => `<button class="btn sec kp" data-k="${c}">${c}</button>`).join('')}<button class="btn sec kp" data-k="⌫">⌫</button><button class="btn gold kp" data-k="✓">✓</button></div>
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId;
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); logQ(ok); save(); };
+    const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
+    const reveal = () => {
+      locked = true; $('msg').innerHTML = `Правильно пишется: <b>${q.ans}</b><br><small>${q.why}</small>`; count(false); i++;
+      $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next;
+    };
+    const wrong = () => {
+      if (shieldUse(ctx)) { buf = ''; sfx('bad'); $('mans').innerHTML = box(); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
+      tries++; buf = ''; sfx('bad'); $('mans').innerHTML = box(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Проверь буквы ещё раз 💪';
+    };
+    const submit = () => { if (locked || !buf) return; if (norm(buf) === norm(q.ans)) { $('mans').innerHTML = box(); solved(); } else wrong(); };
+    const press = k => {
+      if (locked) return;
+      if (k === '✓') return submit();
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 16) buf += k;
+      $('mans').innerHTML = box();
+    };
+    const sayIt = () => { try { const vs = speechSynthesis.getVoices(), v = vs.find(x => /^ru/i.test(x.lang)); if (!v) { $('msg').textContent = 'На этом устройстве нет русского голоса: читай подсказку 🙂'; return; } hardStop(); const u = new SpeechSynthesisUtterance(q.say); u.lang = 'ru-RU'; u.voice = v; u.rate = .7; speechSynthesis.speak(u); } catch (e) {} };
+    app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
+    if ($('rsay')) $('rsay').onclick = sayIt;
+    hintUI(ctx, () => { $('msg').textContent = `💡 Слово начинается на «${q.ans[0].toLowerCase()}», в нём букв: ${q.ans.length}`; tries = Math.max(tries, 1); return true; });
+    mathKeyFn = e => {
+      if (screenId !== my) return;
+      if (/^[а-яё]$/i.test(e.key)) press(e.key.toLowerCase()); else if (e.key === 'Backspace') press('⌫'); else if (e.key === 'Enter') press('✓');
+    };
+  }
   function ask(sp) {
     const q = MQ[sp.g](mathLv(sp));
+    if (q.word) return askWord(sp, q);
     const isEq = !q.opts && !q.parts && /x/.test(q.q);
     const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
     let tries = 0, locked = false, pi = 0, buf = '';

@@ -220,3 +220,4 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .mopts.longopts .opt{min-width:0;width:100%;font-size:1.1rem;text-align:left;padding:10px 14px}
 
 .qpic{display:flex;justify-content:center;margin:6px 0 10px}.qpic .osvg{max-width:100%;height:auto;max-height:220px}.bigem{font-size:64px;line-height:1}
+.clue{font-size:1.15rem;margin:4px 0 10px}.wbox{min-width:200px;font-size:2rem;letter-spacing:3px}.rukeys{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:10px auto}.rukeys .btn{min-width:46px;padding:10px 0;font-size:1.2rem}
