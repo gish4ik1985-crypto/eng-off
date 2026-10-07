@@ -1707,7 +1707,7 @@ const GAL = {
 };
 const IZ_PAL = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#4fc3f7', '#1e63d8', '#8e24aa', '#f48fb1', '#795548', '#222222'];
 function drawLesson(ctx, spec, done) {
-  const tol = spec.tol || 24, steps = spec.steps, prev = [];
+  const tol = spec.tol || 24, steps = spec.steps, prev = (spec.pre || []).slice();
   let k = 0;
   const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const near = (p, arr, r) => { for (let i = 0; i < arr.length; i++) if (dist(p, arr[i]) <= r) return true; return false; };
