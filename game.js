@@ -82,6 +82,7 @@ Object.assign(HANDS, {
   r_i3: { e: '🗝️', n: 'Ключ знаний', p: 999, a: 'diag' }
 });
 const ITEMS = Object.assign({}, HATS, FACES, BACKS, HANDS);
+const ITEMS_BASE_PRICES_SCALED = true; // цены ниже умножаются на 6 один раз после объявления всех товаров
 const HUES = [
   { h: 0, n: 'Классика', p: 0 }, { h: 140, n: 'Мята', p: 0 }, { h: 260, n: 'Лёд', p: 0 },
   { h: 40, n: 'Закат', p: 12 }, { h: 190, n: 'Океан', p: 12 }, { h: 320, n: 'Фиалка', p: 12 }, { h: 80, n: 'Лайм', p: 12 }, { h: 220, n: 'Космос', p: 18 }
@@ -140,13 +141,19 @@ function rareFor(achId) {
   return out;
 }
 const HEROES = [0, 140, 260];
+// цены в 6 раз выше (с округлением до 5): копить на мечту несколько дней — это интереснее, чем покупать всё сразу
+(function scalePrices() {
+  const sc = o => { if (o && o.p > 0 && o.p < 999) o.p = Math.max(5, Math.round(o.p * 6 / 5) * 5); };
+  [HATS, FACES, BACKS, HANDS, TITLES, THEMES, PET_LINES].forEach(src => Object.values(src).forEach(sc));
+  HUES.forEach(sc);
+})();
 
 const defState = () => ({
   name: '', hue: 0, emeralds: 0, owned: ['theme0'], hat: null, theme: 'theme0',
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, mt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const WS = () => S.subj === 'math' ? MWORLDS : WORLDS;
@@ -306,7 +313,58 @@ function dayRec() {
   return S.log[t];
 }
 function logQn(n, okN) { const d = dayRec(); d.q += n; d.ok += okN; }
-function logQ(ok) { logQn(1, ok ? 1 : 0); }
+let combo = 0, maxCombo = 0; // серия верных ответов подряд в текущем занятии
+function logQ(ok) {
+  logQn(1, ok ? 1 : 0);
+  if (ok) { combo++; maxCombo = Math.max(maxCombo, combo); addXp(1); } else combo = 0;
+}
+/* ---------- опыт и уровни ---------- */
+const level = (xp = S.xp || 0) => 1 + Math.floor(Math.sqrt(xp / 30));
+const levelPct = (xp = S.xp || 0) => { const L = level(xp), a = 30 * (L - 1) * (L - 1), b = 30 * L * L; return Math.round((xp - a) / (b - a) * 100); };
+let lvlNote = '';
+function addXp(n) {
+  const mult = 1 + (S.up && S.up.brain ? S.up.brain * 0.15 : 0);
+  const before = level(); S.xp = (S.xp || 0) + Math.max(0, Math.round(n * mult));
+  const after = level();
+  if (after > before) { const bonus = 15 * (after - before); S.emeralds += bonus; lvlNote = `⭐ Новый уровень: ${after}! +${bonus} 💎`; setTimeout(() => toast(lvlNote), 700); }
+}
+/* ---------- улучшения и экипировка ---------- */
+const UPGRADES = {
+  magnet: { e: '🧲', n: 'Магнит изумрудов', d: l => `+${l * 10}% 💎 за уроки и тренировки`, cost: [150, 350, 700] },
+  lamp: { e: '💡', n: 'Лампа подсказок', d: l => `${l} ${l === 1 ? 'подсказка' : 'подсказки'} в каждом уроке`, cost: [120, 280, 560] },
+  shield: { e: '🛡️', n: 'Щит от ошибки', d: l => `${l === 1 ? 'Первая ошибка' : 'Первые ' + l + ' ошибки'} за урок не считается`, cost: [180, 380, 760] },
+  brain: { e: '🧠', n: 'Мозг-ускоритель', d: l => `+${l * 15}% опыта`, cost: [130, 300, 600] },
+  luck: { e: '🍀', n: 'Удача сундука', d: l => `Сундук дня богаче на ${l * 25}%`, cost: [100, 250, 500] }
+};
+const CONS = {
+  potion: { e: '🧪', n: 'Зелье ×2', d: 'Следующий урок даст вдвое больше 💎', p: 40, max: 5 },
+  freeze: { e: '❄️', n: 'Заморозка серии', d: 'Сама сохранит серию, если пропустишь день', p: 70, max: 3 },
+  hints: { e: '💡', n: '3 подсказки', d: 'Подсказки в любой момент занятия', p: 35, max: 30, pack: 3 }
+};
+const upLv = k => (S.up && S.up[k]) || 0;
+// предметы с высокой ценой дают бонус к изумрудам, пока надеты
+const perkOf = it => (!it ? 0 : it.a ? 5 : it.p >= 300 ? 6 : it.p >= 200 ? 4 : it.p >= 100 ? 2 : 0);
+const gearPerk = () => ['hat', 'face', 'back', 'hand'].reduce((t, k) => t + perkOf(ITEMS[S[k]]), 0);
+const emMult = () => 1 + (upLv('magnet') * 10 + gearPerk()) / 100;
+function shieldUse(ctx) {
+  if (ctx.shield === undefined) ctx.shield = upLv('shield');
+  if (ctx.shield > 0) { ctx.shield--; return true; }
+  return false;
+}
+const hintAllow = ctx => upLv('lamp') - (ctx.hintUsed || 0);
+const hintsLeft = ctx => Math.max(0, hintAllow(ctx)) + ((S.inv && S.inv.hints) || 0);
+function hintUI(ctx, apply) {
+  if (hintsLeft(ctx) <= 0) return;
+  const msg = $('msg'); if (!msg) return;
+  const b = document.createElement('button');
+  b.className = 'btn small gold'; b.id = 'hintb'; b.textContent = `💡 Подсказка (${hintsLeft(ctx)})`;
+  msg.after(b);
+  b.onclick = () => {
+    if (!apply()) return;
+    if (hintAllow(ctx) > 0) ctx.hintUsed = (ctx.hintUsed || 0) + 1; else S.inv.hints--;
+    save(); b.remove();
+  };
+}
 function logDone(kind) {
   const d = dayRec(); d[kind] = (d[kind] || 0) + 1;
   S.cnt[kind] = (S.cnt[kind] || 0) + 1;
@@ -360,16 +418,18 @@ function warmupWords(L) {
 function touchStreak() {
   const t = today(); let bonus = 0, msg = '';
   if (S.lastDay !== t) {
-    S.streak = (S.lastDay && dayDiff(S.lastDay, t) === 1) ? S.streak + 1 : 1;
+    const gap = S.lastDay ? dayDiff(S.lastDay, t) : 0;
+    if (gap > 1 && S.inv && (S.inv.freeze || 0) >= gap - 1) { S.inv.freeze -= gap - 1; msg = '❄️ Заморозка сохранила серию!'; S.streak = S.streak + 1; }
+    else S.streak = (S.lastDay && gap === 1) ? S.streak + 1 : 1;
     S.lastDay = t;
     S.totalDays = (S.totalDays || 0) + 1; S.maxStreak = Math.max(S.maxStreak || 0, S.streak);
     if ([3, 7, 14, 30].includes(S.streak) && !S.bonusGiven[S.streak]) {
-      S.bonusGiven[S.streak] = 1; bonus = 10; msg = '🔥 ' + S.streak + ' дней подряд! +10 💎';
+      S.bonusGiven[S.streak] = 1; bonus = 10; msg = (msg ? msg + ' ' : '') + '🔥 ' + S.streak + ' дней подряд! +10 💎';
     }
   }
   return { bonus, msg };
 }
-const shownStreak = () => (S.lastDay && dayDiff(S.lastDay, today()) <= 1) ? S.streak : 0;
+const shownStreak = () => (S.lastDay && dayDiff(S.lastDay, today()) <= 1 + ((S.inv && S.inv.freeze) || 0)) ? S.streak : 0;
 function petStage(xp = S.petXp) { let k = 0; PET_STAGES.forEach((p, i) => { if (xp >= p[0]) k = i; }); return k; }
 function hero(size, hue, st) {
   const s = st || S;
@@ -388,12 +448,12 @@ function applyTheme() {
 function frame(ctx, inner) {
   newScreen(); // новый экран: то, что говорилось на предыдущем, больше не звучит
   const dots = ctx.steps.map((s, k) => `<i class="${k < ctx.cur ? 'd' : k === ctx.cur ? 'c' : ''}"></i>`).join('');
-  app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div><div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${inner}`;
+  app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div>${combo >= 3 ? `<span class="chip cmb">🔥 ×${combo}</span>` : ''}<div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${inner}`;
   $('exit').onclick = () => { stopAll(); map(); };
   window.scrollTo(0, 0);
 }
 function runSteps(ctx, final) {
-  ctx.cur = 0;
+  ctx.cur = 0; combo = 0; maxCombo = 0; lvlNote = '';
   const go = () => {
     if (ctx.cur >= ctx.steps.length) return final();
     ctx.steps[ctx.cur][1](() => { ctx.cur++; go(); });
@@ -505,6 +565,8 @@ function mergeState(a, b) {
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
   m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
+  m.up = keyed(a.up, b.up, (p, q) => Math.max(p, q));
+  m.xp = Math.max(a.xp || 0, b.xp || 0);
   ['sets', 'ach', 'bonusGiven', 'hwPaid'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
   m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
   m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
@@ -703,6 +765,32 @@ function playNext() {
   if (!(S.lessons[W().boss.id] || {}).done) return startBoss();
   toast('Мир пройден! Выбери урок на карте или загляни в другой мир 🏆');
 }
+function openChest() {
+  S.chestDay = today(); S.inv = S.inv || {};
+  const luck = 1 + upLv('luck') * 0.25, r = Math.random(); let msg;
+  if (r < 0.45) { const n = Math.round((10 + Math.random() * 15) * luck); S.emeralds += n; msg = `+${n} 💎`; }
+  else if (r < 0.7) { S.inv.potion = Math.min(CONS.potion.max, (S.inv.potion || 0) + 1); msg = '🧪 Зелье ×2'; }
+  else if (r < 0.85) { S.inv.hints = (S.inv.hints || 0) + 3; msg = '💡 3 подсказки'; }
+  else if (r < 0.95 && (S.inv.freeze || 0) < CONS.freeze.max) { S.inv.freeze = (S.inv.freeze || 0) + 1; msg = '❄️ Заморозка серии'; }
+  else { const n = Math.round(50 * luck); S.emeralds += n; msg = `🎉 Джекпот! +${n} 💎`; }
+  save(); sfx('win'); toast('🎁 Сундук дня: ' + msg); map();
+}
+const goalKeyName = k => {
+  if (ITEMS[k]) return ITEMS[k].e + ' ' + ITEMS[k].n;
+  if (k.startsWith('hue')) return '🎨 Цвет робота';
+  if (k.startsWith('pet_') && PET_LINES[k.slice(4)]) return '🐾 ' + PET_LINES[k.slice(4)].n;
+  if (THEMES[k]) return '🗺️ Фон: ' + THEMES[k].n;
+  if (TITLES[k]) return TITLES[k].e + ' ' + TITLES[k].n;
+  const m = /^up_(\w+)_(\d)$/.exec(k); if (m && UPGRADES[m[1]]) return UPGRADES[m[1]].e + ' ' + UPGRADES[m[1]].n + ' ' + m[2];
+  return k;
+};
+const goalDone = g => { if (!g) return true; const m = /^up_(\w+)_(\d)$/.exec(g.k); return m ? upLv(m[1]) >= +m[2] : S.owned.includes(g.k); };
+function goalHtml() {
+  if (S.goal && goalDone(S.goal)) S.goal = null;
+  const g = S.goal; if (!g) return '';
+  const pct = Math.min(100, Math.round(S.emeralds / g.p * 100));
+  return `<div><small>🎯 Цель: ${goalKeyName(g.k)} — ${Math.min(S.emeralds, g.p)}/${g.p} 💎${S.emeralds >= g.p ? ' (хватает! зайди в магазин)' : ''}</small><div class="bar goal"><i style="width:${pct}%"></i></div></div>`;
+}
 function missionCard() {
   const sj = S.subj === 'math' ? 'math' : 'eng', f = focusOf(sj), log = S.log[today()] || {};
   const nW = sj === 'math' ? mathWeak().length + diarySpecs().length : weakCount();
@@ -710,13 +798,14 @@ function missionCard() {
     ? [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, mathTraining], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🚀', 'Ещё урок', (log.les || 0) >= 2, playNext]]
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
-  if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
+  if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
   const name = sj === 'math' ? 'математике' : 'английскому';
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
   mission = steps;
-  return `<div class="card mission"><b>🎯 Задание дня</b>${all ? ' · выполнено! 🎉' : ''}
+  const chestReady = (all || S.bonusGiven[today() + 'Mmath'] || S.bonusGiven[today() + 'Meng']) && S.chestDay !== today();
+  return `<div class="card mission"><b>🎯 Задание дня</b>${all ? ' · выполнено! 🎉' : ''}${chestReady ? ' <button class="btn small gold" id="chest">🎁 Сундук дня</button>' : (S.chestDay === today() ? ' <small>🎁 сундук открыт</small>' : '')}
     <div class="msteps">${steps.map((x, k) => `<button class="btn small ${x[2] ? 'gold' : 'sec'}" data-ms="${k}">${x[2] && x[0] !== '✅' ? '✅' : x[0]} ${x[1]}</button>`).join('')}</div>
     ${notes.map(n => `<div class="mnote">${n}</div>`).join('')}</div>`;
 }
@@ -753,8 +842,9 @@ function map() {
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
-        <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
-        <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
+        <span class="chip">💎 ${S.emeralds}</span><span class="chip">⭐ Ур. ${level()}</span><span class="chip">🔥 ${shownStreak()} дн.</span>${S.potionOn ? '<span class="chip">🧪 ×2</span>' : ''}${(S.inv && S.inv.freeze) ? `<span class="chip">❄️ ${S.inv.freeze}</span>` : ''}
+        <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
+        <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
       <div class="tbtns">${S.subj !== 'math' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${S.subj === 'math' ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
         <div class="mini">${location.protocol === 'file:' ? '' : '<button class="ib" id="dia" title="Дневник">📓</button>'}${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
@@ -781,6 +871,7 @@ function map() {
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   syncSoon(); writeSummary();
   app.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => mission[+b.dataset.ms][3]());
+  if ($('chest')) $('chest').onclick = openChest;
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   if (S.subj !== 'math') setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
@@ -918,9 +1009,16 @@ function gapQuiz(o, done) {
         grSrs(g, tries === 0); save();
         i++; waitSpeech(1700, next);
       } else {
+        if (shieldUse(ctx)) { b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Прочитай перевод и попробуй ещё 💪';
         if (tries >= 2) app.querySelectorAll('.opt').forEach(x => { if (x.dataset.v === g.ans) x.classList.add('hint'); });
       }
+    });
+    hintUI(ctx, () => {
+      const bad = [...app.querySelectorAll('.opt')].filter(x => x.dataset.v !== g.ans && !x.disabled);
+      if (bad.length < 2) return false;
+      shuffle(bad).slice(0, Math.min(2, bad.length - 1)).forEach(x => { x.disabled = true; x.style.opacity = '.3'; });
+      tries = Math.max(tries, 1); return true;
     });
   }
   next();
@@ -1014,10 +1112,17 @@ function quiz(o, done) {
         srs(w.id, tries === 0); save(); i++;
         waitSpeech(1200, next);
       } else {
+        if (shieldUse(ctx)) { b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
         tries++; b.classList.add('bad'); b.disabled = true; sfx('bad');
         $('msg').textContent = 'Почти! Попробуй ещё 💪';
         if (tries >= 2) app.querySelectorAll('.opt').forEach(x => { if (x.dataset.id === w.id) x.classList.add('hint'); });
       }
+    });
+    hintUI(ctx, () => {
+      const bad = [...app.querySelectorAll('.opt')].filter(x => x.dataset.id !== w.id && !x.disabled);
+      if (bad.length < 2) return false;
+      shuffle(bad).slice(0, 2).forEach(x => { x.disabled = true; x.style.opacity = '.3'; });
+      tries = Math.max(tries, 1); return true;
     });
   }
   next();
@@ -1094,20 +1199,38 @@ function reward(ctx) {
   const L = ctx.L, acc = ctx.asked ? ctx.ok / ctx.asked : 1;
   const stars = acc >= .9 ? 3 : acc >= .7 ? 2 : 1;
   const rec = S.lessons[L.id] || (S.lessons[L.id] = { stars: 0, done: false });
-  const first = !rec.done; rec.done = true; rec.stars = Math.max(rec.stars, stars);
+  const first = !rec.done, prevStars = rec.stars || 0;
+  rec.done = true; rec.stars = Math.max(rec.stars, stars);
   logDone('les');
-  let em = 2 * stars + (first ? 5 : 0) + (ctx.boss ? 20 : 0);
+  // повторение тоже оплачивается, но вдвое меньше изучения; за одно и то же занятие в день — не больше двух раз
+  if (S.repDay !== today()) { S.repDay = today(); S.repCnt = {}; }
+  const times = S.repCnt[L.id] = (S.repCnt[L.id] || 0) + 1;
+  const better = !first && stars > prevStars ? stars - prevStars : 0;
+  let base = first ? 2 * stars + 5 + (ctx.boss ? 20 : 0) : (times <= 2 ? stars : 0) + 3 * better;
+  const cb = (first || times <= 2) ? 2 * Math.floor(maxCombo / 5) : 0; base += cb;
+  const xpGain = first ? 10 + 5 * stars + (ctx.boss ? 20 : 0) : times <= 2 ? 4 + 2 * stars : 2;
+  addXp(xpGain);
+  let em = Math.round(base * emMult()), potion = false;
+  if (S.potionOn && base > 0) { em *= 2; potion = true; }
+  if (S.potionOn && base > 0) S.potionOn = false;
   const sk = touchStreak(); em += sk.bonus;
-  const before = petStage(); S.petXp += stars; const after = petStage();
+  const before = petStage(); S.petXp += first ? stars : (times <= 2 ? 1 : 0); const after = petStage();
   S.emeralds += em; save(); sfx('win');
   const wd = W();
   const last = widx() + 1 >= WS().length;
-  const extra = ctx.boss ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> ${wd.boss.cert ? wd.boss.cert + '<br>' + wd.name + '!' : 'победил(а) Забываку<br>и вернул(а) все слова: ' + wd.name + '!'}</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
+  const extra = ctx.boss && first ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> ${wd.boss.cert ? wd.boss.cert + '<br>' + wd.name + '!' : 'победил(а) Забываку<br>и вернул(а) все слова: ' + wd.name + '!'}</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
+  const repNote = first ? '' : (times <= 2 ? '<p>🔁 Повторение: награда вдвое меньше, зато знания крепче!</p>' : '<p>🔁 Сегодня этот урок уже повторяли дважды: изумрудов за ещё один раз нет, лучше выбери другой урок или тренировку.</p>');
   app.innerHTML = `<div class="card center"><h1>${ctx.boss ? 'Босс побеждён! 🎉' : 'Урок пройден! 🎉'}</h1>
     <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
     <p>Правильных с первой попытки: ${ctx.ok} из ${ctx.asked}</p>
-    <p class="chip">+${em} 💎</p>
+    <p class="chip">+${em} 💎</p> <span class="chip">⭐ +${Math.round(xpGain * (1 + upLv('brain') * .15))} опыта</span>
+    ${cb ? `<p>🔥 Комбо ×${maxCombo}: +${cb} 💎</p>` : ''}
+    ${better ? `<p>📈 Результат лучше прежнего: +${3 * better} 💎</p>` : ''}
+    ${emMult() > 1 ? `<p><small>Бонус экипировки и улучшений: +${Math.round((emMult() - 1) * 100)}%</small></p>` : ''}
+    ${potion ? '<p>🧪 Зелье удвоило награду!</p>' : ''}
     ${sk.msg ? `<p>${sk.msg}</p>` : ''}
+    ${lvlNote ? `<p>${lvlNote}</p>` : ''}
+    ${repNote}
     ${after > before ? `<p>${petE(after)} ${S.petName || 'Кубик'} вырос! Теперь он — ${PET_STAGES[after][2]}!</p>` : `<p>${petE(after)} ${S.petName || 'Кубик'} стал чуть сильнее</p>`}
     ${stars < 3 ? '<p>Хочешь 3 звезды? Можно пройти ещё раз — это быстро!</p>' : ''}
     ${extra}
@@ -1201,7 +1324,9 @@ function mathQuiz(o, done) {
       locked = true; $('msg').innerHTML = `Правильный ответ: <b>${ansText}</b><br><small>${q.why}</small>`; count(false); i++;
       $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next;
     };
-    const wrong = () => { tries++; buf = ''; sfx('bad'); if (!q.opts) $('mans').innerHTML = boxes(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Подумай ещё раз 💪'; };
+    const wrong = () => {
+      if (shieldUse(ctx)) { buf = ''; sfx('bad'); if (!q.opts) $('mans').innerHTML = boxes(); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
+      tries++; buf = ''; sfx('bad'); if (!q.opts) $('mans').innerHTML = boxes(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Подумай ещё раз 💪'; };
     const submit = () => {
       if (locked || buf === '') return;
       if (+buf === parts[pi].a) { pi++; buf = ''; if (pi >= parts.length) return solved(); sfx('ok'); $('mans').innerHTML = boxes(); } else wrong();
@@ -1216,6 +1341,17 @@ function mathQuiz(o, done) {
     app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
       if (locked) return;
       if (b.dataset.v === String(q.ans)) { b.classList.add('good'); solved(); } else { b.classList.add('bad'); b.disabled = true; wrong(); }
+    });
+    hintUI(ctx, () => {
+      if (q.opts) {
+        const bad = [...app.querySelectorAll('.opt')].filter(x => x.dataset.v !== String(q.ans) && !x.disabled);
+        if (bad.length < 2) return false;
+        bad[0].disabled = true; bad[0].style.opacity = '.3';
+      } else {
+        const a = parts[pi].a;
+        $('msg').textContent = a >= 10 ? `💡 Ответ начинается с цифры ${String(a)[0]}` : `💡 Ответ от ${Math.max(0, a - 2)} до ${a + 2}`;
+      }
+      tries = Math.max(tries, 1); return true;
     });
     mathKeyFn = e => {
       if (screenId !== my) return;
@@ -1248,7 +1384,7 @@ function mathTraining() {
   const ctx = { L: { id: 'mtr', title: 'Тренировка' }, asked: 0, ok: 0 };
   ctx.steps = [[weak.length ? 'Слабые места' : 'Повторение', cb => mathQuiz({ ctx, counted: true, title: ds.length ? '📓 Подтягиваем темы из дневника' : weak.length ? '💪 Подтягиваем слабые места' : '🔁 Повторяем пройденное', items: shuffle(Array.from({ length: 10 }, (_, k) => pool[k % pool.length])) }, cb)]];
   runSteps(ctx, () => {
-    const em = 2 + ctx.ok; S.emeralds += em; logDone('tr'); save(); sfx('win');
+    const em = Math.round((2 + ctx.ok) * emMult()); addXp(5 + ctx.ok); S.emeralds += em; logDone('tr'); save(); sfx('win');
     app.innerHTML = `<div class="card center"><h1>Тренировка окончена! 💪</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
       <p><button class="btn gold" id="mp">На карту ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
     $('mp').onclick = map; $('rp').onclick = mathTraining;
@@ -1260,9 +1396,10 @@ const SHOP_TABS = [
   { k: 'hat', t: '🎩 Шляпы', src: HATS, none: 'Без шляпы' }, { k: 'face', t: '😎 Лицо', src: FACES, none: 'Без украшения' },
   { k: 'back', t: '🧣 Спина', src: BACKS, none: 'Без украшения' }, { k: 'hand', t: '⛏️ В руке', src: HANDS, none: 'Пусто' },
   { k: 'hue', t: '🎨 Цвет' }, { k: 'pet', t: '🐾 Питомцы' }, { k: 'theme', t: '🗺️ Фон' },
-  { k: 'title', t: '🏷️ Звание', src: TITLES, none: 'Без звания' }
+  { k: 'title', t: '🏷️ Звание', src: TITLES, none: 'Без звания' },
+  { k: 'up', t: '⚡ Улучшения' }, { k: 'cons', t: '🧪 Запасы' }
 ];
-let shopTab = 'hat';
+let shopTab = 'up';
 // карточка редкого предмета: открыт, если получена нужная ачивка
 function rareCard(it, pic, key, on, onLabel, offLabel, extra = '') {
   const a = ACH.find(x => x.id === it.a);
@@ -1277,14 +1414,32 @@ function shop() {
   const tab = SHOP_TABS.find(t => t.k === shopTab) || SHOP_TABS[0];
   const btn = (own, on, key, p, onLabel, offLabel) => own
     ? `<button class="btn small ${on ? 'gold' : 'sec'}" data-eq="${key}">${on ? onLabel : offLabel}</button>`
-    : `<button class="btn small ${S.emeralds >= p ? '' : 'sec'}" data-buy="${key}" data-p="${p}">💎 ${p}</button>`;
+    : `<button class="btn small ${S.emeralds >= p ? '' : 'sec'}" data-buy="${key}" data-p="${p}">💎 ${p}</button>${S.emeralds >= p ? '' : `<button class="btn small ${S.goal && S.goal.k === key ? 'gold' : 'sec'}" data-goal="${key}" data-p="${p}" title="Копить на это">🎯</button>`}`;
   let cards = '', head = '';
   if (tab.src) {
     cards = Object.keys(tab.src).sort((a, b) => tab.src[a].p - tab.src[b].p).map(k => {
       const it = tab.src[k];
       if (it.a) return rareCard(it, `<div class="ie">${it.e}</div>`, k, S[tab.k] === k, 'Надето ✓', 'Надеть');
-      return `<div class="item"><div class="ie">${it.e}</div>${it.n}<br>${btn(owns(k, 0) && S.owned.includes(k), S[tab.k] === k, k, it.p, 'Надето ✓', 'Надеть')}</div>`;
+      const pk = perkOf(it);
+      return `<div class="item"><div class="ie">${it.e}</div>${it.n}${pk ? `<br><small>⚡ +${pk}% 💎</small>` : ''}<br>${btn(owns(k, 0) && S.owned.includes(k), S[tab.k] === k, k, it.p, 'Надето ✓', 'Надеть')}</div>`;
     }).join('') + (S[tab.k] ? `<div class="item"><div class="ie">🚫</div>${tab.none}<br><button class="btn small sec" data-eq="">Снять</button></div>` : '');
+  } else if (tab.k === 'up') {
+    head = `<p>Улучшения работают всегда и усиливаются с уровнем. Экипировка с ценой от 100 💎 тоже даёт бонус к изумрудам, пока надета: сейчас <b>+${gearPerk()}%</b>.</p>`;
+    cards = Object.keys(UPGRADES).map(k => {
+      const u = UPGRADES[k], lv = upLv(k), max = u.cost.length;
+      const pips = [...Array(max)].map((_, i) => i < lv ? '🟩' : '⬜').join('');
+      const nextP = u.cost[lv];
+      return `<div class="item up"><div class="ie">${u.e}</div><b>${u.n}</b><br><small>${lv ? u.d(lv) : 'Ещё не куплено'}</small><br>${pips}<br>`
+        + (lv >= max ? '<small>Максимум ✓</small>' : `<small>Дальше: ${u.d(lv + 1)}</small><br><button class="btn small ${S.emeralds >= nextP ? '' : 'sec'}" data-up="${k}" data-p="${nextP}">⬆ 💎 ${nextP}</button>${S.emeralds >= nextP ? '' : `<button class="btn small ${S.goal && S.goal.k === 'up_' + k + '_' + (lv + 1) ? 'gold' : 'sec'}" data-goal="up_${k}_${lv + 1}" data-p="${nextP}" title="Копить на это">🎯</button>`}`) + '</div>';
+    }).join('');
+  } else if (tab.k === 'cons') {
+    head = '<p>Расходуемые вещи: пригодятся в нужный момент. Зелье включается кнопкой «Выпить» перед уроком.</p>';
+    cards = Object.keys(CONS).map(k => {
+      const c = CONS[k], n = (S.inv && S.inv[k]) || 0, full = n >= c.max;
+      return `<div class="item"><div class="ie">${c.e}</div><b>${c.n}</b><br><small>${c.d}</small><br><small>В запасе: <b>${n}</b></small><br>`
+        + `<button class="btn small ${S.emeralds >= c.p && !full ? '' : 'sec'}" data-cons="${k}" data-p="${c.p}">${full ? 'Полный запас' : '💎 ' + c.p}</button>`
+        + (k === 'potion' && n > 0 ? `<button class="btn small ${S.potionOn ? 'gold' : ''}" data-drink="1">${S.potionOn ? 'Действует ✓' : '🧪 Выпить'}</button>` : '') + '</div>';
+    }).join('');
   } else if (tab.k === 'hue') {
     cards = HUES.map(h => {
       const key = 'hue' + h.h;
@@ -1318,6 +1473,27 @@ function shop() {
     save(); shop();
   };
   app.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => equip(b.dataset.eq));
+  app.querySelectorAll('[data-goal]').forEach(b => b.onclick = () => {
+    const k = b.dataset.goal;
+    S.goal = (S.goal && S.goal.k === k) ? null : { k, p: +b.dataset.p };
+    save(); toast(S.goal ? '🎯 Цель выбрана: ' + goalKeyName(k) : 'Цель снята'); shop();
+  });
+  app.querySelectorAll('[data-up]').forEach(b => b.onclick = () => {
+    const k = b.dataset.up, p = +b.dataset.p;
+    if (S.emeralds < p) return toast(`Не хватает ${p - S.emeralds} 💎. Копи изумруды: уроки, повторение и задание дня!`);
+    S.emeralds -= p; S.up = S.up || {}; S.up[k] = upLv(k) + 1; sfx('ok'); save(); toast(UPGRADES[k].e + ' ' + UPGRADES[k].n + ': уровень ' + S.up[k] + '!'); shop();
+    setTimeout(checkAch, 300);
+  });
+  app.querySelectorAll('[data-cons]').forEach(b => b.onclick = () => {
+    const k = b.dataset.cons, c = CONS[k], p = +b.dataset.p; S.inv = S.inv || {};
+    if ((S.inv[k] || 0) >= c.max) return toast('Запас уже полный');
+    if (S.emeralds < p) return toast(`Не хватает ${p - S.emeralds} 💎`);
+    S.emeralds -= p; S.inv[k] = Math.min(c.max, (S.inv[k] || 0) + (c.pack || 1)); sfx('ok'); save(); shop();
+  });
+  app.querySelectorAll('[data-drink]').forEach(b => b.onclick = () => {
+    if (S.potionOn || !(S.inv && S.inv.potion > 0)) return;
+    S.inv.potion--; S.potionOn = true; save(); toast('🧪 Зелье выпито: следующий урок даст ×2 💎'); shop();
+  });
   app.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     const p = +b.dataset.p;
     if (S.emeralds < p) return toast(`Не хватает ${p - S.emeralds} 💎. Пройди ещё урок! 💎`);
@@ -1470,7 +1646,7 @@ const allLessons = () => [].concat(...WORLDS.map(w => w.lessons));
 const doneLessons = () => allLessons().filter(l => (S.lessons[l.id] || {}).done);
 const cntDone = obj => Object.values(obj || {}).filter(x => x.done).length;
 const A = (cat, id, i, t, d, goal, r, val) => ({ cat, id, i, t, d, goal, r, val });
-const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Разнообразие', 'Питомец', 'Богатство'];
+const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Прогресс', 'Разнообразие', 'Питомец', 'Богатство'];
 const ACH = [
   A('Старт', 'first', '👣', 'Первые шаги', 'Пройди первую локацию', 1, 5, () => doneLessons().length),
   A('Старт', 'diag', '🔎', 'Разведчик', 'Пройди «Разведку»', 1, 10, () => (S.diagRun ? 1 : 0)),
@@ -1494,6 +1670,9 @@ const ACH = [
   A('Слова', 'w200', '📚', 'Живой словарь', 'Собери 200 слов', 200, 30, () => collectedSet().size),
   A('Слова', 'g25', '🥇', 'Золотой запас', '25 слов с золотой медалью', 25, 20, () => [...collectedSet()].filter(id => medal(id).m === '🥇').length),
   A('Слова', 'sets', '🏅', 'Коллекционер тем', 'Полностью собери 10 тем в словарике', 10, 20, () => Object.keys(S.sets || {}).length),
+  A('Прогресс', 'lv5', '⭐', 'Пятый уровень', 'Достигни 5 уровня', 5, 25, () => level()),
+  A('Прогресс', 'lv10', '🌟', 'Десятый уровень', 'Достигни 10 уровня', 10, 60, () => level()),
+  A('Прогресс', 'up5', '⚡', 'Улучшатель', 'Купи 5 уровней улучшений', 5, 40, () => Object.values(S.up || {}).reduce((a, b) => a + b, 0)),
   A('Серия', 'st3', '🔥', 'Огонёк', 'Занимайся 3 дня подряд', 3, 5, () => Math.max(S.maxStreak || 0, shownStreak())),
   A('Серия', 'st7', '🔥', 'Целая неделя', 'Занимайся 7 дней подряд', 7, 10, () => Math.max(S.maxStreak || 0, shownStreak())),
   A('Серия', 'st14', '🚀', 'Две недели', 'Занимайся 14 дней подряд', 14, 20, () => Math.max(S.maxStreak || 0, shownStreak())),
@@ -2062,7 +2241,7 @@ function training() {
   $('bk').onclick = map;
   $('go').onclick = () => runSteps(ctx, () => {
     logDone('tr');
-    const em = Math.min(10, ctx.ok), sk = touchStreak(); S.emeralds += em + sk.bonus; S.petXp += 1; save(); sfx('win');
+    const em = Math.round(Math.min(10, ctx.ok) * emMult()), sk = touchStreak(); addXp(5 + ctx.ok); S.emeralds += em + sk.bonus; S.petXp += 1; save(); sfx('win');
     const now = weakItems(), left = now.words.length + now.gaps.length, before = wk.words.length + wk.gaps.length;
     app.innerHTML = `<div class="card center"><h1>Тренировка пройдена! 🎉</h1>
       <p>Верно с первой попытки: <b>${ctx.ok} из ${ctx.asked}</b></p><p class="chip">+${em + sk.bonus} 💎</p>

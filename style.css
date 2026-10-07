@@ -208,3 +208,8 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 /* задание дня */
 .mission{margin:10px 0}.msteps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .mnote{margin-top:8px;padding:6px 10px;background:#fff;border:3px dashed #1b1b1b;border-radius:8px;font-size:.95rem}
+/* уровни, цели, комбо */
+.chip.cmb{background:#ffd23f}
+.bar.xp i{background:#6aa9ff}.bar.goal i{background:#ffb347}
+.item.up{min-width:210px}
+#hintb{margin:4px 0}
