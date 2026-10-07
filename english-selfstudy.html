@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Остров английских слов</title>
-<link rel="stylesheet" href="style.css?v=20261007211547">
+<link rel="stylesheet" href="style.css?v=20261007211908">
 </head>
 <body>
 <div id="app"></div>
@@ -3430,7 +3430,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
@@ -3627,12 +3627,13 @@ const perkOf = it => (!it ? 0 : it.a ? 5 : it.p >= 300 ? 6 : it.p >= 200 ? 4 : i
 const gearPerk = () => ['hat', 'face', 'back', 'hand'].reduce((t, k) => t + perkOf(ITEMS[S[k]]), 0);
 const emMult = () => 1 + (upLv('magnet') * 10 + gearPerk()) / 100;
 function shieldUse(ctx) {
+  if (S.strict) return false; // строгий режим родителя: без щита
   if (ctx.shield === undefined) ctx.shield = upLv('shield');
   if (ctx.shield > 0) { ctx.shield--; return true; }
   return false;
 }
 const hintAllow = ctx => upLv('lamp') - (ctx.hintUsed || 0);
-const hintsLeft = ctx => Math.max(0, hintAllow(ctx)) + ((S.inv && S.inv.hints) || 0);
+const hintsLeft = ctx => S.strict ? 0 : Math.max(0, hintAllow(ctx)) + ((S.inv && S.inv.hints) || 0);
 function hintUI(ctx, apply) {
   if (hintsLeft(ctx) <= 0) return;
   const msg = $('msg'); if (!msg) return;
@@ -5199,6 +5200,7 @@ function parent() {
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
         ${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small" id="dgp">🔎 Разведка (определить уровень)</button>
+      <button class="btn small ${S.strict ? 'red' : ''}" id="strict">${S.strict ? '🔒 Строгий режим: ВКЛ (без подсказок и щита)' : 'Строгий режим: выкл'}</button>
       <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
       <button class="btn small red" id="rs">Сбросить всё</button>
       <p id="vm"></p>
@@ -5209,6 +5211,7 @@ function parent() {
   $('rpt').onclick = weeklyReport;
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
+  $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
   $('clp').onclick = () => cloudScreen(parent);
   booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
