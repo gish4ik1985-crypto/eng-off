@@ -502,6 +502,7 @@ function cancelNewPlayer() {
   newPlayerFrom = null; savePR(); applyTheme(); players();
 }
 function players() {
+  homeView = true;
   const cards = PR.list.map(p => {
     const st = loadState(p.key), done = Object.values(st.lessons || {}).filter(x => x.done).length;
     return `<div class="item"><div class="ie">${hero(56, st.hue, st)}</div><b>${esc(p.name)}</b><br><small>💎 ${st.emeralds || 0} · пройдено локаций: ${done}</small><br>
@@ -837,14 +838,51 @@ let mission = [];
 /* ---------- карта ---------- */
 // уже пройденная локация остаётся открытой, даже если порядок в мире поменялся
 function unlocked(i) { return S.unlockAll || i === 0 || (S.lessons[W().lessons[i].id] || {}).done || (S.lessons[W().lessons[i - 1].id] || {}).done; }
+/* ---------- главный экран и карта предмета ---------- */
+// Два уровня, чтобы ребёнок не путался: сначала главный экран (крупно: играть, предметы, магазин, награды),
+// и только внутри предмета — карта уроков, тренировка и задание дня.
+let homeView = true;
+const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS] };
+const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
+function mapTail() {
+  syncSoon(); writeSummary();
+  setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
+}
+function home() {
+  epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
+  const st = petStage(), nxt = PET_STAGES[st + 1];
+  const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
+  const cur = skind(), meta = SUBJ_META[cur];
+  const WL = W().lessons, nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done), bossDone = (S.lessons[W().boss.id] || {}).done;
+  const what = nextI >= 0 ? `${WL[nextI].icon} ${WL[nextI].title}` : (bossDone ? 'повторяем' : `${W().boss.icon} ${W().boss.title}`);
+  const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="tile ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
+  app.innerHTML = `<div class="card top">
+      <div>${hero(72)}</div>
+      <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
+        <span class="chip">💎 ${S.emeralds}</span><span class="chip">⭐ Ур. ${level()}</span><span class="chip">🔥 ${shownStreak()} дн.</span>${S.potionOn ? '<span class="chip">🧪 ×2</span>' : ''}${(S.inv && S.inv.freeze) ? `<span class="chip">❄️ ${S.inv.freeze}</span>` : ''}
+        <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
+        <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
+    </div>
+    <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="hint">${meta[0]} ${meta[1]}: ${what}</div></div>
+    <h3 class="center">Выбери предмет</h3>
+    <div class="tiles">${tiles}</div>
+    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</button>${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
+    <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
+  $('play').onclick = () => { homeView = false; playNext(); };
+  app.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => { S.subj = b.dataset.sj; homeView = false; save(); map(); });
+  $('shop').onclick = shop; $('awb').onclick = awards; $('parent').onclick = parentGate; $('who').onclick = players;
+  if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
+  if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
+  $('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
+  mapTail();
+}
 function map() {
+  if (homeView) return home();
   epoch++; newScreen();
   applyTheme();
   const WL = W().lessons, BS = W().boss;
   const nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done);
   const allDone = nextI === -1;
-  const st = petStage(), nxt = PET_STAGES[st + 1];
-  const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
   const node = (l, i) => {
     const rec = S.lessons[l.id] || {}, ok = unlocked(i);
     const cls = rec.done ? 'done' : (i === nextI ? 'cur' : (ok ? '' : 'lock'));
@@ -860,49 +898,32 @@ function map() {
   const cur = allDone ? null : WL[nextI];
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
-  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button><button class="btn ${skind() === 'izo' ? 'gold' : 'sec'}" id="sj_izo">🎨 ИЗО</button>${skind() === 'izo' ? '<button class="btn small gold" id="free">🖌️ Свободное рисование</button><button class="btn small" id="gal">🖼️ Галерея</button>' : ''}</div>`;
-  const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
-  app.innerHTML = `<div class="card top">
-      <div>${hero(64)}</div>
-      <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
-        <span class="chip">💎 ${S.emeralds}</span><span class="chip">⭐ Ур. ${level()}</span><span class="chip">🔥 ${shownStreak()} дн.</span>${S.potionOn ? '<span class="chip">🧪 ×2</span>' : ''}${(S.inv && S.inv.freeze) ? `<span class="chip">❄️ ${S.inv.freeze}</span>` : ''}
-        <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
-        <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
-      <div class="tbtns">${!isGen() && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${isGen() ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
-        <div class="mini">${location.protocol === 'file:' ? '' : '<button class="ib" id="dia" title="Дневник">📓</button>'}${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
-    </div>
-    ${missionHtml}
+  const meta = SUBJ_META[skind()];
+  const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name}</button>`).join('') : '';
+  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
+  app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
-    ${subjBar}
-    <div class="center">${tabs}</div>
+    <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
+    <div class="center bigrow"><button class="btn ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${extra}</div>
+    ${missionHtml}
+    ${tabs ? `<div class="center">${tabs}</div>` : ''}
     <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
     <div class="map">${rows}</div>`;
-  $('shop').onclick = shop; $('parent').onclick = parentGate;
+  $('hm').onclick = () => { homeView = true; home(); };
   if ($('dg')) $('dg').onclick = diagIntro;
-  $('trn').onclick = isGen() ? mathTraining : training;
-  $('sj_ru').onclick = () => { if (S.subj !== 'ru') { S.subj = 'ru'; save(); map(); } };
-  $('sj_ow').onclick = () => { if (S.subj !== 'ow') { S.subj = 'ow'; save(); map(); } };
-  $('sj_izo').onclick = () => { if (S.subj !== 'izo') { S.subj = 'izo'; save(); map(); } };
-  if ($('gal')) $('gal').onclick = izoGallery;
   if ($('free')) $('free').onclick = () => izoFree();
-  $('sj_eng').onclick = () => { if (isGen()) { S.subj = 'eng'; save(); map(); } };
-  $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
+  if ($('gal')) $('gal').onclick = izoGallery;
+  $('trn').onclick = isGen() ? mathTraining : training;
   if ($('more')) $('more').onclick = more;
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
     if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
     toast('Мир пройден! Выбери урок на карте или загляни в «Тренировку» 🏆');
   };
-  $('awb').onclick = awards;
-  $('who').onclick = players;
-  if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
-  if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
-  syncSoon(); writeSummary();
+  mapTail();
   app.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => mission[+b.dataset.ms][3]());
   if ($('chest')) $('chest').onclick = openChest;
-  setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   if (!isGen()) setTimeout(voiceCheck, 1500);
-  $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
