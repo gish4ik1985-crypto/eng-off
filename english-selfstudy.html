@@ -3493,7 +3493,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
@@ -4200,7 +4200,7 @@ function map() {
   const cur = allDone ? null : WL[nextI];
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
-  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button><button class="btn ${skind() === 'izo' ? 'gold' : 'sec'}" id="sj_izo">🎨 ИЗО</button>${skind() === 'izo' ? '<button class="btn small" id="gal">🖼️ Галерея</button>' : ''}</div>`;
+  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button><button class="btn ${skind() === 'izo' ? 'gold' : 'sec'}" id="sj_izo">🎨 ИЗО</button>${skind() === 'izo' ? '<button class="btn small gold" id="free">🖌️ Свободное рисование</button><button class="btn small" id="gal">🖼️ Галерея</button>' : ''}</div>`;
   const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
@@ -4224,6 +4224,7 @@ function map() {
   $('sj_ow').onclick = () => { if (S.subj !== 'ow') { S.subj = 'ow'; save(); map(); } };
   $('sj_izo').onclick = () => { if (S.subj !== 'izo') { S.subj = 'izo'; save(); map(); } };
   if ($('gal')) $('gal').onclick = izoGallery;
+  if ($('free')) $('free').onclick = () => izoFree();
   $('sj_eng').onclick = () => { if (isGen()) { S.subj = 'eng'; save(); map(); } };
   $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
   if ($('more')) $('more').onclick = more;
@@ -5004,6 +5005,7 @@ const GAL = {
   tx(mode, fn) { return GAL.open().then(db => new Promise((res, rej) => { const t = db.transaction('g', mode), rq = fn(t.objectStore('g')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); })); },
   all() { return GAL.tx('readonly', s => s.getAll()); },
   add(r) { return GAL.tx('readwrite', s => s.add(r)); },
+  put(r) { return GAL.tx('readwrite', s => s.put(r)); },
   del(id) { return GAL.tx('readwrite', s => s.delete(id)); }
 };
 const IZ_PAL = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#4fc3f7', '#1e63d8', '#8e24aa', '#f48fb1', '#795548', '#222222'];
@@ -5074,14 +5076,66 @@ function drawLesson(ctx, spec, done) {
   }
   step();
 }
+const IZ_IDEAS = ['Космический корабль', 'Мой любимый зверь', 'Замок на горе', 'Робот-помощник', 'Домик в лесу', 'Подводный мир', 'Радуга после дождя', 'Дракон', 'Мой дом', 'Зимний вечер', 'Лето на море', 'Город будущего', 'Весёлый цветок', 'Корабль в шторм', 'Волшебная птица', 'Моя семья', 'Пещера с сокровищами', 'Ночное небо', 'Осенний лес', 'Машина мечты', 'Сказочный остров', 'Динозавр', 'Мой друг', 'Праздничный салют'];
+const IZ_PAL2 = IZ_PAL.concat(['#ffffff', '#9e9e9e', '#b5e48c', '#7e57c2']);
+function izoFree(rec) {
+  epoch++; newScreen();
+  app.innerHTML = `<div class="card center"><button class="btn small sec" id="bk">⬅ Карта</button><h3>🖌️ ${rec ? 'Дорисовываем: ' + esc(rec.title) : 'Свободное рисование'}</h3>
+    <p class="dtxt" ${rec ? 'hidden' : ''}>💡 Идея: <b id="idea">${IZ_IDEAS[Math.floor(Math.random() * IZ_IDEAS.length)]}</b> <button class="btn small sec" id="dice">🎲 Другая</button></p>
+    <canvas id="cv" width="640" height="480" class="dcv"></canvas>
+    <div class="dbtns" id="pal">${IZ_PAL2.map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}</div>
+    <div class="dbtns"><button class="btn small sec" data-sz="6">• Тонко</button><button class="btn small sec" data-sz="14">● Средне</button><button class="btn small sec" data-sz="28">⬤ Толсто</button>
+      <button class="btn small sec" id="er">🧽 Ластик</button><button class="btn small sec" id="sym">🦋 Зеркало: выкл</button></div>
+    <div class="dbtns"><button class="btn small sec" id="un">↩️ Отменить</button><button class="btn small red" id="cl">🗑️ Очистить</button><button class="btn gold" id="sv">💾 В галерею</button></div>
+    <div id="msg" class="msg">&nbsp;</div></div>`;
+  const my = screenId, cv = $('cv'), g = cv.getContext('2d'), BG = '#fffdf5';
+  let col = IZ_PAL2[0], sz = 14, eraser = false, sym = false, base = null; const groups = [];
+  if (rec) { const im = new Image(); im.onload = () => { base = im; redraw(); }; im.src = URL.createObjectURL(rec.blob); }
+  const redraw = () => { g.fillStyle = BG; g.fillRect(0, 0, 640, 480); if (base) g.drawImage(base, 0, 0, 640, 480); g.lineCap = 'round'; g.lineJoin = 'round'; groups.forEach(gr => gr.forEach(s => { g.strokeStyle = s.c; g.lineWidth = s.w; g.beginPath(); g.moveTo(s.p[0][0], s.p[0][1]); s.p.forEach(p => g.lineTo(p[0], p[1])); if (s.p.length === 1) g.lineTo(s.p[0][0] + .1, s.p[0][1]); g.stroke(); })); };
+  redraw();
+  const mark = () => { app.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', !eraser && x.dataset.c === col)); app.querySelectorAll('[data-sz]').forEach(x => x.classList.toggle('gold', +x.dataset.sz === sz)); $('er').classList.toggle('gold', eraser); };
+  app.querySelectorAll('.sw').forEach(b => b.onclick = () => { col = b.dataset.c; eraser = false; mark(); });
+  app.querySelectorAll('[data-sz]').forEach(b => b.onclick = () => { sz = +b.dataset.sz; mark(); });
+  $('er').onclick = () => { eraser = !eraser; mark(); };
+  $('sym').onclick = () => { sym = !sym; $('sym').textContent = '🦋 Зеркало: ' + (sym ? 'вкл' : 'выкл'); $('sym').classList.toggle('gold', sym); $('msg').textContent = sym ? 'Всё, что ты рисуешь слева, повторится справа — это симметрия!' : '\u00a0'; };
+  $('un').onclick = () => { groups.pop(); redraw(); };
+  $('cl').onclick = () => { if (!groups.length || confirm('Очистить рисунок?')) { groups.length = 0; redraw(); } };
+  $('dice').onclick = () => { $('idea').textContent = IZ_IDEAS[Math.floor(Math.random() * IZ_IDEAS.length)]; };
+  $('bk').onclick = map;
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * 640 / r.width, (e.clientY - r.top) * 480 / r.height]; };
+  let cur = null;
+  cv.style.touchAction = 'none';
+  cv.onpointerdown = e => {
+    e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    const c = eraser ? BG : col, w = eraser ? Math.max(sz, 18) : sz, a = { c, w, p: [pos(e)] }, gr = [a];
+    if (sym) gr.push({ c, w, p: [[640 - a.p[0][0], a.p[0][1]]], mir: a });
+    groups.push(gr); cur = gr; redraw();
+  };
+  cv.onpointermove = e => { if (!cur) return; e.preventDefault(); const p = pos(e); cur[0].p.push(p); if (cur[1]) cur[1].p.push([640 - p[0], p[1]]); redraw(); };
+  cv.onpointerup = cv.onpointercancel = () => { cur = null; };
+  $('sv').onclick = () => {
+    if (!groups.length) { $('msg').textContent = 'Сначала нарисуй что-нибудь ✏️'; return; }
+    cv.toBlob(b => {
+      if (!b || screenId !== my) return;
+      const job = rec ? GAL.put({ id: rec.id, t: Date.now(), title: rec.title, blob: b }) : GAL.add({ t: Date.now(), title: 'Свободный рисунок: ' + $('idea').textContent, blob: b }).then(id => { rec = { id, title: 'Свободный рисунок: ' + $('idea').textContent, blob: b }; });
+      job.then(() => {
+        let extra = '';
+        if (S.izoDay !== today()) { S.izoDay = today(); const em = Math.round(3 * emMult()); S.emeralds += em; addXp(5); extra = ` +${em} 💎 за рисунок дня!`; logDone('les'); }
+        save(); sfx('ok'); if (screenId === my) $('msg').textContent = '✅ Рисунок сохранён в галерее! Его можно дорисовать позже.' + extra;
+      }).catch(() => { if (screenId === my) $('msg').textContent = 'Не получилось сохранить: галерея недоступна.'; });
+    }, 'image/png');
+  };
+  mark();
+}
 function izoGallery() {
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🖼️ Моя галерея</h2><div id="gl" class="bkl"><small>Загрузка…</small></div><p id="gm"></p></div>`;
   $('bk').onclick = map;
   const draw = () => GAL.all().then(a => {
     a = (a || []).slice().reverse();
-    $('gl').innerHTML = a.length ? a.map(r => `<div class="bki gi"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${esc(r.title)}</small><span><button class="btn small" data-s="${r.id}">⬇️</button><button class="btn small red" data-d="${r.id}">✖</button></span></div>`).join('') : '<small>Здесь появятся твои рисунки. Раскрась рисунок в уроке ИЗО и нажми «Готово».</small>';
+    $('gl').innerHTML = a.length ? a.map(r => `<div class="bki gi"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${esc(r.title)}</small><span><button class="btn small gold" data-e="${r.id}">✏️</button><button class="btn small" data-s="${r.id}">⬇️</button><button class="btn small red" data-d="${r.id}">✖</button></span></div>`).join('') : '<small>Здесь появятся твои рисунки. Раскрась рисунок в уроке ИЗО или нарисуй свой и сохрани. Любой рисунок можно дорисовать кнопкой ✏️.</small>';
     app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить рисунок?')) GAL.del(+b.dataset.d).then(draw); });
+    app.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { const r = a.find(x => x.id === +b.dataset.e); if (r) izoFree(r); });
     app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { const r = a.find(x => x.id === +b.dataset.s); if (!r) return; const l = document.createElement('a'); l.href = URL.createObjectURL(r.blob); l.download = 'risunok-' + r.id + '.png'; document.body.appendChild(l); l.click(); l.remove(); });
   }).catch(() => { $('gm').textContent = 'Галерея недоступна в этом браузере.'; });
   draw();
