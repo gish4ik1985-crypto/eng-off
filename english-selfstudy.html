@@ -235,7 +235,7 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .sent{font-size:1.5rem;margin:8px 0;line-height:1.5}.gapb{display:inline-block;border-bottom:4px solid #2e7d32;min-width:3em}
 .bkl{display:flex;flex-wrap:wrap;gap:10px}.bki{display:flex;flex-direction:column;align-items:center;gap:4px;width:120px}.bki img{width:120px;height:90px;object-fit:cover;border:3px solid #1b1b1b;border-radius:8px}
 .dcv{width:100%;max-width:640px;height:auto;aspect-ratio:4/3;border:4px solid #1b1b1b;border-radius:12px;background:#fffdf5;touch-action:none;cursor:crosshair}.dtxt{font-size:1.2rem;margin:4px 0 8px}.dbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:8px 0}.sw{width:38px;height:38px;border-radius:8px;border:3px solid #1b1b1b;cursor:pointer}.sw.on{outline:4px solid #2e7d32}.gi small{max-width:120px;text-align:center}
-.btn.huge{font-size:2rem;padding:16px 52px;margin:8px 0}.hint{font-size:1.1rem;margin:2px 0 10px}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 14px}.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:4px solid #1b1b1b;border-radius:14px;background:#fff;font:inherit;color:inherit;cursor:pointer;box-shadow:0 5px 0 #1b1b1b}.tile:active{transform:translateY(3px);box-shadow:0 2px 0 #1b1b1b}.tile.cur{background:#ffe27a}.tile .te{font-size:46px;line-height:1}.tile .tn{font-size:1.15rem;font-weight:700}.tile .tp{display:block;width:100%;height:10px;border:2px solid #1b1b1b;border-radius:6px;background:#eee;overflow:hidden}.tile .tp i{display:block;height:100%;background:#43a047}.btn.big,.bigrow .btn{font-size:1.25rem;padding:12px 22px}.bigrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0}.toprow{display:flex;align-items:center;gap:12px}.toprow h2{flex:1;margin:0}.mini2{display:flex;gap:10px;justify-content:center;margin:16px 0}
+.btn.huge{font-size:2rem;padding:16px 52px;margin:8px 0}.sjhint{font-size:1.1rem;margin:2px 0 10px}.sjgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 14px}.sjt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:4px solid #1b1b1b;border-radius:14px;background:#fff;font:inherit;color:inherit;cursor:pointer;box-shadow:0 5px 0 #1b1b1b}.sjt:active{transform:translateY(3px);box-shadow:0 2px 0 #1b1b1b}.sjt.cur{background:#ffe27a}.sjt .te{font-size:46px;line-height:1}.sjt .tn{font-size:1.15rem;font-weight:700}.sjt .tp{display:block;width:100%;height:10px;border:2px solid #1b1b1b;border-radius:6px;background:#eee;overflow:hidden}.sjt .tp i{display:block;height:100%;background:#43a047}.btn.big,.bigrow .btn{font-size:1.25rem;padding:12px 22px}.bigrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0}.toprow{display:flex;align-items:center;gap:12px}.toprow h2{flex:1;margin:0}.mini2{display:flex;gap:10px;justify-content:center;margin:16px 0}
 
 </style>
 </head>
@@ -4361,7 +4361,7 @@ function home() {
   const cur = skind(), meta = SUBJ_META[cur];
   const WL = W().lessons, nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done), bossDone = (S.lessons[W().boss.id] || {}).done;
   const what = nextI >= 0 ? `${WL[nextI].icon} ${WL[nextI].title}` : (bossDone ? 'повторяем' : `${W().boss.icon} ${W().boss.title}`);
-  const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="tile ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
+  const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="sjt ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(72)}</div>
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
@@ -4369,9 +4369,9 @@ function home() {
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
         <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
     </div>
-    <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="hint">${meta[0]} ${meta[1]}: ${what}</div></div>
+    <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
-    <div class="tiles">${tiles}</div>
+    <div class="sjgrid">${tiles}</div>
     <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</button>${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };

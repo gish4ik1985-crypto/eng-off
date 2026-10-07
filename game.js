@@ -855,7 +855,7 @@ function home() {
   const cur = skind(), meta = SUBJ_META[cur];
   const WL = W().lessons, nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done), bossDone = (S.lessons[W().boss.id] || {}).done;
   const what = nextI >= 0 ? `${WL[nextI].icon} ${WL[nextI].title}` : (bossDone ? 'повторяем' : `${W().boss.icon} ${W().boss.title}`);
-  const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="tile ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
+  const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="sjt ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(72)}</div>
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
@@ -863,9 +863,9 @@ function home() {
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
         <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
     </div>
-    <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="hint">${meta[0]} ${meta[1]}: ${what}</div></div>
+    <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
-    <div class="tiles">${tiles}</div>
+    <div class="sjgrid">${tiles}</div>
     <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</button>${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
