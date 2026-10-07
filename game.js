@@ -1325,7 +1325,7 @@ function mathRule(ctx, cb) {
 let mathKeyFn = null;
 document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
 function mathQuiz(o, done) {
-  const ctx = o.ctx, total = o.items.length; let i = 0;
+  const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
   function askWord(sp, q) {
     let tries = 0, locked = false, buf = '';
@@ -1369,7 +1369,9 @@ function mathQuiz(o, done) {
     };
   }
   function ask(sp) {
-    const q = MQ[sp.g](mathLv(sp));
+    let q = MQ[sp.g](mathLv(sp));
+    for (let t = 0; t < 25 && seen.has(q.q + (q.sent || '') + '|' + q.ans); t++) q = MQ[sp.g](mathLv(sp)); // тот же вопрос в одном задании не повторяем
+    seen.add(q.q + (q.sent || '') + '|' + q.ans);
     if (q.word) return askWord(sp, q);
     const isEq = !q.opts && !q.parts && /x/.test(q.q);
     const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
@@ -1646,6 +1648,71 @@ function diaryLinkHtml() {
   const dl = (ad.a.eng.topics.length || ad.a.eng.exams.length) ? engDiaryLessons() : [];
   return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}${row('ow', 'Окружающий мир')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
 }
+/* ---------- фото учебников (оглавления): хранятся на устройстве, можно скачать и передать разработчику ---------- */
+const BK = {
+  db: null,
+  open() {
+    if (BK.db) return Promise.resolve(BK.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('engBooks', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('p', { keyPath: 'id', autoIncrement: true });
+      r.onsuccess = () => { BK.db = r.result; res(BK.db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(mode, fn) { return BK.open().then(db => new Promise((res, rej) => { const t = db.transaction('p', mode), rq = fn(t.objectStore('p')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); })); },
+  all() { return BK.tx('readonly', s => s.getAll()); },
+  add(rec) { return BK.tx('readwrite', s => s.add(rec)); },
+  del(id) { return BK.tx('readwrite', s => s.delete(id)); },
+  shrink(file) {
+    return new Promise((res, rej) => {
+      const im = new Image(), u = URL.createObjectURL(file);
+      im.onload = () => {
+        const k = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+        c.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/jpeg', .82);
+      };
+      im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); };
+      im.src = u;
+    });
+  }
+};
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['eng', 'Английский'], ['other', 'Другое']];
+function booksHtml() {
+  const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
+  return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
+    <p>Предмет: ${sel('bks', BK_SUBJ)} Класс: ${sel('bkc', [[1, '1'], [2, '2'], [3, '3'], [4, '4']])}</p>
+    <p><label class="btn small gold" style="display:inline-block">📷 Снять<input type="file" id="bkcam" accept="image/*" capture="environment" hidden></label>
+    <label class="btn small" style="display:inline-block">🖼️ Из галереи<input type="file" id="bkgal" accept="image/*" multiple hidden></label>
+    <button class="btn small sec" id="bkdl">⬇️ Скачать все</button></p>
+    <div id="bkl" class="bkl"></div><p id="bkm"></p>`;
+}
+function booksInit() {
+  if (!$('bkl')) return;
+  const nm = r => `${(BK_SUBJ.find(x => x[0] === r.subj) || [0, r.subj])[1]}, ${r.cls} кл.`;
+  const fname = (r, k) => `uchebnik-${r.subj}-${r.cls}kl-${k + 1}.jpg`;
+  let list = [];
+  const draw = () => BK.all().then(a => {
+    list = a || [];
+    $('bkl').innerHTML = list.length ? list.map(r => `<div class="bki"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${nm(r)}</small><button class="btn small red" data-d="${r.id}">✖</button></div>`).join('') : '<small>Фото пока нет.</small>';
+    app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить это фото?')) BK.del(+b.dataset.d).then(draw); });
+  }).catch(() => { $('bkm').textContent = 'Хранилище фото недоступно в этом браузере.'; });
+  const take = files => {
+    const fs = [...files]; if (!fs.length) return;
+    $('bkm').textContent = 'Сохраняю…';
+    Promise.all(fs.map(f => BK.shrink(f).then(blob => BK.add({ subj: $('bks').value, cls: $('bkc').value, blob, t: Date.now() })))).then(() => { $('bkm').textContent = '✅ Сохранено: ' + fs.length; draw(); }).catch(() => { $('bkm').textContent = '❌ Не получилось сохранить фото.'; });
+  };
+  $('bkcam').onchange = e => { take(e.target.files); e.target.value = ''; };
+  $('bkgal').onchange = e => { take(e.target.files); e.target.value = ''; };
+  $('bkdl').onclick = () => {
+    if (!list.length) { $('bkm').textContent = 'Сначала добавьте фото.'; return; }
+    const cnt = {};
+    list.forEach((r, k) => { const key = r.subj + r.cls; cnt[key] = (cnt[key] || 0); const n = cnt[key]++; setTimeout(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = fname(r, n); document.body.appendChild(a); a.click(); a.remove(); }, k * 400); });
+    $('bkm').textContent = 'Скачиваю файлов: ' + list.length + '. Пришлите их разработчику.';
+  };
+  draw();
+}
 function parent() {
   const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
@@ -1675,6 +1742,7 @@ function parent() {
       <p>${cloudOn() ? 'Включена. Семейный код: <b>' + esc(CL.code) + '</b>. ' + esc(cloudStatus()) : 'Не включена: прогресс хранится только на этом устройстве.'}</p>
       <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
+    <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
@@ -1691,6 +1759,7 @@ function parent() {
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('clp').onclick = () => cloudScreen(parent);
+  booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });
   const vstat = () => {

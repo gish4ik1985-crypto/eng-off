@@ -233,6 +233,7 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .qpic{display:flex;justify-content:center;margin:6px 0 10px}.qpic .osvg{max-width:100%;height:auto;max-height:220px}.bigem{font-size:64px;line-height:1}
 .clue{font-size:1.15rem;margin:4px 0 10px}.wbox{min-width:200px;font-size:2rem;letter-spacing:3px}.rukeys{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:10px auto}.rukeys .btn{min-width:46px;padding:10px 0;font-size:1.2rem}
 .sent{font-size:1.5rem;margin:8px 0;line-height:1.5}.gapb{display:inline-block;border-bottom:4px solid #2e7d32;min-width:3em}
+.bkl{display:flex;flex-wrap:wrap;gap:10px}.bki{display:flex;flex-direction:column;align-items:center;gap:4px;width:120px}.bki img{width:120px;height:90px;object-fit:cover;border:3px solid #1b1b1b;border-radius:8px}
 
 </style>
 </head>
@@ -2629,7 +2630,7 @@ Object.assign(MTOP, {
 const OP = (bank, l) => {
   const pool = bank.filter(e => (e[4] || 1) <= l), e = MP(pool.length ? pool : bank), [q, r, w, why] = e;
   if (typeof r === 'number') return { q, ans: r, why: why || `Правильный ответ: ${r}.` };
-  const ws = RS(w).slice(0, l === 1 ? 1 : (l === 3 && w.length >= 3 ? 3 : 2));
+  const ws = RS(w).slice(0, 2);
   return { q, opts: RS([r].concat(ws)), ans: r, why: why || `Правильный ответ: ${r}.` };
 };
 const O_MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
@@ -2637,11 +2638,11 @@ const O_SEAS = ['зима', 'весна', 'лето', 'осень'];
 const seasonOf = i => [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 0][i];
 MQ.o_season = l => {
   if (l <= 2) {
-    const i = MR(0, 11), r = O_SEAS[seasonOf(i)], ws = RS(O_SEAS.filter(s => s !== r)).slice(0, l === 1 ? 1 : 3);
+    const i = MR(0, 11), r = O_SEAS[seasonOf(i)], ws = RS(O_SEAS.filter(s => s !== r)).slice(0, 2);
     return { q: `К какому времени года относится месяц «${O_MONTHS[i]}»?`, opts: RS([r].concat(ws)), ans: r, why: `Зима: декабрь, январь, февраль. Весна: март, апрель, май. Лето: июнь, июль, август. Осень: сентябрь, октябрь, ноябрь. Значит, ${O_MONTHS[i]} — ${r}.` };
   }
   const i = MR(0, 11), after = MR(0, 1) === 1, r = O_MONTHS[(i + (after ? 1 : 11)) % 12], ws = RS(O_MONTHS.filter(m => m !== r && m !== O_MONTHS[i])).slice(0, 2);
-  return { q: `Какой месяц идёт ${after ? 'после' : 'перед'} месяцем «${O_MONTHS[i]}»?`, opts: RS([r].concat(ws)), ans: r, why: `Месяцы по порядку: ${O_MONTHS.join(', ')}. ${after ? 'После' : 'Перед'} «${O_MONTHS[i]}» — «${r}».` };
+  return { q: `Какой месяц идёт ${after ? 'после месяца' : 'перед месяцем'} «${O_MONTHS[i]}»?`, opts: RS([r].concat(ws)), ans: r, why: `Месяцы по порядку: ${O_MONTHS.join(', ')}. ${after ? 'После' : 'Перед'} «${O_MONTHS[i]}» — «${r}».` };
 };
 const O_DAYS = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 MQ.o_calendar = l => {
@@ -2652,7 +2653,7 @@ MQ.o_calendar = l => {
 const O_LIVE = ['дерево', 'ёж', 'гриб', 'воробей', 'ромашка', 'окунь', 'медведь', 'бабочка', 'мох', 'лягушка'];
 const O_DEAD = ['камень', 'солнце', 'вода', 'воздух', 'песок', 'облако', 'ветер', 'гора', 'дождь', 'радуга'];
 MQ.o_nature = l => {
-  const live = MR(0, 1) === 1, n = l === 1 ? 1 : 2, r = MP(live ? O_LIVE : O_DEAD), ws = RS(live ? O_DEAD : O_LIVE).slice(0, n);
+  const live = MR(0, 1) === 1, n = 2, r = MP(live ? O_LIVE : O_DEAD), ws = RS(live ? O_DEAD : O_LIVE).slice(0, n);
   return { q: `Что относится к ${live ? 'живой' : 'неживой'} природе?`, opts: RS([r].concat(ws)), ans: r, why: live ? `${cap1(r)} — живое: оно растёт, питается, дышит и размножается.` : `${cap1(r)} — неживая природа: оно не растёт, не дышит и не размножается.` };
 };
 const O_ANI = { звери: ['медведь', 'волк', 'лиса', 'заяц', 'белка', 'ёж', 'лось', 'кабан'], птицы: ['воробей', 'ворона', 'сова', 'аист', 'синица', 'голубь', 'утка', 'лебедь'], рыбы: ['щука', 'окунь', 'карась', 'акула', 'сом', 'сельдь', 'сазан'], насекомые: ['муха', 'пчела', 'бабочка', 'жук', 'комар', 'муравей', 'стрекоза', 'кузнечик'], земноводные: ['лягушка', 'жаба', 'тритон'], пресмыкающиеся: ['змея', 'ящерица', 'черепаха', 'крокодил'] };
@@ -2733,7 +2734,7 @@ const O_SPACE = [
   ['Какая по счёту от Солнца планета Марс?', 4, [], 'Меркурий, Венера, Земля, Марс — четвёртая.', 3]
 ];
 MQ.o_space = l => OP(O_SPACE, l);
-const O_ZONE = { 'арктические пустыни': ['белый медведь', 'морж', 'тюлень'], тундра: ['северный олень', 'песец', 'лемминг', 'полярная сова'], тайга: ['лось', 'бурый медведь', 'соболь', 'рысь', 'кедр'], 'смешанные и широколиственные леса': ['дуб', 'зубр', 'кабан', 'липа'], степь: ['сайгак', 'суслик', 'дрофа', 'ковыль'], пустыня: ['верблюд', 'саксаул', 'скорпион'] };
+const O_ZONE = { 'арктические пустыни': ['белый медведь', 'морж', 'тюлень'], тундра: ['песец', 'лемминг', 'полярная сова'], тайга: ['соболь', 'рысь', 'кедр'], 'смешанные и широколиственные леса': ['дуб', 'зубр', 'липа'], степь: ['сайгак', 'суслик', 'дрофа', 'ковыль'], пустыня: ['верблюд', 'саксаул', 'скорпион'] };
 MQ.o_zones = l => {
   const zs = l === 1 ? ['арктические пустыни', 'тундра', 'тайга', 'степь', 'пустыня'] : Object.keys(O_ZONE), z = MP(zs), a = MP(O_ZONE[z]);
   const wrong = RS(zs.filter(x => x !== z)).slice(0, l === 1 ? 2 : 3);
@@ -2754,7 +2755,7 @@ MQ.o_countries = l => {
 const O_GOLD = ['Сергиев Посад', 'Переславль-Залесский', 'Ростов Великий', 'Ярославль', 'Кострома', 'Иваново', 'Суздаль', 'Владимир'];
 const O_NOGOLD = ['Псков', 'Казань', 'Омск', 'Тула', 'Курск', 'Самара', 'Томск', 'Пермь'];
 MQ.o_golden = l => {
-  const r = MP(O_GOLD), ws = RS(O_NOGOLD).slice(0, l === 1 ? 1 : 2);
+  const r = MP(O_GOLD), ws = RS(O_NOGOLD).slice(0, 2);
   return { q: 'Какой город входит в «Золотое кольцо» России?', opts: RS([r].concat(ws)), ans: r, why: `В Золотое кольцо входят: ${O_GOLD.join(', ')}. Это старинные русские города недалеко от Москвы.` };
 };
 const O_WORLD = [
@@ -2819,7 +2820,7 @@ const O_EXTRA = {
     return { pic: svgCompass(a), q: 'Какую сторону горизонта показывает красная стрелка? (С — север, Ю — юг, З — запад, В — восток)', opts: RS([name].concat(ws)), ans: name, why: `Стрелка показывает на «${DIRS.find(x => x[0] === name)[1]}» — это ${name}.` };
   },
   o_water: () => { const n = MR(1, 3), r = ['испарение', 'облако', 'осадки'][n - 1]; return { pic: svgWater(), q: `Что обозначено на схеме круговорота воды цифрой ${n}?`, opts: RS(['испарение', 'облако', 'осадки']), ans: r, why: 'Вода испаряется с поверхности океана (1), в небе из пара образуются облака (2), из облаков выпадают осадки (3).' }; },
-  o_plants: l => { const n = MR(0, 3), r = PLANT[n]; return { pic: svgPlant(), q: `Как называется часть растения под цифрой ${n + 1}?`, opts: RS([r].concat(RS(PLANT.filter(x => x !== r)).slice(0, l === 1 ? 1 : 2))), ans: r, why: 'Цветок (1), лист (2), стебель (3), корень (4).' }; },
+  o_plants: l => { const n = MR(0, 3), r = PLANT[n]; return { pic: svgPlant(), q: `Как называется часть растения под цифрой ${n + 1}?`, opts: RS([r].concat(RS(PLANT.filter(x => x !== r)).slice(0, 2))), ans: r, why: 'Цветок (1), лист (2), стебель (3), корень (4).' }; },
   o_space: () => { const k = MR(0, 7), r = PLN[k]; return { pic: svgPlanets(k), q: 'Планеты показаны по порядку от Солнца (слева). Как называется планета под стрелкой?', opts: RS([r].concat(RS(PLN.filter(x => x !== r)).slice(0, 2))), ans: r, why: `Порядок от Солнца: ${PLN.join(', ')}. Под стрелкой — ${r}.` }; }
 };
 ['o_safety', 'o_russia', 'o_map', 'o_water', 'o_plants', 'o_space', 'o_nature', 'o_animals', 'o_zones', 'o_season'].forEach(k => {
@@ -2832,14 +2833,20 @@ const O_EXTRA = {
   };
 });
 
+// во всех вопросах окружающего мира три варианта ответа: ответ и два неверных
+Object.keys(MQ).filter(k => k.startsWith('o_')).forEach(k => {
+  const base = MQ[k];
+  MQ[k] = l => { const q = base(l); if (q.opts && q.opts.length > 3) q.opts = RS([q.ans].concat(RS(q.opts.filter(x => x !== q.ans)).slice(0, 2))); return q; };
+});
+
 /* ---------- уроки ---------- */
 const OL1 = [
   RL(9001, '🍂', 'Времена года и месяцы', 'Лес меняется: то зелёный, то белый. Узнаем, какой месяц к какому сезону относится.', { title: 'Четыре времени года', html: 'В году 4 времени года и 12 месяцев, по 3 месяца в каждом.<br><b>Зима</b>: декабрь, январь, февраль. <b>Весна</b>: март, апрель, май.<br><b>Лето</b>: июнь, июль, август. <b>Осень</b>: сентябрь, октябрь, ноябрь.', ex: [['Март — весна', 'первый месяц весны'], ['Октябрь — осень', 'второй месяц осени']] }, [['o_season', 1], ['o_season', 2]]),
   RL(9002, '📅', 'Неделя и год', 'У шахтёра есть календарь. В неделе 7 дней, в году 12 месяцев.', { title: 'Календарь', html: 'В неделе <b>7 дней</b>: понедельник, вторник, среда, четверг, пятница, суббота, воскресенье.<br>Суббота и воскресенье — выходные.<br>В году <b>12 месяцев</b> и 4 времени года.', ex: [['после вторника — среда', 'дни по порядку'], ['12 месяцев в году', '4 сезона по 3 месяца']] }, [['o_calendar', 1], ['o_calendar', 2]]),
   RL(9003, '🪨', 'Живая и неживая природа', 'Что растёт и дышит, а что просто лежит? Разберём находки из шахты.', { title: 'Живое и неживое', html: '<b>Живая природа</b>: растёт, дышит, питается, размножается (деревья, животные, грибы).<br><b>Неживая природа</b>: камни, вода, воздух, солнце, ветер.', ex: [['Дерево, ёж, гриб — живая природа', 'растут и размножаются'], ['Камень, воздух — неживая', 'не растут']] }, [['o_nature', 1], ['o_nature', 2]]),
   RL(9004, '🐾', 'Звери, птицы, рыбы, насекомые', 'В лесу живут разные существа. К какой группе относится каждое?', { title: 'Группы животных', html: '<b>Звери</b>: шерсть, молоко для детёнышей.<br><b>Птицы</b>: перья, крылья, яйца.<br><b>Рыбы</b>: живут в воде, чешуя, жабры.<br><b>Насекомые</b>: шесть ног.', ex: [['Медведь, заяц — звери', 'шерсть'], ['Бабочка, жук — насекомые', 'шесть ног']] }, [['o_animals', 1]]),
-  RL(9005, '🌿', 'Растения', 'У растений много частей. Узнаем, что для чего нужно.', { title: 'Части растения', html: '<b>Корень</b> держит растение и всасывает воду. <b>Стебель</b> несёт воду к листьям. <b>Лист</b> делает питание на свету. <b>Цветок</b> превращается в плод с семенами.<br>Бывают деревья, кустарники и травы.', ex: [['Корень — вода из почвы', 'держит растение'], ['Берёза — дерево, малина — кустарник', 'ромашка — трава']] }, [['o_plants', 1], ['o_plants', 2]]),
-  RL(9006, '🧍', 'Человек и здоровье', 'Чтобы быть сильным героем, нужно знать своё тело.', { title: 'Органы чувств и здоровье', html: 'Глаза — видим, уши — слышим, нос — запахи, язык — вкус, кожа — прикосновения.<br>Мойте руки перед едой, чистите зубы дважды в день, делайте зарядку.', ex: [['Слышим ушами', 'орган слуха'], ['Руки моем перед едой', 'чистота защищает от микробов']] }, [['o_body', 1], ['o_body', 2]]),
+  RL(9005, '🌿', 'Растения', 'У растений много частей. Узнаем, что для чего нужно.', { title: 'Части растения', html: '<b>Корень</b> держит растение и всасывает воду. <b>Стебель</b> несёт воду к листьям. В <b>листе</b> на свету образуется питание. <b>Цветок</b> превращается в плод с семенами.<br>Бывают деревья, кустарники и травы.', ex: [['Корень — вода из почвы', 'держит растение'], ['Берёза — дерево, малина — кустарник', 'ромашка — трава']] }, [['o_plants', 1], ['o_plants', 2]]),
+  RL(9006, '🧍', 'Человек и здоровье', 'Чтобы быть сильным героем, нужно знать своё тело.', { title: 'Органы чувств и здоровье', html: 'Глаза — видим, уши — слышим, нос — запахи, язык — вкус, кожа — прикосновения.<br>Мой руки перед едой, чисти зубы дважды в день, делай зарядку.', ex: [['Слышим ушами', 'орган слуха'], ['Руки моют перед едой', 'чистота защищает от микробов']] }, [['o_body', 1], ['o_body', 2]]),
   RL(9007, '🚦', 'Безопасность на дороге', 'На дорогах опасно, как в пещерах с лавой. Знай правила!', { title: 'Светофор и переход', html: '<b>Красный</b> — стой. <b>Жёлтый</b> — жди. <b>Зелёный</b> — иди.<br>Дорогу переходи только по пешеходному переходу, не бегая и глядя по сторонам.<br>Номера: 101 — пожарные, 102 — полиция, 103 — скорая.', ex: [['Зелёный — можно идти', 'сигнал светофора'], ['103 — скорая помощь', 'номер для вызова']] }, [['o_safety', 1], ['o_safety', 2]]),
   RL(9008, '🇷🇺', 'Наша Родина — Россия', 'Мы живём в большой стране. Как она называется и что в ней главное?', { title: 'Россия', html: 'Наша страна — <b>Россия</b>. Столица — <b>Москва</b>.<br>Флаг России: белая, синяя, красная полосы. На гербе — двуглавый орёл.', ex: [['Столица России — Москва', 'главный город'], ['Флаг: белый, синий, красный', 'три полосы']] }, [['o_russia', 1]])
 ];
@@ -2867,13 +2874,13 @@ const OL3 = [
 const OL4 = [
   RL(12001, '🌌', 'Земля и человечество', 'Наш дом — планета Земля. Что мы о ней знаем?', { title: 'Земля в космосе', html: 'Земля — третья от Солнца планета. Вокруг неё обращается Луна. Солнечная система находится в галактике Млечный Путь. На Земле 6 материков и 4 океана.', ex: [['Млечный Путь — наша галактика', 'в ней Солнечная система'], ['Земля — третья планета', 'после Венеры']] }, [['o_space', 2], ['o_space', 3], ['o_world', 2]]),
   RL(12002, '🧭', 'Карта и глобус', 'Как не заблудиться? Учимся читать карту.', { title: 'Ориентирование', html: 'Солнце восходит на востоке, заходит на западе. Компас показывает север. Глобус — модель Земли, экватор делит её на полушария. Масштаб показывает, во сколько раз уменьшены расстояния: если в 1 см 10 км, то 6 см — это 60 км.', ex: [['6 см × 10 км = 60 км', 'масштаб'], ['Компас — на север', 'прибор']] }, [['o_map', 1], ['o_map', 2], ['o_map', 3]]),
-  RL(12003, '🌳', 'Природные зоны России', 'От ледяной Арктики до жаркой пустыни: природа России разная.', { title: 'Природные зоны', html: '<b>Арктические пустыни</b>: белый медведь, морж. <b>Тундра</b>: северный олень, песец. <b>Тайга</b>: лось, бурый медведь, кедр. <b>Смешанные и широколиственные леса</b>: дуб, зубр. <b>Степь</b>: сайгак, ковыль. <b>Пустыня</b>: верблюд, саксаул.', ex: [['Северный олень — тундра', 'холодный север'], ['Верблюд — пустыня', 'жаркий сухой климат']] }, [['o_zones', 1], ['o_zones', 2], ['o_zones', 3]]),
+  RL(12003, '🌳', 'Природные зоны России', 'От ледяной Арктики до жаркой пустыни: природа России разная.', { title: 'Природные зоны', html: '<b>Арктические пустыни</b>: белый медведь, морж. <b>Тундра</b>: песец, лемминг. <b>Тайга</b>: соболь, рысь, кедр. <b>Смешанные и широколиственные леса</b>: дуб, зубр. <b>Степь</b>: сайгак, ковыль. <b>Пустыня</b>: верблюд, саксаул.', ex: [['Песец — тундра', 'холодный север'], ['Верблюд — пустыня', 'жаркий сухой климат']] }, [['o_zones', 1], ['o_zones', 2], ['o_zones', 3]]),
   RL(12004, '🇷🇺', 'Россия сегодня', 'Что главное в нашей стране?', { title: 'Россия', html: 'Главный закон — Конституция. Государственные символы: герб, флаг, гимн. Праздники: 12 июня — День России, 9 мая — День Победы.', ex: [['Конституция — основной закон', 'для всех граждан'], ['12 июня — День России', 'праздник']] }, [['o_russia', 2], ['o_russia', 3]]),
   RL(12005, '📜', 'История Отечества', 'Путешествие во времени по главным событиям России.', { title: 'Даты и герои', html: '988 — крещение Руси (князь Владимир). 1242 — Ледовое побоище (Александр Невский). 1380 — Куликовская битва (Дмитрий Донской). 1703 — основан Петербург (Пётр I). 1812 — война с Наполеоном (Кутузов). 1941–1945 — Великая Отечественная война. 1957 — первый спутник. 1961 — полёт Гагарина.', ex: [['1380 — Куликовская битва', 'Дмитрий Донской'], ['1961 — Гагарин в космосе', 'первый человек в космосе']] }, [['o_history', 1], ['o_history', 2], ['o_history', 3]]),
   RL(12006, '🌐', 'Страны мира', 'Знаем столицы разных стран.', { title: 'Страны и столицы', html: 'Повторяем столицы: Париж, Берлин, Рим, Лондон, Токио, Пекин, Вашингтон, Каир, Афины, Варшава, Минск, Астана, Нью-Дели, Оттава, Бразилиа, Канберра, Анкара, Хельсинки.', ex: [['Египет — Каир', 'в Африке'], ['Австралия — Канберра', 'не Сидней']] }, [['o_countries', 3]]),
   RL(12007, '🏦', 'Деньги и семья', 'Считаем семейный бюджет.', { title: 'Экономика', html: 'Доходы: зарплата, пенсия. Расходы: еда, одежда, жильё. Товар производят для продажи. Деньги хранят в банке.', ex: [['Пенсия — доход', 'для старших'], ['Хлеб — товар', 'его продают']] }, [['o_econ', 2], ['o_econ', 3]]),
   RL(12008, '🛡️', 'Безопасность', 'Закрепляем правила.', { title: 'Безопасность', html: 'Номера служб, правила дороги, поведение при пожаре и запахе газа.', ex: [['112 — единый номер', 'для любых служб'], ['101 — пожарные', 'при пожаре']] }, [['o_safety', 3]]),
-  RL(12009, '🏁', 'Повторяем', 'Последняя проверка перед боссом.', { title: 'Повторение', html: 'Космос, карта, природные зоны, история России, страны мира.', ex: [['Тайга — лось и кедр', 'природная зона'], ['1812 — Кутузов', 'Бородино']] }, [['o_space', 3], ['o_map', 3], ['o_zones', 3], ['o_history', 3], ['o_countries', 3]])
+  RL(12009, '🏁', 'Повторяем', 'Последняя проверка перед боссом.', { title: 'Повторение', html: 'Космос, карта, природные зоны, история России, страны мира.', ex: [['Тайга — соболь и кедр', 'природная зона'], ['1812 — Кутузов', 'Бородино']] }, [['o_space', 3], ['o_map', 3], ['o_zones', 3], ['o_history', 3], ['o_countries', 3]])
 ];
 const OWORLDS = [
   { name: 'Окружающий мир · 1 класс', lessons: OL1, boss: { id: 9100, title: 'Заколдованный лес', icon: '🌲', bossIcon: '🐉', story: 'Босс Хаос заколдовал лес. Ответь на вопросы о природе!', cert: 'победил(а) Хаос и расколдовал(а) лес' } },
@@ -4345,7 +4352,7 @@ function mathRule(ctx, cb) {
 let mathKeyFn = null;
 document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
 function mathQuiz(o, done) {
-  const ctx = o.ctx, total = o.items.length; let i = 0;
+  const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
   function askWord(sp, q) {
     let tries = 0, locked = false, buf = '';
@@ -4389,7 +4396,9 @@ function mathQuiz(o, done) {
     };
   }
   function ask(sp) {
-    const q = MQ[sp.g](mathLv(sp));
+    let q = MQ[sp.g](mathLv(sp));
+    for (let t = 0; t < 25 && seen.has(q.q + (q.sent || '') + '|' + q.ans); t++) q = MQ[sp.g](mathLv(sp)); // тот же вопрос в одном задании не повторяем
+    seen.add(q.q + (q.sent || '') + '|' + q.ans);
     if (q.word) return askWord(sp, q);
     const isEq = !q.opts && !q.parts && /x/.test(q.q);
     const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
@@ -4666,6 +4675,71 @@ function diaryLinkHtml() {
   const dl = (ad.a.eng.topics.length || ad.a.eng.exams.length) ? engDiaryLessons() : [];
   return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}${row('ow', 'Окружающий мир')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
 }
+/* ---------- фото учебников (оглавления): хранятся на устройстве, можно скачать и передать разработчику ---------- */
+const BK = {
+  db: null,
+  open() {
+    if (BK.db) return Promise.resolve(BK.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('engBooks', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('p', { keyPath: 'id', autoIncrement: true });
+      r.onsuccess = () => { BK.db = r.result; res(BK.db); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  tx(mode, fn) { return BK.open().then(db => new Promise((res, rej) => { const t = db.transaction('p', mode), rq = fn(t.objectStore('p')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); })); },
+  all() { return BK.tx('readonly', s => s.getAll()); },
+  add(rec) { return BK.tx('readwrite', s => s.add(rec)); },
+  del(id) { return BK.tx('readwrite', s => s.delete(id)); },
+  shrink(file) {
+    return new Promise((res, rej) => {
+      const im = new Image(), u = URL.createObjectURL(file);
+      im.onload = () => {
+        const k = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+        c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+        c.toBlob(b => b ? res(b) : rej(new Error('toBlob')), 'image/jpeg', .82);
+      };
+      im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); };
+      im.src = u;
+    });
+  }
+};
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['eng', 'Английский'], ['other', 'Другое']];
+function booksHtml() {
+  const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
+  return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
+    <p>Предмет: ${sel('bks', BK_SUBJ)} Класс: ${sel('bkc', [[1, '1'], [2, '2'], [3, '3'], [4, '4']])}</p>
+    <p><label class="btn small gold" style="display:inline-block">📷 Снять<input type="file" id="bkcam" accept="image/*" capture="environment" hidden></label>
+    <label class="btn small" style="display:inline-block">🖼️ Из галереи<input type="file" id="bkgal" accept="image/*" multiple hidden></label>
+    <button class="btn small sec" id="bkdl">⬇️ Скачать все</button></p>
+    <div id="bkl" class="bkl"></div><p id="bkm"></p>`;
+}
+function booksInit() {
+  if (!$('bkl')) return;
+  const nm = r => `${(BK_SUBJ.find(x => x[0] === r.subj) || [0, r.subj])[1]}, ${r.cls} кл.`;
+  const fname = (r, k) => `uchebnik-${r.subj}-${r.cls}kl-${k + 1}.jpg`;
+  let list = [];
+  const draw = () => BK.all().then(a => {
+    list = a || [];
+    $('bkl').innerHTML = list.length ? list.map(r => `<div class="bki"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${nm(r)}</small><button class="btn small red" data-d="${r.id}">✖</button></div>`).join('') : '<small>Фото пока нет.</small>';
+    app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить это фото?')) BK.del(+b.dataset.d).then(draw); });
+  }).catch(() => { $('bkm').textContent = 'Хранилище фото недоступно в этом браузере.'; });
+  const take = files => {
+    const fs = [...files]; if (!fs.length) return;
+    $('bkm').textContent = 'Сохраняю…';
+    Promise.all(fs.map(f => BK.shrink(f).then(blob => BK.add({ subj: $('bks').value, cls: $('bkc').value, blob, t: Date.now() })))).then(() => { $('bkm').textContent = '✅ Сохранено: ' + fs.length; draw(); }).catch(() => { $('bkm').textContent = '❌ Не получилось сохранить фото.'; });
+  };
+  $('bkcam').onchange = e => { take(e.target.files); e.target.value = ''; };
+  $('bkgal').onchange = e => { take(e.target.files); e.target.value = ''; };
+  $('bkdl').onclick = () => {
+    if (!list.length) { $('bkm').textContent = 'Сначала добавьте фото.'; return; }
+    const cnt = {};
+    list.forEach((r, k) => { const key = r.subj + r.cls; cnt[key] = (cnt[key] || 0); const n = cnt[key]++; setTimeout(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = fname(r, n); document.body.appendChild(a); a.click(); a.remove(); }, k * 400); });
+    $('bkm').textContent = 'Скачиваю файлов: ' + list.length + '. Пришлите их разработчику.';
+  };
+  draw();
+}
 function parent() {
   const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
@@ -4695,6 +4769,7 @@ function parent() {
       <p>${cloudOn() ? 'Включена. Семейный код: <b>' + esc(CL.code) + '</b>. ' + esc(cloudStatus()) : 'Не включена: прогресс хранится только на этом устройстве.'}</p>
       <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
+    <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
@@ -4711,6 +4786,7 @@ function parent() {
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('clp').onclick = () => cloudScreen(parent);
+  booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });
   const vstat = () => {
