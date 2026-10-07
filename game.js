@@ -153,14 +153,14 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
-const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'math' ? 'math' : 'eng';
-const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow'; // предметы с генерируемыми заданиями
-const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : MWORLDS;
+const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
+const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo'; // предметы с генерируемыми заданиями
+const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.world;
+const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
 const worldOpen = k => S.unlockAll || k === 0 || isGen() || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
@@ -821,7 +821,7 @@ function missionCard() {
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
   if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
-  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', eng: 'английскому' }[sj];
+  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', eng: 'английскому' }[sj];
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
@@ -860,7 +860,7 @@ function map() {
   const cur = allDone ? null : WL[nextI];
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
-  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button></div>`;
+  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button><button class="btn ${skind() === 'izo' ? 'gold' : 'sec'}" id="sj_izo">🎨 ИЗО</button>${skind() === 'izo' ? '<button class="btn small" id="gal">🖼️ Галерея</button>' : ''}</div>`;
   const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
@@ -882,6 +882,8 @@ function map() {
   $('trn').onclick = isGen() ? mathTraining : training;
   $('sj_ru').onclick = () => { if (S.subj !== 'ru') { S.subj = 'ru'; save(); map(); } };
   $('sj_ow').onclick = () => { if (S.subj !== 'ow') { S.subj = 'ow'; save(); map(); } };
+  $('sj_izo').onclick = () => { if (S.subj !== 'izo') { S.subj = 'izo'; save(); map(); } };
+  if ($('gal')) $('gal').onclick = izoGallery;
   $('sj_eng').onclick = () => { if (isGen()) { S.subj = 'eng'; save(); map(); } };
   $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
   if ($('more')) $('more').onclick = more;
@@ -903,7 +905,7 @@ function map() {
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else S.world = k;
+    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else S.world = k;
     save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
@@ -931,6 +933,10 @@ function startLesson(i) {
     const ds = focusOf(skind()).focus || focusOf(skind()).exams.length ? diarySpecs().slice(0, 4) : [];
     if (ds.length) ctx.steps.push(['Из дневника', cb => mathQuiz({ ctx, counted: true, title: '📓 Темы из дневника', items: ds }, cb)]);
     ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
+  } else if (L.type === 'draw') {
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Рисуем', cb => drawLesson(ctx, L.draw, cb)]);
+    if (L.gens.length) ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 4) }, cb)]);
   } else if (L.type === 'read') {
     ctx.steps.push(['Читаем', cb => readCard(ctx, cb)]);
     ctx.steps.push(['Вопросы по тексту', cb => gapQuiz({ ctx, counted: true, items: L.qs }, cb)]);
@@ -1302,8 +1308,8 @@ function mathNote(sp, ok) {
   r.last = today();
 }
 const mixSpecs = (gens, n) => shuffle(Array.from({ length: n }, (_, k) => specOf(gens[k % gens.length])));
-const subjPrefix = () => S.subj === 'ru' ? 'r_' : S.subj === 'ow' ? 'o_' : '';
-const mathWeak = (pref = subjPrefix()) => Object.keys(S.mt || {}).filter(k => pref ? k.startsWith(pref) : !/^[ro]_/.test(k)).filter(k => {
+const subjPrefix = () => S.subj === 'ru' ? 'r_' : S.subj === 'ow' ? 'o_' : S.subj === 'izo' ? 'i_' : '';
+const mathWeak = (pref = subjPrefix()) => Object.keys(S.mt || {}).filter(k => pref ? k.startsWith(pref) : !/^[roi]_/.test(k)).filter(k => {
   const r = S.mt[k]; if (!r || (r.seen || 0) < 3) return false;
   const h = r.hist || [];
   return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7;
@@ -1319,7 +1325,7 @@ function mathRule(ctx, cb) {
   const r = ctx.L.rule;
   frame(ctx, `<div class="card"><div class="story">${ctx.L.story}</div><h2>${r.title}</h2><div class="rule">${r.html}</div>
     <h3>Примеры:</h3>${r.ex.map(e => `<div class="exb mex"><b>${e[0]}</b><br><small>${e[1]}</small></div>`).join('')}
-    <p class="center"><button class="btn gold" id="go">Понятно, решаем ➜</button></p></div>`);
+    <p class="center"><button class="btn gold" id="go">${ctx.L.go || 'Понятно, решаем ➜'}</button></p></div>`);
   $('go').onclick = cb;
 }
 let mathKeyFn = null;
@@ -1646,8 +1652,101 @@ function diaryLinkHtml() {
   if (!ad) return sel + '<p>Совпадения по имени нет — выберите ребёнка из списка.</p>';
   const row = (sj, nm) => { const f = ad.a[sj]; return `<tr><td>${nm}</td><td>${f.avg === null ? 'нет оценок' : 'средний ' + f.avg}</td><td>${f.focus ? '📌 ' + esc(f.reasons.join(', ')) : 'всё хорошо'}${f.exams.length ? '<br>📅 ' + esc(f.exams[0].text) + ' (' + f.exams[0].days + ' дн.)' : ''}</td></tr>`; };
   const dl = (ad.a.eng.topics.length || ad.a.eng.exams.length) ? engDiaryLessons() : [];
-  return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}${row('ow', 'Окружающий мир')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
+  return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}${row('ow', 'Окружающий мир')}${row('izo', 'ИЗО')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
 }
+/* ---------- ИЗО: рисование по шагам и галерея ---------- */
+const GAL = {
+  db: null,
+  open() {
+    if (GAL.db) return Promise.resolve(GAL.db);
+    return new Promise((res, rej) => { const r = indexedDB.open('engGallery', 1); r.onupgradeneeded = () => r.result.createObjectStore('g', { keyPath: 'id', autoIncrement: true }); r.onsuccess = () => { GAL.db = r.result; res(GAL.db); }; r.onerror = () => rej(r.error); });
+  },
+  tx(mode, fn) { return GAL.open().then(db => new Promise((res, rej) => { const t = db.transaction('g', mode), rq = fn(t.objectStore('g')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); })); },
+  all() { return GAL.tx('readonly', s => s.getAll()); },
+  add(r) { return GAL.tx('readwrite', s => s.add(r)); },
+  del(id) { return GAL.tx('readwrite', s => s.delete(id)); }
+};
+const IZ_PAL = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#4fc3f7', '#1e63d8', '#8e24aa', '#f48fb1', '#795548', '#222222'];
+function drawLesson(ctx, spec, done) {
+  const tol = spec.tol || 24, steps = spec.steps, prev = [];
+  let k = 0;
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const near = (p, arr, r) => { for (let i = 0; i < arr.length; i++) if (dist(p, arr[i]) <= r) return true; return false; };
+  const dots = () => `<div class="prog">${steps.map((_, n) => `<i class="${n < k ? 'd' : ''}"></i>`).join('')}</div>`;
+  const shell = (title, text, btns) => frame(ctx, `<div class="card center">${dots()}<h3>${title}</h3><p class="dtxt">${text}</p>
+    <canvas id="cv" width="640" height="480" class="dcv"></canvas><div class="dbtns">${btns}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+  const stroke = (g, pts, col, w, dash) => { if (pts.length < 1) return; g.strokeStyle = col; g.lineWidth = w; g.setLineDash(dash || []); g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); pts.forEach(p => g.lineTo(p[0], p[1])); if (pts.length === 1) g.lineTo(pts[0][0] + .1, pts[0][1]); g.stroke(); };
+  const bg = g => { g.fillStyle = '#fffdf5'; g.fillRect(0, 0, 640, 480); };
+  const attach = (cv, onStroke) => {
+    let cur = null;
+    const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * 640 / r.width, (e.clientY - r.top) * 480 / r.height]; };
+    cv.style.touchAction = 'none';
+    cv.onpointerdown = e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (x) {} cur = [pos(e)]; onStroke('start', cur); };
+    cv.onpointermove = e => { if (!cur) return; e.preventDefault(); cur.push(pos(e)); onStroke('move', cur); };
+    const end = () => { if (!cur) return; const c = cur; cur = null; onStroke('end', c); };
+    cv.onpointerup = end; cv.onpointercancel = end;
+  };
+  const gallerySave = cv => { try { cv.toBlob(b => { if (b) GAL.add({ t: Date.now(), title: ctx.L.title, blob: b }).catch(() => {}); }, 'image/png'); } catch (e) {} };
+  function colorStep() {
+    const my0 = screenId;
+    shell('Раскрась рисунок', 'Выбери цвет и раскрась рисунок, как хочешь. Потом нажми «Готово».', `${IZ_PAL.map(c => `<button class="sw" data-c="${c}" style="background:${c}"></button>`).join('')}<button class="btn small sec" id="clr">🧽 Заново</button><button class="btn gold" id="fin">Готово ✓</button>`);
+    const my = screenId, cv = $('cv'), g = cv.getContext('2d');
+    let col = IZ_PAL[0]; const paint = [];
+    const redraw = () => { bg(g); paint.forEach(s => stroke(g, s.p, s.c, 26)); prev.forEach(s => stroke(g, s, '#333', 5)); };
+    redraw();
+    app.querySelectorAll('.sw').forEach(b => b.onclick = () => { col = b.dataset.c; app.querySelectorAll('.sw').forEach(x => x.classList.toggle('on', x === b)); });
+    app.querySelector('.sw').classList.add('on');
+    let live = null;
+    attach(cv, (ph, pts) => { if (ph === 'start') { live = { c: col, p: pts }; paint.push(live); } redraw(); });
+    $('clr').onclick = () => { paint.length = 0; redraw(); };
+    $('fin').onclick = () => { if (screenId !== my) return; redraw(); gallerySave(cv); sfx('ok'); done(); };
+  }
+  function step() {
+    if (k >= steps.length) return spec.color ? colorStep() : done();
+    const st = steps[k], T = [].concat(...st.s), tries0 = { n: 0 };
+    shell(`Шаг ${k + 1} из ${steps.length}`, st.t, '<button class="btn small sec" id="clr">🧽 Заново</button><button class="btn gold" id="chk">Готово ✓</button>');
+    const my = screenId, cv = $('cv'), g = cv.getContext('2d');
+    let mine = [], hint = false, locked = false;
+    const redraw = () => {
+      bg(g); prev.forEach(s => stroke(g, s, '#333', 5));
+      st.s.forEach(s => { stroke(g, s, hint ? '#3b6fd8' : '#9db7ea', hint ? 9 : 7, [2, 14]); if (s.length) { g.fillStyle = '#2e7d32'; g.beginPath(); g.arc(s[0][0], s[0][1], 9, 0, 7); g.fill(); } });
+      mine.forEach(s => stroke(g, s, '#d81b60', 6));
+    };
+    redraw();
+    attach(cv, (ph, pts) => { if (locked) return; if (ph === 'start') mine.push(pts); redraw(); });
+    $('clr').onclick = () => { if (locked) return; mine = []; redraw(); $('msg').innerHTML = '&nbsp;'; };
+    hintUI(ctx, () => { hint = true; redraw(); $('msg').textContent = '💡 Зелёная точка — где начинать. Веди линию по точкам.'; tries0.n = Math.max(tries0.n, 1); return true; });
+    const count = ok => { ctx.asked++; if (ok) ctx.ok++; logQ(ok); save(); };
+    const accept = ok => { locked = true; count(ok); st.s.forEach(s => prev.push(s)); k++; setTimeout(() => { if (screenId === my) step(); }, ok ? 800 : 1400); };
+    $('chk').onclick = () => {
+      if (locked) return;
+      const U = []; mine.forEach(s => { for (let i = 0; i < s.length; i++) { U.push(s[i]); if (i) { const n = Math.floor(dist(s[i - 1], s[i]) / 6); for (let j = 1; j <= n; j++) U.push([s[i - 1][0] + (s[i][0] - s[i - 1][0]) * j / (n + 1), s[i - 1][1] + (s[i][1] - s[i - 1][1]) * j / (n + 1)]); } } });
+      if (U.length < 5) { $('msg').textContent = 'Сначала обведи пунктир пальцем ✏️'; return; }
+      const P = [].concat(...prev);
+      const cov = T.filter(p => near(p, U, tol)).length / T.length, prec = U.filter(p => near(p, T, tol * 1.7) || near(p, P, tol * 1.7)).length / U.length;
+      if (cov >= .7 && prec >= .6) { sfx('ok'); $('msg').textContent = praise(); accept(tries0.n === 0); }
+      else {
+        tries0.n++;
+        if (tries0.n >= 2) { sfx('bad'); hint = true; mine = []; redraw(); $('msg').textContent = 'Ничего, получится! Вот как надо. Идём дальше 🙂'; accept(false); }
+        else { sfx('bad'); mine = []; redraw(); $('msg').textContent = cov < .7 ? 'Почти! Обведи пунктир до конца, от зелёной точки ✏️' : 'Почти! Старайся держаться ближе к пунктиру ✏️'; }
+      }
+    };
+  }
+  step();
+}
+function izoGallery() {
+  epoch++; newScreen();
+  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🖼️ Моя галерея</h2><div id="gl" class="bkl"><small>Загрузка…</small></div><p id="gm"></p></div>`;
+  $('bk').onclick = map;
+  const draw = () => GAL.all().then(a => {
+    a = (a || []).slice().reverse();
+    $('gl').innerHTML = a.length ? a.map(r => `<div class="bki gi"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${esc(r.title)}</small><span><button class="btn small" data-s="${r.id}">⬇️</button><button class="btn small red" data-d="${r.id}">✖</button></span></div>`).join('') : '<small>Здесь появятся твои рисунки. Раскрась рисунок в уроке ИЗО и нажми «Готово».</small>';
+    app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить рисунок?')) GAL.del(+b.dataset.d).then(draw); });
+    app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { const r = a.find(x => x.id === +b.dataset.s); if (!r) return; const l = document.createElement('a'); l.href = URL.createObjectURL(r.blob); l.download = 'risunok-' + r.id + '.png'; document.body.appendChild(l); l.click(); l.remove(); });
+  }).catch(() => { $('gm').textContent = 'Галерея недоступна в этом браузере.'; });
+  draw();
+}
+
 /* ---------- фото учебников (оглавления): хранятся на устройстве, можно скачать и передать разработчику ---------- */
 const BK = {
   db: null,
@@ -1678,7 +1777,7 @@ const BK = {
     });
   }
 };
-const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['eng', 'Английский'], ['other', 'Другое']];
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['eng', 'Английский'], ['other', 'Другое']];
 function booksHtml() {
   const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
   return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
@@ -1714,7 +1813,7 @@ function booksInit() {
   draw();
 }
 function parent() {
-  const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS, IWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');

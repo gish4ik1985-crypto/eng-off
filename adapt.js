@@ -1,7 +1,7 @@
 /* Адаптация игры под успеваемость: читает данные дневника (оценки, задания, замечания) и подсказывает игре,
    какому предмету и каким темам уделить внимание. Чистая логика без DOM: легко проверить тестами (tests/adapt.test.js). */
 const ADAPT = (() => {
-  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng'], [/русск/i, 'ru'], [/окружающ/i, 'ow']];
+  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng'], [/русск/i, 'ru'], [/окружающ/i, 'ow'], [/(^|[^а-яё])изо([^а-яё]|$)|рисован|изобразит|художеств/i, 'izo']];
   const gameSubject = name => { for (const [re, k] of SUBJ) if (re.test(String(name || ''))) return k; return null; };
   const TEST_RE = /контрольн|диктант|тест|проверочн|самостоятельн|зач[её]т|олимпиад/i;
   // слова из записей родителя -> темы математики в игре
@@ -22,6 +22,12 @@ const ADAPT = (() => {
     [/состав слова|корен|суффикс|окончани|однокорен/i, ['r_morph', 'r_oneroot']], [/падеж/i, ['r_cases', 'r_caseend']], [/врем\S* глагол|глагол\S* врем/i, ['r_verbtime']],
     [/тся|ться/i, ['r_tsya']], [/словарн/i, ['r_dict', 'r_dw3']], [/пропущенн\S* букв|вставь\S* букв|пропуск\S* букв/i, ['r_gl1', 'r_gl2', 'r_gl3']], [/диктант|списыван/i, ['r_dw1', 'r_dw2', 'r_dw3', 'r_gap1', 'r_gap2']], [/склонен/i, ['r_decl', 'r_caseend']], [/спряжен/i, ['r_conj', 'r_persend']],
     [/запят|однородн/i, ['r_comma']], [/подлежащ|сказуем|член\S* предложен|главн\S* член/i, ['r_sentparts']]
+  ];
+  // слова из записей родителя -> темы ИЗО в игре
+  const IZO_KW = [
+    [/лини|штрих/i, ['i_line']], [/цвет|краск|смешива/i, ['i_primary', 'i_mix', 'i_warm']], [/фигур|форм/i, ['i_shape']], [/композиц|перспектив|ближе|дальше|горизонт/i, ['i_compos']],
+    [/жанр|пейзаж|портрет|натюрморт/i, ['i_genre']], [/художник|картин|репродукц/i, ['i_artist']], [/материал|акварел|гуаш|кист|карандаш/i, ['i_tools']],
+    [/симметр/i, ['i_symm']], [/светотен|тень|оттенк|(^|[^а-яё])тон([^а-яё]|$)/i, ['i_tone', 'i_light']]
   ];
   // слова из записей родителя -> темы окружающего мира в игре
   const OW_KW = [
@@ -50,7 +56,7 @@ const ADAPT = (() => {
   const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
   function gensFromText(text, subj) {
-    const out = new Set(), kw = subj === 'ru' ? RU_KW : subj === 'ow' ? OW_KW : MATH_KW;
+    const out = new Set(), kw = subj === 'ru' ? RU_KW : subj === 'ow' ? OW_KW : subj === 'izo' ? IZO_KW : MATH_KW;
     kw.forEach(([re, gens]) => { if (re.test(text || '')) gens.forEach(g => out.add(g)); });
     if (subj === 'ru' && /ударн|парн|непроизн/i.test(text || '')) out.delete('r_vowel'); // «безударные гласные» — это не про слоги
     return [...out];
@@ -75,7 +81,7 @@ const ADAPT = (() => {
   function analyze(school, childId, today) {
     const subjName = id => ((school.subjects || []).find(s => s.id === id) || {}).name || '';
     const out = {};
-    ['math', 'eng', 'ru', 'ow'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
+    ['math', 'eng', 'ru', 'ow', 'izo'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
     const mine = list => (school[list] || []).filter(x => x.childId === childId);
     const grades = mine('grades'), tasks = mine('tasks'), remarks = mine('remarks');
     const since30 = addDays(today, -30), since14 = addDays(today, -14);

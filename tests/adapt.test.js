@@ -91,6 +91,8 @@ test('безударные гласные не сводятся к слогам'
 
 test('окружающий мир: предмет и темы', () => {
   assert.equal(A.gameSubject('Окружающий мир'), 'ow');
+  assert.equal(A.gameSubject('ИЗО'), 'izo');
+  assert.ok(A.gensFromText('перспектива и композиция', 'izo').includes('i_compos'));
   assert.ok(A.gensFromText('Золотое кольцо России, города', 'ow').includes('o_golden'));
   assert.ok(A.gensFromText('природные зоны: тундра и тайга', 'ow').includes('o_zones'));
   assert.ok(A.gensFromText('Планеты Солнечной системы', 'ow').includes('o_space'));
