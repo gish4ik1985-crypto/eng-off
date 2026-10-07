@@ -1,7 +1,7 @@
 /* Адаптация игры под успеваемость: читает данные дневника (оценки, задания, замечания) и подсказывает игре,
    какому предмету и каким темам уделить внимание. Чистая логика без DOM: легко проверить тестами (tests/adapt.test.js). */
 const ADAPT = (() => {
-  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng']];
+  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng'], [/русск/i, 'ru']];
   const gameSubject = name => { for (const [re, k] of SUBJ) if (re.test(String(name || ''))) return k; return null; };
   const TEST_RE = /контрольн|диктант|тест|проверочн|самостоятельн|зач[её]т|олимпиад/i;
   // слова из записей родителя -> темы математики в игре
@@ -13,21 +13,58 @@ const ADAPT = (() => {
     [/сложен|вычитан|сумм|разност|столбик/i, ['add100', 'sub100', 'add20', 'sub20', 'add10', 'sub10', 'addsub1000', 'addbig', 'subbig']],
     [/числ|нумерац|разряд|сотн|десят|тысяч|миллион|многозначн/i, ['place', 'place100', 'count10', 'tens20', 'big']], [/закономерн/i, ['pattern']], [/скорост|движен/i, ['speed']], [/(^|[^а-яё])(угол|угл)|градус/i, ['angle']]
   ];
+  // слова из записей родителя -> темы русского языка в игре
+  const RU_KW = [
+    [/безударн|проверяем/i, ['r_unstress']], [/парн|звонк|глух/i, ['r_voiced']], [/(^|[^а-яё])(жи|ши|ча|ща|чу|щу)([^а-яё]|$)/i, ['r_zhi']],
+    [/ударени/i, ['r_stress']], [/слог|перенос/i, ['r_vowel']], [/заглавн|больш\S* букв/i, ['r_cap']], [/алфавит/i, ['r_alpha']],
+    [/гласн|согласн|звук/i, ['r_vowel']], [/предложени|знак препинан|точк/i, ['r_punct', 'r_comma']], [/разделительн|мягк\S* знак|твёрд\S* знак|ь и ъ/i, ['r_sepsoft']],
+    [/предлог|приставк/i, ['r_prep', 'r_morph']], [/част[иь] реч|существительн|прилагательн|глагол|наречи|местоимен/i, ['r_parts']],
+    [/состав слова|корен|суффикс|окончани|однокорен/i, ['r_morph', 'r_oneroot']], [/падеж/i, ['r_cases', 'r_caseend']], [/врем\S* глагол|глагол\S* врем/i, ['r_verbtime']],
+    [/тся|ться/i, ['r_tsya']], [/словарн/i, ['r_dict']], [/склонен/i, ['r_decl', 'r_caseend']], [/спряжен/i, ['r_conj', 'r_persend']],
+    [/запят|однородн/i, ['r_comma']], [/подлежащ|сказуем|член\S* предложен|главн\S* член/i, ['r_sentparts']]
+  ];
+  // слова из записей родителя -> уроки английского (по названиям уроков и словам в них)
+  const ENG_STOP = ['выуч', 'учит', 'учеб', 'страни', 'упраж', 'задан', 'прочи', 'напис', 'повто', 'тетра', 'работ', 'контр', 'диктан', 'прове', 'тест', 'англи', 'язык', 'урок', 'выпол', 'сдела', 'подго', 'слова', 'тетрад'];
+  const ENG_ALIAS = [
+    [/быть|to be|глагол be/i, ['am', 'is', 'are']], [/артикл/i, ['a', 'an']], [/множественн|plural/i, ['множественное']], [/have got|has got|иметь|у меня есть/i, ['have', 'got']],
+    [/present simple|настоящее простое|простое настоящее/i, ['simple', 'present']], [/continuous|длительн|сейчас/i, ['continuous']], [/past simple|прошедш|вчера/i, ['past', 'was', 'were']],
+    [/неправильн/i, ['неправильные']], [/сравнени|степен|comparative/i, ['сравнение']], [/притяжат/i, ['притяжательный']], [/предлог|in on under/i, ['in', 'on', 'under']],
+    [/(^|[^a-z])can([^a-z]|$)|мочь|умею/i, ['can']], [/there is|there are/i, ['there']], [/some|any/i, ['some', 'any']],
+    [/цвет/i, ['red', 'blue', 'green', 'yellow']], [/числ|счёт|счет|цифр/i, ['one', 'two', 'three']], [/семь/i, ['mother', 'father']], [/живот|зверь|питомц/i, ['cat', 'dog']],
+    [/еда|продукт/i, ['apple', 'bread']], [/одежд/i, ['hat']], [/погод|времена года|сезон/i, ['rain', 'snow']], [/школ/i, ['school']], [/професс/i, ['teacher', 'doctor']],
+    [/месяц/i, ['january']], [/транспорт/i, ['bus', 'car']]
+  ];
   const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const dayDiff = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
   const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
-  function mathGensFromText(text) {
-    const out = new Set();
-    MATH_KW.forEach(([re, gens]) => { if (re.test(text || '')) gens.forEach(g => out.add(g)); });
+  function gensFromText(text, subj) {
+    const out = new Set(), kw = subj === 'ru' ? RU_KW : MATH_KW;
+    kw.forEach(([re, gens]) => { if (re.test(text || '')) gens.forEach(g => out.add(g)); });
+    if (subj === 'ru' && /ударн|парн|непроизн/i.test(text || '')) out.delete('r_vowel'); // «безударные гласные» — это не про слоги
     return [...out];
+  }
+  const mathGensFromText = t => gensFromText(t, 'math');
+  // уроки английского, подходящие к записи родителя: lessons = [{id, hay}], hay — название, правило и слова урока
+  function engMatch(text, lessons) {
+    const low = String(text || '').toLowerCase(), toks = new Map();
+    (low.match(/[а-яё]{4,}/g) || []).forEach(w => { const st = w.slice(0, 5); if (!ENG_STOP.some(s => st.startsWith(s))) toks.set(st, 1); });
+    ENG_ALIAS.forEach(([re, list]) => { if (re.test(low)) list.forEach(t => toks.set(t, 2)); });
+    const out = [];
+    lessons.forEach(l => {
+      const hay = String(l.hay || '').match(/[a-zа-яё']+/g) || [];
+      let sc = 0;
+      toks.forEach((w, t) => { if (/^[a-z]/.test(t) ? hay.includes(t) : hay.some(h => h.startsWith(t))) sc += w; });
+      if (sc) out.push({ id: l.id, score: sc });
+    });
+    return out.sort((a, b) => b.score - a.score);
   }
 
   // результат: { math: {...}, eng: {...} } — по каждому предмету игры
   function analyze(school, childId, today) {
     const subjName = id => ((school.subjects || []).find(s => s.id === id) || {}).name || '';
     const out = {};
-    ['math', 'eng'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
+    ['math', 'eng', 'ru'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
     const mine = list => (school[list] || []).filter(x => x.childId === childId);
     const grades = mine('grades'), tasks = mine('tasks'), remarks = mine('remarks');
     const since30 = addDays(today, -30), since14 = addDays(today, -14);
@@ -78,6 +115,6 @@ const ADAPT = (() => {
     return { name: st.name, week, math, doneLessons: Object.keys(st.lessons || {}).filter(k => st.lessons[k].done).length, updated: today };
   }
 
-  return { gameSubject, analyze, mathGensFromText, homeworkToPay, summary, TEST_RE };
+  return { gameSubject, analyze, gensFromText, mathGensFromText, engMatch, homeworkToPay, summary, TEST_RE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = ADAPT;

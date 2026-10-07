@@ -1027,7 +1027,7 @@ async function fillGameBox() {
   const weak = sum.math.filter((t) => t.acc < 75 && t.n >= 3).slice(0, 5);
   box.innerHTML = `<h3 style="margin-top:0">🎮 Что показала игра <small class="muted">· обновлено ${L.formatDate(sum.updated)}</small></h3>
     <div class="stats"><div><b>${w.min}</b><small>минут за 7 дней</small></div><div><b>${w.q ? Math.round((100 * w.ok) / w.q) + '%' : '—'}</b><small>верных с первой попытки</small></div><div><b>${sum.doneLessons}</b><small>пройдено уроков</small></div></div>
-    ${weak.length ? `<p class="note">Слабые темы по математике: ${weak.map((t) => `${esc(t.name)} (${t.acc}%)`).join(' · ')}</p>` : '<p class="ok">Слабых тем по математике не видно 👍</p>'}`;
+    ${weak.length ? `<p class="note">Слабые темы (математика, русский язык): ${weak.map((t) => `${esc(t.name)} (${t.acc}%)`).join(' · ')}</p>` : '<p class="ok">Слабых тем не видно 👍</p>'}`;
 }
 
 // ---------- режим просмотра / режим родителя ----------
