@@ -50,14 +50,28 @@ function guard(e) {
 }
 ['click', 'change', 'input', 'submit', 'keydown'].forEach((t) => document.addEventListener(t, guard, true));
 
-// После каждой отрисовки убираем из страницы всё, что правит данные.
+// После каждой отрисовки убираем из страницы всё, что правит данные:
+// кнопки удаляются, поля ввода превращаются в обычный текст.
 export function apply(root) {
   if (canEdit()) return;
   root.querySelectorAll('[data-act]').forEach((el) => {
     if (SAFE.has(el.dataset.act)) return;
-    if (el.matches('textarea, select, input')) {
-      el.disabled = true;
+    if (el.matches('textarea')) {
+      const d = document.createElement('div');
+      const text = el.value.trim();
+      if (!text) { el.remove(); return; } // пустое поле в режиме просмотра не показываем
+      d.className = 'rotext';
+      d.textContent = text;
+      el.replaceWith(d);
+    } else if (el.matches('select, input')) {
+      const sp = document.createElement('span');
+      const opt = el.matches('select') ? el.selectedOptions[0]?.textContent ?? '' : el.value;
+      sp.className = `roval ${[...el.classList].join(' ')}`;
+      sp.textContent = opt && opt !== '—' ? opt : '—';
+      if (sp.textContent === '—' && el.dataset.act === 'grade-edit') { el.remove(); return; }
+      el.replaceWith(sp);
     } else if (el.dataset.act === 'hw-status') {
+      if (!el.dataset.id) { el.remove(); return; } // нет задания — нечего показывать
       const s = document.createElement('span');
       s.className = el.className;
       s.textContent = el.textContent;
@@ -66,5 +80,5 @@ export function apply(root) {
       el.remove();
     }
   });
-  root.querySelectorAll('.quick, .toolbar').forEach((q) => { if (!q.children.length) q.remove(); });
+  root.querySelectorAll('.quick, .actions, .toolbar, .nolesson + .dnotes .chip').forEach((q) => { if (!q.children.length && !q.textContent.trim()) q.remove(); });
 }

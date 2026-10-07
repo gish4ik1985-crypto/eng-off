@@ -322,27 +322,27 @@ function diaryTab(c) {
   const hwCell = (row, date) => {
     const t = row.tasks[0];
     const more = row.tasks.slice(1);
-    return `<td class="hw">
-        <button class="st st-${t?.status ?? 'none'}" data-act="hw-status" data-id="${t?.id ?? ''}" ${t ? '' : 'disabled'} title="Нажмите: сделано → проверено → в работе">${{ todo: '☐', done: '✓', checked: '✓✓' }[t?.status] ?? '☐'}</button>
+    return `<div class="dhw">
+        <button class="hwst st-${t?.status ?? 'none'}" data-act="hw-status" data-id="${t?.id ?? ''}" ${t ? '' : 'disabled'} title="Нажмите: сделано → проверено → в работе">${{ todo: '☐', done: '✓', checked: '✓✓' }[t?.status] ?? '☐'}</button>
         <textarea rows="2" data-act="hw-edit" data-child="${c.id}" data-subject="${row.lesson.subjectId}" data-date="${date}" placeholder="${row.first ? 'что задано…' : '(см. выше)'}" ${row.first ? '' : 'disabled'} aria-label="Домашнее задание: ${esc(row.subject)}">${esc(t?.text ?? '')}</textarea>
         ${more.length ? `<p class="more">Ещё: ${more.map((x) => esc(x.text)).join(' · ')}</p>` : ''}
-      </td>`;
+      </div>`;
   };
   const gradeCell = (row, date) => {
     const g = row.grades[0];
-    return `<td class="gr"><select data-act="grade-edit" data-child="${c.id}" data-subject="${row.lesson.subjectId}" data-date="${date}" ${row.first ? '' : 'disabled'} aria-label="Оценка: ${esc(row.subject)}">
-        <option value="">—</option>${[5, 4, 3, 2, 1].map((v) => `<option ${g?.value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>`;
+    return `<div class="dgr"><select data-act="grade-edit" data-child="${c.id}" data-subject="${row.lesson.subjectId}" data-date="${date}" ${row.first ? '' : 'disabled'} class="${g ? gradeCls(g.value) : ''}" aria-label="Оценка: ${esc(row.subject)}">
+        <option value="">—</option>${[5, 4, 3, 2, 1].map((v) => `<option ${g?.value === v ? 'selected' : ''}>${v}</option>`).join('')}</select></div>`;
   };
   const page = days
     .map(
       (d) => `<section class="dday ${d.date === today ? 'today' : ''}">
-      <h4>${d.name} <small>${L.formatDate(d.date)}</small></h4>
+      <h4>${d.name} <small>${L.formatDate(d.date)}${d.date === today ? ' · сегодня' : ''}</small></h4>
       ${
         d.rows.length
-          ? `<table class="dtable"><thead><tr><th>№</th><th>Предмет</th><th>Домашнее задание</th><th>Оц.</th></tr></thead><tbody>${d.rows
-              .map((r) => `<tr><td class="num">${r.lesson.num}</td><td class="subj">${esc(r.subject)}${r.lesson.room ? `<small>каб. ${esc(r.lesson.room)}</small>` : ''}</td>${hwCell(r, d.date)}${gradeCell(r, d.date)}</tr>`)
-              .join('')}</tbody></table>`
-          : '<p class="muted">В этот день уроков нет.</p>'
+          ? `<div class="dlist">${d.rows
+              .map((r) => `<div class="drow"><span class="dnum">${r.lesson.num}</span><div class="dsub"><b>${esc(r.subject)}</b>${r.lesson.room ? `<small>каб. ${esc(r.lesson.room)}</small>` : ''}</div>${gradeCell(r, d.date)}${hwCell(r, d.date)}</div>`)
+              .join('')}</div>`
+          : '<p class="muted nolesson">В этот день уроков нет.</p>'
       }
       ${d.extraTasks.length ? `<div class="dextra"><b>Ещё на этот день:</b> ${d.extraTasks.map((t) => `${esc(subjectName(t.subjectId))}: ${esc(t.text)}`).join(' · ')}</div>` : ''}
       <div class="dnotes"><b>Замечания:</b>
@@ -354,7 +354,7 @@ function diaryTab(c) {
     )
     .join('');
   return `${nav}<div class="spread">${page}</div>
-    <p class="muted">Пишите домашнее задание прямо в строке нужного предмета (в день, к которому оно задано) — оно сохранится само и появится в «Заданиях». Значок слева от задания: ☐ в работе, ✓ сделано, ✓✓ проверено.</p>`;
+    <p class="muted">Домашнее задание пишут прямо в строке предмета (в день, к которому оно задано), оно сохраняется само и появляется в «Заданиях». Значок слева: ☐ в работе, ✓ сделано, ✓✓ проверено.</p>`;
 }
 
 // --- Задания ---
