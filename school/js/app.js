@@ -74,6 +74,7 @@ function render() {
   A.apply(root);
   updateHeader();
   hydratePhotos();
+  fillGameBox();
   document.title = 'Дневник';
 }
 
@@ -765,7 +766,8 @@ const PLAN = 'План на 5 дней по 10–15 минут: 1) вместе 
 
 function practiceTab(c) {
   const weak = W.weakSubjects(state, c.id, L.todayISO());
-  return `<section>
+  return `<section class="card" id="gamebox" data-child="${c.id}"><h3 style="margin-top:0">🎮 Что показала игра</h3><p class="muted">Загружаю…</p></section>
+    <section>
       <h3>Что подтянуть <small class="muted">— по данным за 2 недели</small></h3>
       ${
         weak.length
@@ -1004,6 +1006,29 @@ document.addEventListener('click', async (e) => {
       break;
   }
 });
+
+// ---------- сводка из игры (минуты, точность, слабые темы) ----------
+async function fillGameBox() {
+  const box = document.getElementById('gamebox');
+  if (!box) return;
+  const c = childById(box.dataset.child);
+  if (!c) return;
+  const key = String(c.name).trim().toLowerCase();
+  let sum = null;
+  try { sum = JSON.parse(localStorage.getItem('engAdventure_sum') || '{}')[key] ?? null; } catch { /* нет данных */ }
+  const remote = await C.pullSummary(key);
+  if (remote && (!sum || String(remote.updated) >= String(sum.updated))) sum = remote;
+  if (!document.body.contains(box)) return;
+  if (!sum) {
+    box.innerHTML = '<h3 style="margin-top:0">🎮 Что показала игра</h3><p class="muted">Данных игры пока нет: игрок с именем «' + esc(c.name) + '» ещё не занимался (или игра на другом устройстве без облака).</p>';
+    return;
+  }
+  const w = sum.week;
+  const weak = sum.math.filter((t) => t.acc < 75 && t.n >= 3).slice(0, 5);
+  box.innerHTML = `<h3 style="margin-top:0">🎮 Что показала игра <small class="muted">· обновлено ${L.formatDate(sum.updated)}</small></h3>
+    <div class="stats"><div><b>${w.min}</b><small>минут за 7 дней</small></div><div><b>${w.q ? Math.round((100 * w.ok) / w.q) + '%' : '—'}</b><small>верных с первой попытки</small></div><div><b>${sum.doneLessons}</b><small>пройдено уроков</small></div></div>
+    ${weak.length ? `<p class="note">Слабые темы по математике: ${weak.map((t) => `${esc(t.name)} (${t.acc}%)`).join(' · ')}</p>` : '<p class="ok">Слабых тем по математике не видно 👍</p>'}`;
+}
 
 // ---------- режим просмотра / режим родителя ----------
 function updateHeader() {

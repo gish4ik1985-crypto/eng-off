@@ -216,6 +216,10 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .mopts{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.mopts .opt{min-width:5em;font-size:2rem}
 .mex{text-align:left}
 
+/* задание дня */
+.mission{margin:10px 0}.msteps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.mnote{margin-top:8px;padding:6px 10px;background:#fff;border:3px dashed #1b1b1b;border-radius:8px;font-size:.95rem}
+
 </style>
 </head>
 <body>
@@ -2059,6 +2063,92 @@ MWORLDS.unshift({ name: 'Математика · 1 класс', lessons: M1LESSO
 
 </script>
 <script>
+/* Адаптация игры под успеваемость: читает данные дневника (оценки, задания, замечания) и подсказывает игре,
+   какому предмету и каким темам уделить внимание. Чистая логика без DOM: легко проверить тестами (tests/adapt.test.js). */
+const ADAPT = (() => {
+  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng']];
+  const gameSubject = name => { for (const [re, k] of SUBJ) if (re.test(String(name || ''))) return k; return null; };
+  const TEST_RE = /контрольн|диктант|тест|проверочн|самостоятельн|зач[её]т|олимпиад/i;
+  // слова из записей родителя -> темы математики в игре
+  const MATH_KW = [
+    [/умножен|таблиц/i, ['mul', 'mulA', 'mulsum']], [/деление с остатк|остат/i, ['rem']], [/делен/i, ['div', 'divA']],
+    [/уравнен/i, ['eq']], [/скобк|порядок действ/i, ['order', 'brackets']], [/периметр|площад|фигур|геометр/i, ['geom', 'geo1']],
+    [/задач/i, ['word', 'word1']], [/дол[ьяи]|дроб/i, ['frac']], [/сравнен/i, ['cmp', 'cmp20', 'cmp100']],
+    [/величин|длин|масс|врем|час|санти|дециметр/i, ['units', 'len1']],
+    [/сложен|вычитан|сумм|разност|столбик/i, ['add100', 'sub100', 'add20', 'sub20', 'add10', 'sub10', 'addsub1000']],
+    [/числ|нумерац|разряд|сотн|десят/i, ['place', 'place100', 'count10', 'tens20']], [/закономерн/i, ['pattern']]
+  ];
+  const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const dayDiff = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
+  const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+
+  function mathGensFromText(text) {
+    const out = new Set();
+    MATH_KW.forEach(([re, gens]) => { if (re.test(text || '')) gens.forEach(g => out.add(g)); });
+    return [...out];
+  }
+
+  // результат: { math: {...}, eng: {...} } — по каждому предмету игры
+  function analyze(school, childId, today) {
+    const subjName = id => ((school.subjects || []).find(s => s.id === id) || {}).name || '';
+    const out = {};
+    ['math', 'eng'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
+    const mine = list => (school[list] || []).filter(x => x.childId === childId);
+    const grades = mine('grades'), tasks = mine('tasks'), remarks = mine('remarks');
+    const since30 = addDays(today, -30), since14 = addDays(today, -14);
+    Object.keys(out).forEach(k => {
+      const o = out[k], inSubj = x => gameSubject(subjName(x.subjectId)) === k;
+      const g30 = grades.filter(g => inSubj(g) && g.date >= since30 && g.date <= today).sort((a, b) => a.date < b.date ? -1 : 1);
+      const vals = g30.map(g => g.value);
+      o.avg = avg(vals);
+      if (vals.length >= 4) { const h = Math.floor(vals.length / 2); o.trend = Math.round((avg(vals.slice(h)) - avg(vals.slice(0, h))) * 10) / 10; }
+      const low = g30.filter(g => g.value <= 3 && g.date >= since14);
+      if (o.avg !== null && o.avg < 3.5) { o.focus = 2; o.reasons.push(`средний балл ${o.avg}`); }
+      else if (o.avg !== null && o.avg < 4) { o.focus = 1; o.reasons.push(`средний балл ${o.avg}`); }
+      if (low.length) { o.focus = Math.max(o.focus, low.length >= 2 ? 2 : 1); o.reasons.push(`оценки 3 и ниже: ${low.length}`); }
+      if (o.trend !== null && o.trend <= -1) { o.focus = Math.max(o.focus, 1); o.reasons.push('оценки падают'); }
+      const neg = remarks.filter(r => inSubj(r) && r.type === 'negative' && r.date >= since14);
+      if (neg.length >= 2) { o.focus = Math.max(o.focus, 1); o.reasons.push(`замечаний: ${neg.length}`); }
+      // темы: то, что не сдано/не проверено, замечания и комментарии к плохим оценкам
+      const texts = [];
+      tasks.filter(t => inSubj(t) && t.status !== 'checked' && t.due >= addDays(today, -21)).forEach(t => texts.push(t.text));
+      neg.forEach(r => texts.push(r.text));
+      g30.filter(g => g.value <= 3 && g.comment).forEach(g => texts.push(g.comment));
+      o.topics = texts.filter(Boolean);
+      // контрольные и диктанты впереди
+      tasks.filter(t => inSubj(t) && t.status !== 'checked' && TEST_RE.test(t.text || '') && t.due >= today && t.due <= addDays(today, 10))
+        .forEach(t => o.exams.push({ date: t.due, days: dayDiff(today, t.due), text: t.text }));
+      o.exams.sort((a, b) => a.days - b.days);
+    });
+    return out;
+  }
+
+  // проверенные родителем задания, за которые ещё не выдана награда
+  function homeworkToPay(school, childId, paid, today) {
+    const since = addDays(today, -30);
+    return (school.tasks || []).filter(t => t.childId === childId && t.status === 'checked' && !(paid || {})[t.id] && (t.due || '') >= since);
+  }
+
+  // сводка игры для дневника
+  function summary(st, today, mtName) {
+    const week = { min: 0, q: 0, ok: 0 }, since = addDays(today, -6);
+    Object.keys(st.log || {}).forEach(d => { if (d >= since && d <= today) { const x = st.log[d]; week.min += Math.round((x.sec || 0) / 60); week.q += x.q || 0; week.ok += x.ok || 0; } });
+    const topics = {};
+    Object.keys(st.mt || {}).forEach(k => {
+      const r = st.mt[k]; if (!r || !r.seen) return;
+      const g = k.slice(0, -1), t = topics[g] || (topics[g] = { name: (mtName || {})[g] || g, seen: 0, miss: 0 });
+      t.seen += r.seen; t.miss += r.miss || 0;
+    });
+    const math = Object.values(topics).map(t => ({ name: t.name, acc: Math.round(100 * (t.seen - t.miss) / t.seen), n: t.seen })).sort((a, b) => a.acc - b.acc);
+    return { name: st.name, week, math, doneLessons: Object.keys(st.lessons || {}).filter(k => st.lessons[k].done).length, updated: today };
+  }
+
+  return { gameSubject, analyze, mathGensFromText, homeworkToPay, summary, TEST_RE };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = ADAPT;
+
+</script>
+<script>
 (function () {
 'use strict';
 const app = document.getElementById('app');
@@ -2207,7 +2297,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, mt: {}, sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, mt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const WS = () => S.subj === 'math' ? MWORLDS : WORLDS;
@@ -2566,7 +2656,7 @@ function mergeState(a, b) {
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
   m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
-  ['sets', 'ach', 'bonusGiven'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
+  ['sets', 'ach', 'bonusGiven', 'hwPaid'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
   m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
   m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
   ['totalDays', 'maxStreak', 'maxEm', 'petXp'].forEach(k => { m[k] = Math.max(a[k] || 0, b[k] || 0); });
@@ -2603,6 +2693,8 @@ async function cloudSync(pull) {
     }
     if (KEYNOW === key) await api('push', { id: cid, name: S.name, ts: S._ts || 0, state: JSON.stringify(S) });
     needPush = false; CL.last = Date.now(); CL.err = ''; lastSync = Date.now(); saveCL();
+    if (KEYNOW === key) api('push', { id: '__sum_' + cid, name: S.name, ts: Date.now(), state: JSON.stringify(ADAPT.summary(S, today(), MTOP)) }).catch(() => {});
+    schoolPull().then(ch => { if (ch && document.getElementById('vw')) map(); });
     if (changed && document.getElementById('vw')) { applyTheme(); map(); } // мы на карте: показать полученное
   } catch (e) { CL.err = String(e.message || e).slice(0, 40); saveCL(); }
   syncBusy = false;
@@ -2642,20 +2734,20 @@ function cloudScreen(back) {
       const r = await api('init', {});
       if (!create && r.created) { CL.code = ''; throw new Error('такого кода нет'); }
       if (create && !r.created) { CL.code = ''; throw new Error('код занят, попробуйте ещё раз'); }
-      CL.err = ''; saveCL(); cloudPlayers = r.players.filter(x => x.id !== '__school');
+      CL.err = ''; saveCL(); cloudPlayers = r.players.filter(x => !String(x.id).startsWith('__'));
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
     };
     if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false); });
     if ($('cn')) $('cn').onclick = () => run(() => login(genCode(), true));
     if ($('cs')) $('cs').onclick = () => run(async () => {
       if (S.name && curPlayer()) { syncBusy = false; await cloudSync(true); if (CL.err) throw new Error(CL.err); }
-      cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school');
+      cloudPlayers = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
     });
     if ($('co')) $('co').onclick = () => { if (!confirm('Выйти из облака на этом устройстве? Прогресс на устройстве останется.')) return; CL.code = ''; saveCL(); cloudPlayers = null; draw(); };
     app.querySelectorAll('[data-up]').forEach(b => b.onclick = () => run(async () => {
       const p = PR.list.find(x => x.id === b.dataset.up); p.cid = newCid(); savePR();
       const st = loadState(p.key); await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
-      cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school');
+      cloudPlayers = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
     }));
     app.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => run(async () => {
       const cid = b.dataset.dl;
@@ -2670,7 +2762,7 @@ function cloudScreen(back) {
     }));
   };
   draw();
-  if (cloudOn() && !cloudPlayers) (async () => { try { cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school'); draw(); } catch (e) { msg = 'Нет связи: ' + String(e.message || e); draw(); } })();
+  if (cloudOn() && !cloudPlayers) (async () => { try { cloudPlayers = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__')); draw(); } catch (e) { msg = 'Нет связи: ' + String(e.message || e); draw(); } })();
 }
 
 /* ---------- приветствие ---------- */
@@ -2699,6 +2791,88 @@ function welcome() {
   };
 }
 
+/* ---------- адаптация под успеваемость (данные дневника) ---------- */
+const SKEY = 'school-off:v1';
+const schoolData = () => { try { return JSON.parse(localStorage.getItem(SKEY)); } catch (e) { return null; } };
+function schoolChild(sd) {
+  if (!sd) return null;
+  const kids = sd.children || [];
+  if (S.schoolChild) { const c = kids.find(x => x.id === S.schoolChild); if (c) return c; }
+  const nm = String(S.name || '').trim().toLowerCase();
+  return kids.find(x => String(x.name).trim().toLowerCase() === nm) || null;
+}
+let ADP = null; // { child, sd, a } — разбор дневника для текущего игрока
+function adaptLoad() {
+  const sd = schoolData(), c = schoolChild(sd);
+  ADP = c ? { child: c, sd, a: ADAPT.analyze(sd, c.id, today()) } : null;
+  return ADP;
+}
+const noFocus = { focus: 0, reasons: [], topics: [], exams: [], avg: null };
+const focusOf = subj => (ADP && ADP.a[subj]) || noFocus;
+// забрать из облака более свежий дневник (если родитель правил на другом устройстве)
+async function schoolPull() {
+  if (!cloudOn()) return false;
+  try {
+    const r = await api('pull', { id: '__school' });
+    if (!r.state) return false;
+    const remote = JSON.parse(r.state), local = schoolData();
+    if (!local || (remote._ts || 0) > (local._ts || 0)) { localStorage.setItem(SKEY, r.state); return true; }
+  } catch (e) {}
+  return false;
+}
+// за домашку, проверенную родителем, — изумруды
+function payHomework() {
+  if (!ADP) return;
+  const due = ADAPT.homeworkToPay(ADP.sd, ADP.child.id, S.hwPaid, today());
+  if (!due.length) return;
+  S.hwPaid = S.hwPaid || {};
+  due.forEach(t => { S.hwPaid[t.id] = 1; });
+  S.emeralds += due.length * 3; save();
+  toast(`📓 Домашка проверена: ${mpl(due.length, ['задание', 'задания', 'заданий'])}, +${due.length * 3} 💎`);
+}
+// темы из дневника, которым сейчас стоит уделить внимание, в виде заданий математики
+function diarySpecs() {
+  const f = focusOf('math');
+  const texts = f.topics.concat(f.exams.map(e => e.text));
+  const gens = new Set(); texts.forEach(t => ADAPT.mathGensFromText(t).forEach(g => gens.add(g)));
+  if (!gens.size) return [];
+  const seen = new Set(), out = [];
+  [W()].concat(MWORLDS).forEach(w => w.lessons.forEach(l => l.gens.forEach(g => { const k = g[0] + g[1]; if (gens.has(g[0]) && !seen.has(k)) { seen.add(k); out.push(specOf(g)); } })));
+  return shuffle(out);
+}
+// сводка игры для дневника (хранится и на устройстве, и в облаке)
+function writeSummary() {
+  try {
+    const all = JSON.parse(localStorage.getItem('engAdventure_sum') || '{}');
+    all[String(S.name).trim().toLowerCase()] = ADAPT.summary(S, today(), MTOP);
+    localStorage.setItem('engAdventure_sum', JSON.stringify(all));
+  } catch (e) {}
+}
+function playNext() {
+  const WL = W().lessons, i = WL.findIndex(l => !(S.lessons[l.id] || {}).done);
+  if (i >= 0) return startLesson(i);
+  if (!(S.lessons[W().boss.id] || {}).done) return startBoss();
+  toast('Мир пройден! Выбери урок на карте или загляни в другой мир 🏆');
+}
+function missionCard() {
+  const sj = S.subj === 'math' ? 'math' : 'eng', f = focusOf(sj), log = S.log[today()] || {};
+  const nW = sj === 'math' ? mathWeak().length + diarySpecs().length : weakCount();
+  const steps = sj === 'math'
+    ? [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, mathTraining], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🚀', 'Ещё урок', (log.les || 0) >= 2, playNext]]
+    : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
+  const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
+  if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
+  const name = sj === 'math' ? 'математике' : 'английскому';
+  const notes = [];
+  if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
+  if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
+  mission = steps;
+  return `<div class="card mission"><b>🎯 Задание дня</b>${all ? ' · выполнено! 🎉' : ''}
+    <div class="msteps">${steps.map((x, k) => `<button class="btn small ${x[2] ? 'gold' : 'sec'}" data-ms="${k}">${x[2] && x[0] !== '✅' ? '✅' : x[0]} ${x[1]}</button>`).join('')}</div>
+    ${notes.map(n => `<div class="mnote">${n}</div>`).join('')}</div>`;
+}
+let mission = [];
+
 /* ---------- карта ---------- */
 // уже пройденная локация остаётся открытой, даже если порядок в мире поменялся
 function unlocked(i) { return S.unlockAll || i === 0 || (S.lessons[W().lessons[i].id] || {}).done || (S.lessons[W().lessons[i - 1].id] || {}).done; }
@@ -2721,7 +2895,9 @@ function map() {
   items.push(`<div class="node ${bossRec.done ? 'done' : (bossOk ? 'cur' : 'lock')}" data-boss="1"><div class="blk"><span class="num">★</span>${bossOk ? BS.icon : '🔒'}</div><div class="t">${BS.title}</div><div class="st">${bossRec.done ? '⭐'.repeat(bossRec.stars) : '&nbsp;'}</div></div>`);
   let rows = '';
   for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
+  adaptLoad(); payHomework();
   const cur = allDone ? null : WL[nextI];
+  const missionHtml = missionCard();
   const nWeak = S.subj === 'math' ? mathWeak().length : weakCount();
   const subjBar = `<div class="center subj"><button class="btn ${S.subj !== 'math' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${S.subj === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button></div>`;
   const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
@@ -2733,6 +2909,7 @@ function map() {
       <div class="tbtns">${S.subj !== 'math' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${S.subj === 'math' ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
         <div class="mini">${location.protocol === 'file:' ? '' : '<button class="ib" id="dia" title="Дневник">📓</button>'}${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
+    ${missionHtml}
     <div id="vw"></div>
     ${subjBar}
     <div class="center">${tabs}</div>
@@ -2753,7 +2930,8 @@ function map() {
   $('who').onclick = players;
   if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
-  syncSoon();
+  syncSoon(); writeSummary();
+  app.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => mission[+b.dataset.ms][3]());
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
   if (S.subj !== 'math') setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
@@ -2784,7 +2962,9 @@ function startLesson(i) {
   ctx.steps = [];
   if (L.type === 'math') {
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
-    ctx.steps.push(['Тренируемся', cb => mathQuiz({ ctx, counted: true, items: mixSpecs(L.gens, 8) }, cb)]);
+    ctx.steps.push(['Тренируемся', cb => mathQuiz({ ctx, counted: true, items: mixSpecs(L.gens, focusOf('math').focus ? 12 : 8) }, cb)]);
+    const ds = focusOf('math').focus || focusOf('math').exams.length ? diarySpecs().slice(0, 4) : [];
+    if (ds.length) ctx.steps.push(['Из дневника', cb => mathQuiz({ ctx, counted: true, title: '📓 Темы из дневника', items: ds }, cb)]);
     ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
   } else if (L.type === 'read') {
     ctx.steps.push(['Читаем', cb => readCard(ctx, cb)]);
@@ -3212,11 +3392,12 @@ function mathBoss() {
 function mathTraining() {
   epoch++; newScreen();
   const weak = mathWeak();
-  let pool = weak.map(keySpec);
+  const ds = diarySpecs();
+  let pool = ds.slice(0, 4).concat(weak.map(keySpec));
   if (!pool.length) pool = [].concat(...MWORLDS.map(w => w.lessons)).filter(l => (S.lessons[l.id] || {}).done).flatMap(l => l.gens.map(specOf));
   if (!pool.length) { toast('Сначала пройди хотя бы один урок математики 🙂'); return; }
   const ctx = { L: { id: 'mtr', title: 'Тренировка' }, asked: 0, ok: 0 };
-  ctx.steps = [[weak.length ? 'Слабые места' : 'Повторение', cb => mathQuiz({ ctx, counted: true, title: weak.length ? '💪 Подтягиваем слабые места' : '🔁 Повторяем пройденное', items: shuffle(Array.from({ length: 10 }, (_, k) => pool[k % pool.length])) }, cb)]];
+  ctx.steps = [[weak.length ? 'Слабые места' : 'Повторение', cb => mathQuiz({ ctx, counted: true, title: ds.length ? '📓 Подтягиваем темы из дневника' : weak.length ? '💪 Подтягиваем слабые места' : '🔁 Повторяем пройденное', items: shuffle(Array.from({ length: 10 }, (_, k) => pool[k % pool.length])) }, cb)]];
   runSteps(ctx, () => {
     const em = 2 + ctx.ok; S.emeralds += em; logDone('tr'); save(); sfx('win');
     app.innerHTML = `<div class="card center"><h1>Тренировка окончена! 💪</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
@@ -3361,6 +3542,16 @@ function parentGate() {
   draw();
 }
 
+function diaryLinkHtml() {
+  const sd = schoolData();
+  if (!sd || !(sd.children || []).length) return '<p>Данных дневника на этом устройстве пока нет. Откройте дневник (📓 на карте) и добавьте ребёнка, либо включите облако, чтобы данные пришли с другого устройства.</p>';
+  const ad = adaptLoad();
+  const opts = '<option value="">Автоматически (по имени игрока)</option>' + sd.children.map(c => `<option value="${c.id}" ${S.schoolChild === c.id ? 'selected' : ''}>${esc(c.name)} (${esc(c.grade)} кл.)</option>`).join('');
+  const sel = `<p>Какой ребёнок из дневника — это «${esc(S.name)}»: <select id="sch" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${opts}</select></p>`;
+  if (!ad) return sel + '<p>Совпадения по имени нет — выберите ребёнка из списка.</p>';
+  const row = (sj, nm) => { const f = ad.a[sj]; return `<tr><td>${nm}</td><td>${f.avg === null ? 'нет оценок' : 'средний ' + f.avg}</td><td>${f.focus ? '📌 ' + esc(f.reasons.join(', ')) : 'всё хорошо'}${f.exams.length ? '<br>📅 ' + esc(f.exams[0].text) + ' (' + f.exams[0].days + ' дн.)' : ''}</td></tr>`; };
+  return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}</table><p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
+}
 function parent() {
   const rows = WORLDS.concat(MWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
@@ -3389,6 +3580,7 @@ function parent() {
     <div class="card"><h3>☁️ Синхронизация между устройствами</h3>
       <p>${cloudOn() ? 'Включена. Семейный код: <b>' + esc(CL.code) + '</b>. ' + esc(cloudStatus()) : 'Не включена: прогресс хранится только на этом устройстве.'}</p>
       <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
+    <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
@@ -3402,6 +3594,7 @@ function parent() {
       <button class="btn small" id="im">Загрузить из текста</button></div>`;
   $('bk').onclick = map;
   $('rpt').onclick = weeklyReport;
+  if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('clp').onclick = () => cloudScreen(parent);
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };

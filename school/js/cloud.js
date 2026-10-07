@@ -35,6 +35,17 @@ export async function pull(localTs) {
     return (s._ts || 0) > (localTs || 0) ? s : null;
   } catch { return null; }
 }
+// сводка, которую игра отправляет в облако для ребёнка с таким именем
+export async function pullSummary(nameLower) {
+  if (!on()) return null;
+  try {
+    const list = (await api('join')).players || [];
+    const p = list.find((x) => String(x.id).startsWith('__sum_') && String(x.name).trim().toLowerCase() === nameLower);
+    if (!p) return null;
+    const r = await api('pull', { id: p.id });
+    return r.state ? JSON.parse(r.state) : null;
+  } catch { return null; }
+}
 let timer = 0;
 export function pushSoon(state) {
   if (!on()) return;

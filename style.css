@@ -204,3 +204,7 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .btn.kp{font-size:1.6rem;padding:.45em 0}
 .mopts{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.mopts .opt{min-width:5em;font-size:2rem}
 .mex{text-align:left}
+
+/* задание дня */
+.mission{margin:10px 0}.msteps{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.mnote{margin-top:8px;padding:6px 10px;background:#fff;border:3px dashed #1b1b1b;border-radius:8px;font-size:.95rem}
