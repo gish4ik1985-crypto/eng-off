@@ -1336,8 +1336,8 @@ function mathQuiz(o, done) {
     const letters = [...'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'];
     const box = () => `<b class="mbox wbox">${buf || '&nbsp;'}</b>`;
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
-      <div class="mq long">${q.q}</div><p class="clue">${q.clue}</p>
-      ${speechOn() ? '<p><button class="btn sec" id="rsay">🔊 Послушать слово</button></p>' : ''}
+      <div class="mq long">${q.q}</div>${q.sent ? `<div class="sent">${q.sent.replace('____', '<span class="gapb">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>')}</div>` : ''}<p class="clue">${q.clue || '&nbsp;'}</p>
+      ${speechOn() ? '<p><button class="btn sec" id="rsay">🔊 Послушать</button></p>' : ''}
       <div class="mans" id="mans">${box()}</div>
       <div class="rukeys">${letters.map(c => `<button class="btn sec kp" data-k="${c}">${c}</button>`).join('')}<button class="btn sec kp" data-k="⌫">⌫</button><button class="btn gold kp" data-k="✓">✓</button></div>
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
