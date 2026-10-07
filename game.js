@@ -152,7 +152,7 @@ const defState = () => ({
 const WS = () => S.subj === 'math' ? MWORLDS : WORLDS;
 const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
-const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WS()[k - 1].boss.id] || {}).done;
+const worldOpen = k => S.unlockAll || k === 0 || S.subj === 'math' || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
 const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
@@ -581,20 +581,20 @@ function cloudScreen(back) {
       const r = await api('init', {});
       if (!create && r.created) { CL.code = ''; throw new Error('такого кода нет'); }
       if (create && !r.created) { CL.code = ''; throw new Error('код занят, попробуйте ещё раз'); }
-      CL.err = ''; saveCL(); cloudPlayers = r.players;
+      CL.err = ''; saveCL(); cloudPlayers = r.players.filter(x => x.id !== '__school');
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
     };
     if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false); });
     if ($('cn')) $('cn').onclick = () => run(() => login(genCode(), true));
     if ($('cs')) $('cs').onclick = () => run(async () => {
       if (S.name && curPlayer()) { syncBusy = false; await cloudSync(true); if (CL.err) throw new Error(CL.err); }
-      cloudPlayers = (await api('join', {})).players;
+      cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school');
     });
     if ($('co')) $('co').onclick = () => { if (!confirm('Выйти из облака на этом устройстве? Прогресс на устройстве останется.')) return; CL.code = ''; saveCL(); cloudPlayers = null; draw(); };
     app.querySelectorAll('[data-up]').forEach(b => b.onclick = () => run(async () => {
       const p = PR.list.find(x => x.id === b.dataset.up); p.cid = newCid(); savePR();
       const st = loadState(p.key); await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
-      cloudPlayers = (await api('join', {})).players;
+      cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school');
     }));
     app.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => run(async () => {
       const cid = b.dataset.dl;
@@ -609,7 +609,7 @@ function cloudScreen(back) {
     }));
   };
   draw();
-  if (cloudOn() && !cloudPlayers) (async () => { try { cloudPlayers = (await api('join', {})).players; draw(); } catch (e) { msg = 'Нет связи: ' + String(e.message || e); draw(); } })();
+  if (cloudOn() && !cloudPlayers) (async () => { try { cloudPlayers = (await api('join', {})).players.filter(x => x.id !== '__school'); draw(); } catch (e) { msg = 'Нет связи: ' + String(e.message || e); draw(); } })();
 }
 
 /* ---------- приветствие ---------- */
@@ -670,7 +670,7 @@ function map() {
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
       <div class="tbtns">${S.subj !== 'math' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${S.subj === 'math' ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
-        <div class="mini">${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
+        <div class="mini">${location.protocol === 'file:' ? '' : '<button class="ib" id="dia" title="Дневник">📓</button>'}${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
     <div id="vw"></div>
     ${subjBar}
@@ -690,6 +690,7 @@ function map() {
   };
   $('awb').onclick = awards;
   $('who').onclick = players;
+  if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   syncSoon();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
@@ -1262,6 +1263,14 @@ function pinReset() {
   };
 }
 const getPin = () => { try { return localStorage.getItem(PIN_KEY) || ''; } catch (e) { return ''; } };
+// дневник открывается на ребёнке с тем же именем, что и у игрока (если такой есть)
+function diaryHref() {
+  try {
+    const st = JSON.parse(localStorage.getItem('school-off:v1')) || {};
+    const c = (st.children || []).find(x => String(x.name).trim().toLowerCase() === String(S.name).trim().toLowerCase());
+    return 'school/index.html' + (c ? '#/child/' + c.id + '/diary' : '');
+  } catch (e) { return 'school/index.html'; }
+}
 function parentGate() {
   epoch++; newScreen();
   const have = getPin();
@@ -1307,7 +1316,7 @@ function parent() {
     Object.keys(st.log || {}).forEach(d => { if (d >= wkStart) { const x = st.log[d]; sec += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } });
     return `<tr><td>${esc(pl.name)}</td><td>${Math.round(sec / 60)}</td><td>${q ? Math.round(100 * ok / q) + '%' : '—'}</td><td>${Object.values(st.lessons || {}).filter(x => x.done).length}</td><td>${st.streak || 0}</td></tr>`;
   }).join('')}</table><p><small>Подробный отчёт по каждому: выберите игрока на экране «Кто занимается?», затем «Родителям».</small></p></div>` : '';
-  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="rpt">📊 Недельный отчёт</button><h2>Для родителей</h2>
+  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="rpt">📊 Недельный отчёт</button>${location.protocol === 'file:' ? '' : '<button class="btn small gold" id="dpar">📓 Дневник (править)</button>'}<h2>Для родителей</h2>
     <p>Выучено слов: <b>${learned}</b> из ${Object.keys(WORDS).length}. Серия: <b>${shownStreak()}</b> дн. Изумрудов: ${S.emeralds}.</p>
     <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
     ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
@@ -1332,6 +1341,7 @@ function parent() {
       <button class="btn small" id="im">Загрузить из текста</button></div>`;
   $('bk').onclick = map;
   $('rpt').onclick = weeklyReport;
+  if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('clp').onclick = () => cloudScreen(parent);
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });

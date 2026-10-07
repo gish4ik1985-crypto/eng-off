@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#4f46e5" />
+  <title>Дневник</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="ro">
+  <header class="top">
+    <a href="#/" class="brand">📚 Дневник</a>
+    <span class="hdr">
+      <a href="../index.html" class="gear" title="Вернуться в игру">🎮 В игру</a>
+      <button id="mode" class="gear modebtn" type="button">👀 Просмотр · править</button>
+      <a href="#/settings" class="gear" id="gear" aria-label="Настройки" hidden>⚙️</a>
+    </span>
+  </header>
+  <main id="app"></main>
+  <dialog id="dlg"></dialog>
+  <dialog id="lightbox"></dialog>
+  <script src="../config.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
