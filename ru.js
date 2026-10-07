@@ -226,8 +226,8 @@ const R_GAP2 = [
   ['Осенью я ношу тёплое ____.', 'пальто', 'словарное слово']
 ];
 const gapQ = (s, w, l, why) => ({ word: true, q: '✍️ Вставь пропущенное слово', sent: s, clue: l === 1 ? `Слово начинается на «${w[0].toLowerCase()}», букв: ${w.length}` : l === 2 ? `Букв в слове: ${w.length}` : '', say: s.replace('____', w), ans: w, why });
-MQ.r_gap1 = l => { const [s, w] = MP(R_GAP1.filter(x => l === 1 ? x[1].length <= 5 : true)); return gapQ(s, w, l, s.replace('____', w)); };
-MQ.r_gap2 = l => { const [s, w, n] = MP(R_GAP2.filter(x => l === 1 ? x[1].length <= 8 : true)); return gapQ(s, w, l, `${s.replace('____', w)} (${n})`); };
+MQ.r_gap1 = l => { const e = MP(R_GAP1.filter(x => l === 1 ? x[1].length <= 5 : true)), [s, w] = e, q = gapQ(s, w, l, s.replace('____', w)); q.alts = e.alts || []; return q; };
+MQ.r_gap2 = l => { const e = MP(R_GAP2.filter(x => l === 1 ? x[1].length <= 8 : true)), [s, w, n] = e, q = gapQ(s, w, l, `${s.replace('____', w)}${typeof n === 'string' ? ' (' + n + ')' : ''}`); q.alts = e.alts || []; return q; };
 
 
 /* ---------- пропуск буквы внутри слова: выбрать нужную букву ---------- */

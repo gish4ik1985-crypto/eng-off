@@ -1381,7 +1381,7 @@ function mathQuiz(o, done) {
       if (shieldUse(ctx)) { buf = ''; sfx('bad'); $('mans').innerHTML = box(); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
       tries++; buf = ''; sfx('bad'); $('mans').innerHTML = box(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Проверь буквы ещё раз 💪';
     };
-    const submit = () => { if (locked || !buf) return; if (norm(buf) === norm(q.ans)) { $('mans').innerHTML = box(); solved(); } else wrong(); };
+    const submit = () => { if (locked || !buf) return; if (norm(buf) === norm(q.ans) || (q.alts || []).some(a => norm(a) === norm(buf))) { $('mans').innerHTML = box(); solved(); } else wrong(); };
     const press = k => {
       if (locked) return;
       if (k === '✓') return submit();
@@ -1904,7 +1904,7 @@ function parent() {
     Object.keys(st.log || {}).forEach(d => { if (d >= wkStart) { const x = st.log[d]; sec += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } });
     return `<tr><td>${esc(pl.name)}</td><td>${Math.round(sec / 60)}</td><td>${q ? Math.round(100 * ok / q) + '%' : '—'}</td><td>${Object.values(st.lessons || {}).filter(x => x.done).length}</td><td>${st.streak || 0}</td></tr>`;
   }).join('')}</table><p><small>Подробный отчёт по каждому: выберите игрока на экране «Кто занимается?», затем «Родителям».</small></p></div>` : '';
-  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="rpt">📊 Недельный отчёт</button>${location.protocol === 'file:' ? '' : '<button class="btn small gold" id="dpar">📓 Дневник (править)</button>'}<h2>Для родителей</h2>
+  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="frp">📊 Семейный отчёт</button><button class="btn small gold" id="rpt">📊 Отчёт по английскому</button>${location.protocol === 'file:' ? '' : '<button class="btn small gold" id="dpar">📓 Дневник (править)</button>'}<h2>Для родителей</h2>
     <p>Выучено слов: <b>${learned}</b> из ${Object.keys(WORDS).length}. Серия: <b>${shownStreak()}</b> дн. Изумрудов: ${S.emeralds}.</p>
     <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
     ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
@@ -1932,6 +1932,7 @@ function parent() {
       <button class="btn small" id="im">Загрузить из текста</button></div>`;
   $('bk').onclick = map;
   $('rpt').onclick = weeklyReport;
+  $('frp').onclick = familyReport;
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
@@ -2200,6 +2201,51 @@ function aggDays(list) {
     if ((r.q || 0) > 0 || (r.les || 0) > 0 || (r.sec || 0) >= 60) t.active++;
   });
   return t;
+}
+/* ---------- семейный отчёт: одна страница за неделю по всем детям и предметам ---------- */
+function familyReport() {
+  const t0 = today(), days = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 6)), prev = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 13));
+  const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const agg = (st, ds) => { const r = { sec: 0, q: 0, ok: 0, act: 0 }; ds.forEach(d => { const x = (st.log || {})[d]; if (x && (x.sec || x.q)) { r.act++; r.sec += x.sec || 0; r.q += x.q || 0; r.ok += x.ok || 0; } }); return r; };
+  const subj = [['eng', '🇬🇧 Английский', WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS]];
+  const weakOf = st => Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; })
+    .map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 5);
+  const kids = PR.list.map(pl => {
+    const st = pl.id === PR.cur ? S : loadState(pl.key), w = agg(st, days), p = agg(st, prev);
+    const done = subj.map(([k, nm, ws]) => { let d = 0, n = 0; ws.forEach(x => x.lessons.forEach(l => { n++; if ((st.lessons || {})[l.id] && st.lessons[l.id].done) d++; })); return [nm, d, n]; });
+    const wordsWeak = Object.keys(st.words || {}).filter(id => WORDS[id] && (st.words[id].miss || 0) >= 2 && (st.words[id].box || 0) < 2).slice(0, 5).map(id => WORDS[id].en);
+    return { name: pl.name, w, p, done, weak: weakOf(st), wordsWeak, streak: st.streak || 0, strict: !!st.strict };
+  });
+  const lines = [`Семейный отчёт за неделю: ${fmtDate(days[0])} — ${fmtDate(t0)}`, ''];
+  const cards = kids.map(k => {
+    const min = Math.round(k.w.sec / 60), pmin = Math.round(k.p.sec / 60), acc = k.w.q ? Math.round(k.w.ok / k.w.q * 100) : null;
+    const trend = k.p.sec ? (min > pmin ? ` (▲ +${min - pmin} мин)` : min < pmin ? ` (▼ −${pmin - min} мин)` : ' (как раньше)') : '';
+    const tips = [];
+    if (k.w.act === 0) tips.push('на этой неделе занятий не было: начните с 10 минут в день');
+    else if (k.w.act < 3) tips.push(`занятия в ${k.w.act} из 7 дней: лучше понемногу каждый день`);
+    else if (k.w.act >= 5) tips.push('отличная регулярность, похвалите за старание');
+    if (acc !== null && k.w.q >= 15 && acc < 60) tips.push('много ошибок: повторите уроки с одной звездой и «Тренировку»');
+    if (acc !== null && k.w.q >= 15 && acc >= 85) tips.push('результаты высокие: можно браться за новые темы');
+    if (k.weak.length) tips.push('слабые темы: ' + k.weak.join(', '));
+    if (k.wordsWeak.length) tips.push('трудные слова: ' + k.wordsWeak.join(', '));
+    lines.push(`${k.name}: занималось дней ${k.w.act} из 7, ${min} мин${trend}, ответов ${k.w.q}${acc !== null ? ', верно ' + acc + '%' : ''}, серия ${k.streak} дн.`);
+    lines.push('  Пройдено уроков: ' + k.done.map(d => `${d[0].replace(/^\S+\s/, '')} ${d[1]}/${d[2]}`).join('; '));
+    if (tips.length) lines.push('  Заметки: ' + tips.join('; '));
+    lines.push('');
+    return `<div class="card"><h3>${esc(k.name)}</h3>
+      <div class="shop"><div class="item"><div class="ie" style="font-size:2rem">${k.w.act}/7</div>дней</div><div class="item"><div class="ie" style="font-size:2rem">${min}</div>минут${trend}</div><div class="item"><div class="ie" style="font-size:2rem">${acc !== null ? acc + '%' : '–'}</div>верно с 1-й попытки</div><div class="item"><div class="ie" style="font-size:2rem">🔥 ${k.streak}</div>дней подряд</div></div>
+      <table>${k.done.map(d => `<tr><td>${d[0]}</td><td><div class="bar"><i style="width:${d[2] ? Math.round(d[1] / d[2] * 100) : 0}%"></i></div></td><td>${d[1]}/${d[2]}</td></tr>`).join('')}</table>
+      ${tips.length ? `<ul>${tips.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}</div>`;
+  }).join('');
+  const text = lines.join('\n').trim();
+  app.innerHTML = `<div class="card noprint"><button class="btn small sec" id="bk">⬅ Родителям</button></div>
+    <div class="card"><h2>📊 Семейный отчёт</h2><p>${fmtDate(days[0])} — ${fmtDate(t0)}. Открывайте раз в неделю, например в воскресенье вечером.</p></div>${cards}
+    <div class="card noprint"><button class="btn small" id="cp">📋 Скопировать</button>${navigator.share ? '<button class="btn small gold" id="sh">📤 Отправить</button>' : ''}<a class="btn small" id="ml" href="mailto:?subject=${encodeURIComponent('Семейный отчёт за неделю')}&body=${encodeURIComponent(text)}">✉️ Письмом</a><button class="btn small sec" id="pr">🖨 Печать</button>
+      <textarea id="rt" readonly>${esc(text)}</textarea></div>`;
+  $('bk').onclick = parent;
+  $('cp').onclick = () => { const t = $('rt'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); } toast('Скопировано'); };
+  if ($('sh')) $('sh').onclick = () => navigator.share({ title: 'Семейный отчёт за неделю', text }).catch(() => {});
+  $('pr').onclick = () => window.print();
 }
 function weeklyReport() {
   const t0 = today();
