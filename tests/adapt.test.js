@@ -88,3 +88,13 @@ test('безударные гласные не сводятся к слогам'
   const g = A.gensFromText('Безударные гласные, парные согласные', 'ru');
   assert.ok(g.includes('r_unstress') && g.includes('r_voiced') && !g.includes('r_vowel'));
 });
+
+test('окружающий мир: предмет и темы', () => {
+  assert.equal(A.gameSubject('Окружающий мир'), 'ow');
+  assert.ok(A.gensFromText('Золотое кольцо России, города', 'ow').includes('o_golden'));
+  assert.ok(A.gensFromText('природные зоны: тундра и тайга', 'ow').includes('o_zones'));
+  assert.ok(A.gensFromText('Планеты Солнечной системы', 'ow').includes('o_space'));
+  const s = school({ subjects: [{ id: 'o', name: 'Окружающий мир' }], tasks: [{ childId: 'c', subjectId: 'o', text: 'Контрольная по теме «Вода»', due: '2026-10-09', status: 'todo' }] });
+  const o = A.analyze(s, 'c', T).ow;
+  assert.equal(o.exams.length, 1);
+});

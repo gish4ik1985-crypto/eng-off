@@ -153,14 +153,14 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
-const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'math' ? 'math' : 'eng';
-const isGen = () => S.subj === 'math' || S.subj === 'ru'; // предметы с генерируемыми заданиями
-const genWorlds = () => S.subj === 'ru' ? RWORLDS : MWORLDS;
+const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'math' ? 'math' : 'eng';
+const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow'; // предметы с генерируемыми заданиями
+const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.world;
+const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
 const worldOpen = k => S.unlockAll || k === 0 || isGen() || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
@@ -746,12 +746,12 @@ function payHomework() {
 }
 // темы из дневника, которым сейчас стоит уделить внимание, в виде заданий математики
 function diarySpecs() {
-  const sj = skind() === 'ru' ? 'ru' : 'math', f = focusOf(sj);
+  const sj = skind() === 'eng' ? 'math' : skind(), f = focusOf(sj);
   const texts = f.topics.concat(f.exams.map(e => e.text));
   const gens = new Set(); texts.forEach(t => ADAPT.gensFromText(t, sj).forEach(g => gens.add(g)));
   if (!gens.size) return [];
   const seen = new Set(), out = [];
-  [W()].concat(sj === 'ru' ? RWORLDS : MWORLDS).forEach(w => w.lessons.forEach(l => l.gens.forEach(g => { const k = g[0] + g[1]; if (gens.has(g[0]) && !seen.has(k)) { seen.add(k); out.push(specOf(g)); } })));
+  [W()].concat(genWorlds()).forEach(w => w.lessons.forEach(l => l.gens.forEach(g => { const k = g[0] + g[1]; if (gens.has(g[0]) && !seen.has(k)) { seen.add(k); out.push(specOf(g)); } })));
   return shuffle(out);
 }
 // уроки английского, которые просит повторить дневник (по словам из записей родителя)
@@ -821,7 +821,7 @@ function missionCard() {
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
   if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
-  const name = { math: 'математике', ru: 'русскому языку', eng: 'английскому' }[sj];
+  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', eng: 'английскому' }[sj];
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
@@ -860,7 +860,7 @@ function map() {
   const cur = allDone ? null : WL[nextI];
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
-  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button></div>`;
+  const subjBar = `<div class="center subj"><button class="btn ${skind() === 'eng' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${skind() === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button><button class="btn ${skind() === 'ru' ? 'gold' : 'sec'}" id="sj_ru">📝 Русский</button><button class="btn ${skind() === 'ow' ? 'gold' : 'sec'}" id="sj_ow">🌍 Окружающий мир</button></div>`;
   const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
@@ -881,7 +881,8 @@ function map() {
   if ($('dg')) $('dg').onclick = diagIntro;
   $('trn').onclick = isGen() ? mathTraining : training;
   $('sj_ru').onclick = () => { if (S.subj !== 'ru') { S.subj = 'ru'; save(); map(); } };
-  $('sj_eng').onclick = () => { if (S.subj === 'math' || S.subj === 'ru') { S.subj = 'eng'; save(); map(); } };
+  $('sj_ow').onclick = () => { if (S.subj !== 'ow') { S.subj = 'ow'; save(); map(); } };
+  $('sj_eng').onclick = () => { if (isGen()) { S.subj = 'eng'; save(); map(); } };
   $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
   if ($('more')) $('more').onclick = more;
   $('play').onclick = () => {
@@ -902,7 +903,7 @@ function map() {
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else S.world = k;
+    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else S.world = k;
     save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
@@ -1301,7 +1302,8 @@ function mathNote(sp, ok) {
   r.last = today();
 }
 const mixSpecs = (gens, n) => shuffle(Array.from({ length: n }, (_, k) => specOf(gens[k % gens.length])));
-const mathWeak = (ru = S.subj === 'ru') => Object.keys(S.mt || {}).filter(k => k.startsWith('r_') === ru).filter(k => {
+const subjPrefix = () => S.subj === 'ru' ? 'r_' : S.subj === 'ow' ? 'o_' : '';
+const mathWeak = (pref = subjPrefix()) => Object.keys(S.mt || {}).filter(k => pref ? k.startsWith(pref) : !/^[ro]_/.test(k)).filter(k => {
   const r = S.mt[k]; if (!r || (r.seen || 0) < 3) return false;
   const h = r.hist || [];
   return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7;
@@ -1600,10 +1602,10 @@ function diaryLinkHtml() {
   if (!ad) return sel + '<p>Совпадения по имени нет — выберите ребёнка из списка.</p>';
   const row = (sj, nm) => { const f = ad.a[sj]; return `<tr><td>${nm}</td><td>${f.avg === null ? 'нет оценок' : 'средний ' + f.avg}</td><td>${f.focus ? '📌 ' + esc(f.reasons.join(', ')) : 'всё хорошо'}${f.exams.length ? '<br>📅 ' + esc(f.exams[0].text) + ' (' + f.exams[0].days + ' дн.)' : ''}</td></tr>`; };
   const dl = (ad.a.eng.topics.length || ad.a.eng.exams.length) ? engDiaryLessons() : [];
-  return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
+  return `${sel}<table>${row('math', 'Математика')}${row('eng', 'Английский')}${row('ru', 'Русский язык')}${row('ow', 'Окружающий мир')}</table>${dl.length ? `<p>📓 Темы английского из записей: ${dl.map(l => esc(l.title)).join(', ')} — они попадут в тренировку.</p>` : ''}<p><small>Игра сама подстраивается: при просадке по предмету уроки получают больше повторений, темы из ваших записей (например, «таблица умножения») попадают в тренировку, а за проверенную вами домашку ребёнок получает изумруды.</small></p>`;
 }
 function parent() {
-  const rows = WORLDS.concat(MWORLDS, RWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');

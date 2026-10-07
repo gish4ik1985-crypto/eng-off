@@ -1,7 +1,7 @@
 /* Адаптация игры под успеваемость: читает данные дневника (оценки, задания, замечания) и подсказывает игре,
    какому предмету и каким темам уделить внимание. Чистая логика без DOM: легко проверить тестами (tests/adapt.test.js). */
 const ADAPT = (() => {
-  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng'], [/русск/i, 'ru']];
+  const SUBJ = [[/матем/i, 'math'], [/англ/i, 'eng'], [/русск/i, 'ru'], [/окружающ/i, 'ow']];
   const gameSubject = name => { for (const [re, k] of SUBJ) if (re.test(String(name || ''))) return k; return null; };
   const TEST_RE = /контрольн|диктант|тест|проверочн|самостоятельн|зач[её]т|олимпиад/i;
   // слова из записей родителя -> темы математики в игре
@@ -23,6 +23,17 @@ const ADAPT = (() => {
     [/тся|ться/i, ['r_tsya']], [/словарн/i, ['r_dict']], [/склонен/i, ['r_decl', 'r_caseend']], [/спряжен/i, ['r_conj', 'r_persend']],
     [/запят|однородн/i, ['r_comma']], [/подлежащ|сказуем|член\S* предложен|главн\S* член/i, ['r_sentparts']]
   ];
+  // слова из записей родителя -> темы окружающего мира в игре
+  const OW_KW = [
+    [/сезон|времена года|месяц|календар|недел|сутк/i, ['o_season', 'o_calendar']], [/живая|неживая|природ/i, ['o_nature']], [/животн|зверь|звери|птиц|рыб|насеком|земноводн|пресмыкающ/i, ['o_animals']],
+    [/растен|дерев|кустарник|трав|корень|стебел|цветок|плод/i, ['o_plants']], [/человек|орган|здоров|тело|зубы|гигиен|режим дня/i, ['o_body']],
+    [/безопасн|светофор|пожар|экстренн|переход/i, ['o_safety']], [/росси|родин|москв|флаг|герб|гимн|конституц|символ/i, ['o_russia']],
+    [/вода|водяной|лёд|круговорот|испарен/i, ['o_water']], [/воздух|почв|ископаем|нефть|уголь|глина/i, ['o_earth']],
+    [/космос|планет|солнечн|спутник|гагарин|галактик/i, ['o_space']], [/природн\S* зон|тундр|тайг|степь|пустын|арктик/i, ['o_zones']],
+    [/эконом|деньги|бюджет|рубл|доход|расход|товар/i, ['o_econ']], [/стран|столиц|европ/i, ['o_countries']], [/золот\S* кольц|суздал|ярославл|кострома/i, ['o_golden']],
+    [/материк|океан|евразия|африка|антарктид/i, ['o_world']], [/истори|битв|князь|война|пётр|кутузов|куликов/i, ['o_history']],
+    [/карт|глобус|компас|масштаб|горизонт|ориентирован/i, ['o_map']]
+  ];
   // слова из записей родителя -> уроки английского (по названиям уроков и словам в них)
   const ENG_STOP = ['выуч', 'учит', 'учеб', 'страни', 'упраж', 'задан', 'прочи', 'напис', 'повто', 'тетра', 'работ', 'контр', 'диктан', 'прове', 'тест', 'англи', 'язык', 'урок', 'выпол', 'сдела', 'подго', 'слова', 'тетрад'];
   const ENG_ALIAS = [
@@ -39,7 +50,7 @@ const ADAPT = (() => {
   const avg = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
   function gensFromText(text, subj) {
-    const out = new Set(), kw = subj === 'ru' ? RU_KW : MATH_KW;
+    const out = new Set(), kw = subj === 'ru' ? RU_KW : subj === 'ow' ? OW_KW : MATH_KW;
     kw.forEach(([re, gens]) => { if (re.test(text || '')) gens.forEach(g => out.add(g)); });
     if (subj === 'ru' && /ударн|парн|непроизн/i.test(text || '')) out.delete('r_vowel'); // «безударные гласные» — это не про слоги
     return [...out];
@@ -64,7 +75,7 @@ const ADAPT = (() => {
   function analyze(school, childId, today) {
     const subjName = id => ((school.subjects || []).find(s => s.id === id) || {}).name || '';
     const out = {};
-    ['math', 'eng', 'ru'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
+    ['math', 'eng', 'ru', 'ow'].forEach(k => { out[k] = { focus: 0, reasons: [], avg: null, trend: null, topics: [], exams: [] }; });
     const mine = list => (school[list] || []).filter(x => x.childId === childId);
     const grades = mine('grades'), tasks = mine('tasks'), remarks = mine('remarks');
     const since30 = addDays(today, -30), since14 = addDays(today, -14);
