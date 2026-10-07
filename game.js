@@ -784,7 +784,7 @@ function writeSummary() {
   } catch (e) {}
 }
 function playNext() {
-  const WL = W().lessons, i = WL.findIndex(l => !(S.lessons[l.id] || {}).done);
+  const WL = W().lessons, i = nextIdx();
   if (i >= 0) return startLesson(i);
   if (!(S.lessons[W().boss.id] || {}).done) return startBoss();
   toast('Мир пройден! Выбери урок на карте или загляни в другой мир 🏆');
@@ -838,7 +838,22 @@ let mission = [];
 
 /* ---------- карта ---------- */
 // уже пройденная локация остаётся открытой, даже если порядок в мире поменялся
-function unlocked(i) { return S.unlockAll || i === 0 || (S.lessons[W().lessons[i].id] || {}).done || (S.lessons[W().lessons[i - 1].id] || {}).done; }
+// Основные уроки идут по порядку. Бонусные (lesson.bonus) — дополнительный материал: они не блокируют основные уроки и босса,
+// поэтому новый контент не сбивает прогресс: что было пройдено, остаётся пройденным и открытым.
+function unlocked(i) {
+  const L = W().lessons, l = L[i], done = x => (S.lessons[x.id] || {}).done;
+  if (S.unlockAll || i === 0 || done(l)) return true;
+  let j = i - 1; while (j >= 0 && L[j].bonus) j--;
+  return j < 0 || !!done(L[j]);
+}
+// какой урок идёт следующим: сначала основные, потом босс, потом бонусные
+function nextIdx() {
+  const L = W().lessons, done = x => (S.lessons[x.id] || {}).done;
+  let i = L.findIndex(l => !l.bonus && !done(l));
+  if (i >= 0) return i;
+  if (!done(W().boss)) return -1;
+  return L.findIndex(l => !done(l));
+}
 /* ---------- главный экран и карта предмета ---------- */
 // Два уровня, чтобы ребёнок не путался: сначала главный экран (крупно: играть, предметы, магазин, награды),
 // и только внутри предмета — карта уроков, тренировка и задание дня.
@@ -854,7 +869,7 @@ function home() {
   const st = petStage(), nxt = PET_STAGES[st + 1];
   const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
   const cur = skind(), meta = SUBJ_META[cur];
-  const WL = W().lessons, nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done), bossDone = (S.lessons[W().boss.id] || {}).done;
+  const WL = W().lessons, nextI = nextIdx(), bossDone = (S.lessons[W().boss.id] || {}).done;
   const what = nextI >= 0 ? `${WL[nextI].icon} ${WL[nextI].title}` : (bossDone ? 'повторяем' : `${W().boss.icon} ${W().boss.title}`);
   const tiles = Object.keys(SUBJ_META).map(k => { const m = SUBJ_META[k], [d, n] = subjProgress(k); return `<button class="sjt ${k === cur ? 'cur' : ''}" data-sj="${k}"><span class="te">${m[0]}</span><span class="tn">${m[1]}</span><span class="tp"><i style="width:${n ? Math.round(d / n * 100) : 0}%"></i></span></button>`; }).join('');
   app.innerHTML = `<div class="card top">
@@ -882,8 +897,8 @@ function map() {
   epoch++; newScreen();
   applyTheme();
   const WL = W().lessons, BS = W().boss;
-  const nextI = WL.findIndex(l => !(S.lessons[l.id] || {}).done);
-  const allDone = nextI === -1;
+  const nextI = nextIdx();
+  const allDone = WL.every(l => l.bonus || (S.lessons[l.id] || {}).done); // основные уроки пройдены
   const node = (l, i) => {
     const rec = S.lessons[l.id] || {}, ok = unlocked(i);
     const cls = rec.done ? 'done' : (i === nextI ? 'cur' : (ok ? '' : 'lock'));
@@ -896,7 +911,7 @@ function map() {
   let rows = '';
   for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
   adaptLoad(); payHomework();
-  const cur = allDone ? null : WL[nextI];
+  const cur = nextI >= 0 ? WL[nextI] : null;
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
@@ -1461,7 +1476,7 @@ function mathQuiz(o, done) {
 }
 function mathBoss() {
   const BS = W().boss, specs = [];
-  W().lessons.forEach(l => l.gens.forEach(g => specs.push(specOf(g))));
+  W().lessons.filter(l => !l.bonus).forEach(l => l.gens.forEach(g => specs.push(specOf(g))));
   const ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
   ctx.steps = [
     ['Башня', cb => {
