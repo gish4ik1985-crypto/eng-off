@@ -146,10 +146,13 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, mt: {}, sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
-const W = () => WORLDS[S.world] || WORLDS[0];
-const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WORLDS[k - 1].boss.id] || {}).done;
+// предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
+const WS = () => S.subj === 'math' ? MWORLDS : WORLDS;
+const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.world;
+const W = () => WS()[widx()] || WS()[0];
+const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
 const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
@@ -404,7 +407,7 @@ const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => /^
 const voiceCount = () => { try { return speechSynthesis.getVoices().length; } catch (e) { return 0; } };
 function voiceCheck() {
   const box = $('vw');
-  if (voiceDismissed || !box || !speechOn()) return;
+  if (S.subj === 'math' || voiceDismissed || !box || !speechOn()) return;
   if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или английский есть
   box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет английского голоса.</b> Английские слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
     <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «Google US English».</li>
@@ -501,6 +504,7 @@ function mergeState(a, b) {
   m.words = keyed(a.words, b.words, (p, q) => { const w = (p.seen || 0) >= (q.seen || 0) ? p : q; return Object.assign({}, w, { first: [p.first, q.first].filter(Boolean).sort()[0] || w.first }); });
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
+  m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
   ['sets', 'ach', 'bonusGiven'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
   m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
   m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
@@ -657,23 +661,28 @@ function map() {
   let rows = '';
   for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
   const cur = allDone ? null : WL[nextI];
-  const tabs = WORLDS.map((wd, k) => `<button class="btn small ${k === S.world ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
+  const nWeak = S.subj === 'math' ? mathWeak().length : weakCount();
+  const subjBar = `<div class="center subj"><button class="btn ${S.subj !== 'math' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${S.subj === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button></div>`;
+  const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
-      <div class="tbtns">${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="more">📚 Ещё</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
+      <div class="tbtns">${S.subj !== 'math' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${S.subj === 'math' ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
         <div class="mini">${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
     <div id="vw"></div>
+    ${subjBar}
     <div class="center">${tabs}</div>
-    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (S.world + 1 < WORLDS.length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
+    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
     <div class="map">${rows}</div>`;
   $('shop').onclick = shop; $('parent').onclick = parentGate;
   if ($('dg')) $('dg').onclick = diagIntro;
-  $('trn').onclick = training;
-  $('more').onclick = more;
+  $('trn').onclick = S.subj === 'math' ? mathTraining : training;
+  $('sj_eng').onclick = () => { if (S.subj !== 'eng') { S.subj = 'eng'; save(); map(); } };
+  $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
+  if ($('more')) $('more').onclick = more;
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
     if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
@@ -684,12 +693,13 @@ function map() {
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   syncSoon();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
-  setTimeout(voiceCheck, 1500);
+  if (S.subj !== 'math') setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    S.world = k; save(); map();
+    if (S.subj === 'math') S.mworld = k; else S.world = k;
+    save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
     if (n.dataset.boss) { if (!bossOk) return toast('Сначала пройди все локации 🔒'); return startBoss(); }
@@ -710,7 +720,11 @@ const GAMES = {
 function startLesson(i) {
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
-  if (L.type === 'read') {
+  if (L.type === 'math') {
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Тренируемся', cb => mathQuiz({ ctx, counted: true, items: mixSpecs(L.gens, 8) }, cb)]);
+    ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
+  } else if (L.type === 'read') {
     ctx.steps.push(['Читаем', cb => readCard(ctx, cb)]);
     ctx.steps.push(['Вопросы по тексту', cb => gapQuiz({ ctx, counted: true, items: L.qs }, cb)]);
     if (L.order) ctx.steps.push(['Порядок событий', cb => storyOrder(ctx, cb)]);
@@ -996,8 +1010,8 @@ function reward(ctx) {
   const before = petStage(); S.petXp += stars; const after = petStage();
   S.emeralds += em; save(); sfx('win');
   const wd = W();
-  const last = S.world + 1 >= WORLDS.length;
-  const extra = ctx.boss ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> победил(а) Забываку<br>и вернул(а) все слова: ${wd.name}!</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
+  const last = widx() + 1 >= WS().length;
+  const extra = ctx.boss ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> ${wd.boss.cert ? wd.boss.cert + '<br>' + wd.name + '!' : 'победил(а) Забываку<br>и вернул(а) все слова: ' + wd.name + '!'}</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
   app.innerHTML = `<div class="card center"><h1>${ctx.boss ? 'Босс побеждён! 🎉' : 'Урок пройден! 🎉'}</h1>
     <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
     <p>Правильных с первой попытки: ${ctx.ok} из ${ctx.asked}</p>
@@ -1012,6 +1026,7 @@ function reward(ctx) {
 
 /* ---------- босс ---------- */
 function startBoss() {
+  if (S.subj === 'math') return mathBoss();
   const BS = W().boss, bi = BS.bossIcon || '👾';
   const vocab = [].concat(...W().lessons.filter(l => l.words).map(l => l.words)).filter((x, k, a) => a.indexOf(x) === k);
   const gaps = [].concat(...W().lessons.filter(l => l.gaps).map(l => l.gaps));
@@ -1029,6 +1044,123 @@ function startBoss() {
   ];
   if (gaps.length) ctx.steps.push(['Бой: грамматика', cb => gapQuiz({ ctx, boss: true, bossIcon: bi, counted: true, items: sample(gaps, 6) }, cb)]);
   runSteps(ctx, () => reward(ctx));
+}
+
+/* ---------- математика ---------- */
+const specOf = a => ({ g: a[0], l: a[1] });
+const mkey = sp => sp.g + sp.l;
+const keySpec = k => ({ g: k.slice(0, -1), l: +k.slice(-1) });
+// уровень сложности темы: стартовый + поправка, которую игра сама подбирает по ответам ребёнка
+const mathLv = sp => { const r = S.mt[mkey(sp)]; return Math.max(1, Math.min(3, sp.l + (r ? r.adj || 0 : 0))); };
+function mathNote(sp, ok) {
+  const r = S.mt[mkey(sp)] || (S.mt[mkey(sp)] = { seen: 0, miss: 0, hist: [], adj: 0 });
+  r.seen++; if (!ok) r.miss++;
+  r.hist.push(ok ? 1 : 0); if (r.hist.length > 6) r.hist.shift();
+  if (r.hist.length >= 5) {
+    const acc = r.hist.reduce((a, b) => a + b, 0) / r.hist.length;
+    if (acc >= 0.9 && sp.l + r.adj < 3) { r.adj++; r.hist = []; } else if (acc <= 0.5 && sp.l + r.adj > 1) { r.adj--; r.hist = []; }
+  }
+  r.last = today();
+}
+const mixSpecs = (gens, n) => shuffle(Array.from({ length: n }, (_, k) => specOf(gens[k % gens.length])));
+const mathWeak = () => Object.keys(S.mt || {}).filter(k => {
+  const r = S.mt[k]; if (!r || (r.seen || 0) < 3) return false;
+  const h = r.hist || [];
+  return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7;
+});
+function mathTopicsHtml() {
+  const rows = Object.keys(S.mt || {}).filter(k => S.mt[k].seen).map(k => {
+    const r = S.mt[k], g = k.slice(0, -1), acc = Math.round(100 * (r.seen - r.miss) / r.seen);
+    return `<tr><td>${MTOP[g] || g} (уровень ${Math.max(1, Math.min(3, +k.slice(-1) + (r.adj || 0)))})</td><td>${acc}%</td><td>задач: ${r.seen}</td></tr>`;
+  }).join('');
+  return rows ? `<table>${rows}</table><p><small>Уровень (1–3) игра подбирает сама: после 5 верных подряд задания усложняются, при ошибках — упрощаются.</small></p>` : '<p>Пока нет данных — ребёнок ещё не решал задачи.</p>';
+}
+function mathRule(ctx, cb) {
+  const r = ctx.L.rule;
+  frame(ctx, `<div class="card"><div class="story">${ctx.L.story}</div><h2>${r.title}</h2><div class="rule">${r.html}</div>
+    <h3>Примеры:</h3>${r.ex.map(e => `<div class="exb mex"><b>${e[0]}</b><br><small>${e[1]}</small></div>`).join('')}
+    <p class="center"><button class="btn gold" id="go">Понятно, решаем ➜</button></p></div>`);
+  $('go').onclick = cb;
+}
+let mathKeyFn = null;
+document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
+function mathQuiz(o, done) {
+  const ctx = o.ctx, total = o.items.length; let i = 0;
+  const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
+  function ask(sp) {
+    const q = MQ[sp.g](mathLv(sp));
+    const isEq = !q.opts && !q.parts && /x/.test(q.q);
+    const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
+    let tries = 0, locked = false, pi = 0, buf = '';
+    const head = o.boss
+      ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
+      : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const qtext = q.q + (q.opts || /[=?]/.test(q.q) || (q.parts && !isEq) ? '' : ' =');
+    const boxes = () => parts.map((p, k) => `<div class="mrow ${k === pi ? 'cur' : ''}">${p.l ? `<span>${p.l}${p.l === 'x' ? ' =' : ':'}</span>` : ''}<b class="mbox">${k < pi ? p.a : k === pi ? (buf || '&nbsp;') : '&nbsp;'}</b></div>`).join('');
+    frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
+      <div class="mq">${qtext}</div>
+      ${q.opts ? `<div class="opts mopts">${q.opts.map(x => `<button class="opt" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div>`
+        : `<div class="mans" id="mans">${boxes()}</div><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button class="btn kp ${k === '✓' ? 'gold' : 'sec'}" data-k="${k}">${k}</button>`).join('')}</div>`}
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId;
+    const ansText = q.opts ? q.ans : parts.map(p => (p.l ? p.l + ' ' : '') + p.a).join(', ');
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); logQ(ok); save(); };
+    const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
+    const reveal = () => {
+      locked = true; $('msg').innerHTML = `Правильный ответ: <b>${ansText}</b><br><small>${q.why}</small>`; count(false); i++;
+      $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next;
+    };
+    const wrong = () => { tries++; buf = ''; sfx('bad'); if (!q.opts) $('mans').innerHTML = boxes(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Подумай ещё раз 💪'; };
+    const submit = () => {
+      if (locked || buf === '') return;
+      if (+buf === parts[pi].a) { pi++; buf = ''; if (pi >= parts.length) return solved(); sfx('ok'); $('mans').innerHTML = boxes(); } else wrong();
+    };
+    const press = k => {
+      if (locked || q.opts) return;
+      if (k === '✓') return submit();
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 6) buf += k;
+      $('mans').innerHTML = boxes();
+    };
+    app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
+    app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if (locked) return;
+      if (b.dataset.v === String(q.ans)) { b.classList.add('good'); solved(); } else { b.classList.add('bad'); b.disabled = true; wrong(); }
+    });
+    mathKeyFn = e => {
+      if (screenId !== my) return;
+      if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('⌫'); else if (e.key === 'Enter') press('✓');
+    };
+  }
+  next();
+}
+function mathBoss() {
+  const BS = W().boss, specs = [];
+  W().lessons.forEach(l => l.gens.forEach(g => specs.push(specOf(g))));
+  const ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
+  ctx.steps = [
+    ['Башня', cb => {
+      frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div>
+        <p>${BS.story}</p><p>Каждый верный ответ ранит босса. Ошибки не страшны: после второй ошибки покажу решение!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
+      $('fi').onclick = cb;
+    }],
+    ['Бой', cb => mathQuiz({ ctx, boss: true, bossIcon: BS.bossIcon, counted: true, items: sample(specs, 12) }, cb)]
+  ];
+  runSteps(ctx, () => reward(ctx));
+}
+function mathTraining() {
+  epoch++; newScreen();
+  const weak = mathWeak();
+  let pool = weak.map(keySpec);
+  if (!pool.length) pool = [].concat(...MWORLDS.map(w => w.lessons)).filter(l => (S.lessons[l.id] || {}).done).flatMap(l => l.gens.map(specOf));
+  if (!pool.length) { toast('Сначала пройди хотя бы один урок математики 🙂'); return; }
+  const ctx = { L: { id: 'mtr', title: 'Тренировка' }, asked: 0, ok: 0 };
+  ctx.steps = [[weak.length ? 'Слабые места' : 'Повторение', cb => mathQuiz({ ctx, counted: true, title: weak.length ? '💪 Подтягиваем слабые места' : '🔁 Повторяем пройденное', items: shuffle(Array.from({ length: 10 }, (_, k) => pool[k % pool.length])) }, cb)]];
+  runSteps(ctx, () => {
+    const em = 2 + ctx.ok; S.emeralds += em; logDone('tr'); save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>Тренировка окончена! 💪</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="mp">На карту ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
+    $('mp').onclick = map; $('rp').onclick = mathTraining;
+  });
 }
 
 /* ---------- магазин ---------- */
@@ -1160,7 +1292,7 @@ function parentGate() {
 }
 
 function parent() {
-  const rows = WORLDS.map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = WORLDS.concat(MWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');
@@ -1180,6 +1312,7 @@ function parent() {
     <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
     ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
     <div class="card"><h3>Слабые места (слова и правила; уходят после 3 верных ответов подряд)</h3>${weak ? `<table>${weak}</table><p>Совет: повторите их без экрана — покажите предмет и попросите назвать, спрячьте карточки по комнате, сыграйте «Покажи и назови».</p>` : '<p>Пока нет данных — всё идёт хорошо!</p>'}</div>
+    <div class="card"><h3>🧮 Математика по темам</h3>${mathTopicsHtml()}</div>
     <div class="card"><h3>🎁 Семейные призы</h3>
       <p>Договоритесь с ребёнком о награде в жизни за получение наград в игре (например, «поход в кино» или «выбрать мультфильм»). Ребёнок увидит их на экране «Награды».</p>
       ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${(p.text || '').replace(/"/g, '&quot;')}"></p>`).join('')}</div>

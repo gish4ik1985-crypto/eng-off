@@ -192,3 +192,15 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pad .btn{font-size:1.5rem;padding:.5em 0}
 .pmsg{color:#c62828;min-height:1.4em}
+
+/* математика */
+.subj{margin:8px 0}.subj .btn{font-size:1.15rem}
+.mq{font-size:2.4rem;font-weight:700;margin:10px 0;letter-spacing:1px}
+.mans{display:flex;flex-direction:column;align-items:center;gap:6px;margin:8px 0}
+.mrow{display:flex;gap:8px;align-items:center;font-size:1.4rem}
+.mbox{display:inline-block;min-width:4.5em;padding:6px 12px;border:4px solid #1b1b1b;border-radius:10px;background:#fff;font-size:1.8rem}
+.mrow.cur .mbox{border-color:#2e7d32;box-shadow:0 0 0 3px #a5d6a7}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:340px;margin:10px auto}
+.btn.kp{font-size:1.6rem;padding:.45em 0}
+.mopts{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.mopts .opt{min-width:5em;font-size:2rem}
+.mex{text-align:left}

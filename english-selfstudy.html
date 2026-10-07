@@ -204,6 +204,18 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .pad .btn{font-size:1.5rem;padding:.5em 0}
 .pmsg{color:#c62828;min-height:1.4em}
 
+/* математика */
+.subj{margin:8px 0}.subj .btn{font-size:1.15rem}
+.mq{font-size:2.4rem;font-weight:700;margin:10px 0;letter-spacing:1px}
+.mans{display:flex;flex-direction:column;align-items:center;gap:6px;margin:8px 0}
+.mrow{display:flex;gap:8px;align-items:center;font-size:1.4rem}
+.mbox{display:inline-block;min-width:4.5em;padding:6px 12px;border:4px solid #1b1b1b;border-radius:10px;background:#fff;font-size:1.8rem}
+.mrow.cur .mbox{border-color:#2e7d32;box-shadow:0 0 0 3px #a5d6a7}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:340px;margin:10px auto}
+.btn.kp{font-size:1.6rem;padding:.45em 0}
+.mopts{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.mopts .opt{min-width:5em;font-size:2rem}
+.mex{text-align:left}
+
 </style>
 </head>
 <body>
@@ -1644,6 +1656,248 @@ AUDIOS.push(
 
 </script>
 <script>
+/* Математика, 3 класс (темы курса Петерсон). Задания генерируются на лету, у каждого три уровня сложности:
+   игра сама повышает или понижает уровень по ответам ребёнка. */
+const MR = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const MP = a => a[Math.floor(Math.random() * a.length)];
+// склонение: mpl(5, ['алмаз','алмаза','алмазов']) -> «5 алмазов»
+const mpl = (n, f) => n + ' ' + ((n % 100 >= 11 && n % 100 <= 19) ? f[2] : (n % 10 === 1 ? f[0] : (n % 10 >= 2 && n % 10 <= 4 ? f[1] : f[2])));
+const MQ = {};
+const MTOP = {
+  place: 'Числа до 1000', add100: 'Сложение до 100', sub100: 'Вычитание до 100', mul: 'Таблица умножения', div: 'Деление (таблица)',
+  eq: 'Уравнения', order: 'Порядок действий', rem: 'Деление с остатком', cmp: 'Сравнение', units: 'Величины',
+  addsub1000: 'Сложение и вычитание до 1000', muldiv10: 'Умножение и деление круглых чисел', word: 'Задачи', geom: 'Периметр и площадь', frac: 'Доли'
+};
+
+MQ.place = l => {
+  const n = MR(120, 989);
+  if (l === 1) {
+    const k = MR(0, 3);
+    if (k === 0) return { q: `Сколько сотен в числе ${n}?`, ans: Math.floor(n / 100), why: `В числе ${n} сотни — это первая цифра: ${Math.floor(n / 100)}.` };
+    if (k === 1) return { q: `Сколько десятков в разряде десятков числа ${n}?`, ans: Math.floor(n / 10) % 10, why: `Разряд десятков — средняя цифра числа ${n}.` };
+    if (k === 2) return { q: `Какое число стоит перед ${n}?`, ans: n - 1, why: `Предыдущее число на 1 меньше: ${n} − 1 = ${n - 1}.` };
+    return { q: `Какое число стоит после ${n}?`, ans: n + 1, why: `Следующее число на 1 больше: ${n} + 1 = ${n + 1}.` };
+  }
+  if (l === 2) {
+    if (MR(0, 1)) return { q: `Сколько всего десятков в числе ${n}?`, ans: Math.floor(n / 10), why: `Отбрось единицы: в ${n} всего ${Math.floor(n / 10)} десятков.` };
+    const a = MR(1, 9), b = MR(0, 9), c = MR(0, 9);
+    return { q: `Запиши число: ${a} сот. ${b} дес. ${c} ед.`, ans: a * 100 + b * 10 + c, why: `${a} сотен, ${b} десятков, ${c} единиц — это ${a * 100 + b * 10 + c}.` };
+  }
+  const m = MP([[10, 'больше на 10'], [100, 'больше на 100'], [10, 'меньше на 10'], [100, 'меньше на 100']]);
+  const nn = MR(210, 780), sign = m[1].includes('больше') ? 1 : -1;
+  return { q: `Число, которое ${m[1]} числа ${nn}`, ans: nn + sign * m[0], why: `${nn} ${sign > 0 ? '+' : '−'} ${m[0]} = ${nn + sign * m[0]}.` };
+};
+MQ.add100 = l => {
+  let a, b;
+  if (l === 1) { a = MR(11, 59); b = MR(1, 9); } else if (l === 2) { a = MR(20, 69); b = MR(11, 30); } else { a = MR(35, 78); b = MR(11, 100 - a); }
+  if (a + b > 100) b = 100 - a;
+  const tb = b - b % 10, ub = b % 10;
+  return { q: `${a} + ${b}`, ans: a + b, why: ub && tb ? `${a} + ${tb} = ${a + tb}, потом ${a + tb} + ${ub} = ${a + b}.` : `${a} + ${b} = ${a + b}.` };
+};
+MQ.sub100 = l => {
+  let a, b;
+  if (l === 1) { a = MR(2, 9) * 10 + MR(1, 9); b = MR(1, a % 10); } else if (l === 2) { a = MR(40, 99); b = MR(11, a - 10); } else { a = MR(31, 99); b = MR(a % 10 + 1, a - 1); }
+  if (b >= a) b = a - 1;
+  const tb = b - b % 10, ub = b % 10;
+  return { q: `${a} − ${b}`, ans: a - b, why: ub && tb ? `${a} − ${tb} = ${a - tb}, потом ${a - tb} − ${ub} = ${a - b}.` : `${a} − ${b} = ${a - b}.` };
+};
+MQ.addsub1000 = l => {
+  const plus = MR(0, 1);
+  let a, b;
+  if (l === 1) { a = MR(1, 8) * 100 + MP([0, 20, 40, 50, 30]); b = MR(1, 9 - Math.floor(a / 100)) * 100; if (MR(0, 1)) b = MP([20, 30, 40, 50]); }
+  else if (l === 2) { a = MR(1, 8) * 100 + MR(1, 4) * 10 + MR(1, 4); b = MR(11, 45); if (!plus) b = MR(10, a % 100 > 10 ? a % 100 - 1 : 10); }
+  else { a = MR(230, 760); b = MR(110, 1000 - a - 1); }
+  if (plus) return { q: `${a} + ${b}`, ans: a + b, why: `Складывай по разрядам: единицы, десятки, сотни. ${a} + ${b} = ${a + b}.` };
+  if (b >= a) { const t = a; a = b + MR(10, 90); b = Math.min(b, t); }
+  return { q: `${a} − ${b}`, ans: a - b, why: `Вычитай по разрядам: единицы, десятки, сотни. ${a} − ${b} = ${a - b}.` };
+};
+MQ.mul = l => {
+  const A = l === 1 ? [2, 3, 4, 5] : l === 2 ? [6, 7] : [6, 7, 8, 9];
+  const a = MP(A), b = MR(2, 9), p = a * b;
+  if (l === 3 && MR(0, 2) === 0) return { q: `? × ${a} = ${p}`, ans: b, why: `${p} : ${a} = ${b}, потому что ${a} × ${b} = ${p}.` };
+  return { q: `${a} × ${b}`, ans: p, why: `${a} × ${b} = ${p}. Повтори таблицу на ${a}.` };
+};
+MQ.div = l => {
+  const A = l === 1 ? [2, 3, 4, 5] : l === 2 ? [6, 7] : [6, 7, 8, 9];
+  const a = MP(A), b = MR(2, 9);
+  return { q: `${a * b} : ${a}`, ans: b, why: `${a * b} : ${a} = ${b}, потому что ${a} × ${b} = ${a * b}.` };
+};
+function mEval(s) { try { return Function('return (' + s.replace(/×/g, '*').replace(/:/g, '/').replace(/−/g, '-') + ')')(); } catch (e) { return NaN; } }
+MQ.order = l => {
+  for (let t = 0; t < 200; t++) {
+    const a = MR(2, 40), b = MR(2, 9), c = MR(2, 9), d = MR(2, 30);
+    let e;
+    if (l === 1) e = MP([`${a} + ${b} × ${c}`, `${b} × ${c} + ${a}`, `${a + b * c} − ${b} × ${c}`]);
+    else if (l === 2) e = MP([`(${a} + ${d}) × ${c}`, `${a} × ${b} − ${d}`, `(${a * c} − ${c}) : ${c}`, `${a * b} : ${b} + ${d}`]);
+    else e = MP([`${a} + ${b} × ${c} − ${d}`, `(${a} + ${d}) × ${c} − ${b}`, `${a * b} : ${b} + ${c} × ${d}`, `(${b * c} + ${d}) : 1 − ${a}`]);
+    const v = mEval(e);
+    if (Number.isInteger(v) && v >= 0 && v <= 500 && !/ : 1 /.test(e)) return { q: e, ans: v, why: 'Сначала скобки, потом умножение и деление, в конце сложение и вычитание. Верный ответ: ' + v + '.' };
+  }
+  return { q: '(8 + 2) × 3', ans: 30, why: 'Сначала скобки: 10, потом × 3 = 30.' };
+};
+MQ.eq = l => {
+  if (l === 1) {
+    const a = MR(5, 40), x = MR(5, 50), b = a + x;
+    return MR(0, 1) ? { q: `x + ${a} = ${b}`, ans: x, why: `Неизвестное слагаемое = сумма − известное слагаемое: ${b} − ${a} = ${x}.` } : { q: `${a} + x = ${b}`, ans: x, why: `Неизвестное слагаемое = сумма − известное слагаемое: ${b} − ${a} = ${x}.` };
+  }
+  if (l === 2) {
+    const a = MR(5, 40), x = MR(10, 60);
+    if (MR(0, 1)) return { q: `x − ${a} = ${x - a}`, ans: x, why: `Неизвестное уменьшаемое = разность + вычитаемое: ${x - a} + ${a} = ${x}.` };
+    const A = x + a; return { q: `${A} − x = ${x}`, ans: a, why: `Неизвестное вычитаемое = уменьшаемое − разность: ${A} − ${x} = ${a}.` };
+  }
+  const a = MR(2, 9), x = MR(2, 9), k = MR(0, 2);
+  if (k === 0) return { q: `${a} × x = ${a * x}`, ans: x, why: `Неизвестный множитель = произведение : известный множитель: ${a * x} : ${a} = ${x}.` };
+  if (k === 1) return { q: `x : ${a} = ${x}`, ans: a * x, why: `Неизвестное делимое = частное × делитель: ${x} × ${a} = ${a * x}.` };
+  return { q: `${a * x} : x = ${a}`, ans: x, why: `Неизвестный делитель = делимое : частное: ${a * x} : ${a} = ${x}.` };
+};
+MQ.rem = l => {
+  const d = l === 1 ? MR(2, 5) : l === 2 ? MR(3, 9) : MR(6, 9), q = MR(2, l === 3 ? 11 : 7), r = MR(1, d - 1), a = d * q + r;
+  return { q: `${a} : ${d}`, parts: [{ l: 'частное', a: q }, { l: 'остаток', a: r }], ans: q, why: `${d} × ${q} = ${d * q}, до ${a} остаётся ${r}. Остаток всегда меньше делителя.` };
+};
+MQ.cmp = l => {
+  let L, R, why;
+  if (l === 1) { L = MR(100, 999); R = MR(0, 4) === 0 ? L : MR(100, 999); const s = L < R ? '<' : L > R ? '>' : '='; return { q: `${L} ? ${R}`, opts: ['<', '=', '>'], ans: s, why: `Сравни по разрядам, начиная с сотен: ${L} ${s} ${R}.` }; }
+  if (l === 2) {
+    const a = MR(2, 9), b = MR(2, 9), c = MR(2, 9); let d = MR(2, 9);
+    if (MR(0, 2) === 0) { d = 0; }
+    const left = a * b, right = d ? c * d : left;
+    const s = left < right ? '<' : left > right ? '>' : '=';
+    return { q: `${a} × ${b} ? ${d ? c + ' × ' + d : right}`, opts: ['<', '=', '>'], ans: s, why: `Сосчитай обе части: ${left} и ${right}. Значит ${left} ${s} ${right}.` };
+  }
+  const T = [[() => { const n = MR(2, 9), m = MR(11, 99); return [`${n} дм`, n * 10, `${m} см`, m, `1 дм = 10 см`]; }], [() => { const n = MR(1, 5), m = MR(50, 650); return [`${n} м`, n * 100, `${m} см`, m, `1 м = 100 см`]; }], [() => { const n = MR(1, 3), m = MR(30, 200); return [`${n} ч`, n * 60, `${m} мин`, m, `1 ч = 60 мин`]; }]];
+  const [ls, lv, rs, rv, fact] = MP(T)[0]();
+  const s = lv < rv ? '<' : lv > rv ? '>' : '=';
+  return { q: `${ls} ? ${rs}`, opts: ['<', '=', '>'], ans: s, why: `${fact}. Переведи в одинаковые единицы: ${lv} и ${rv}.` };
+};
+MQ.units = l => {
+  if (l === 1) {
+    const k = MR(0, 2);
+    if (k === 0) { const n = MR(2, 9); return { q: `${n} дм = ? см`, ans: n * 10, why: `В 1 дм 10 см: ${n} × 10 = ${n * 10}.` }; }
+    if (k === 1) { const n = MR(2, 9); return { q: `${n} м = ? дм`, ans: n * 10, why: `В 1 м 10 дм: ${n} × 10 = ${n * 10}.` }; }
+    const n = MR(2, 9); return { q: `${n} м = ? см`, ans: n * 100, why: `В 1 м 100 см: ${n} × 100 = ${n * 100}.` };
+  }
+  if (l === 2) {
+    const k = MR(0, 2);
+    if (k === 0) { const n = MR(2, 5), m = MR(1, 9); return { q: `${n} м ${m} дм = ? дм`, ans: n * 10 + m, why: `${n} м = ${n * 10} дм, и ещё ${m} дм: ${n * 10 + m}.` }; }
+    if (k === 1) { const n = MR(2, 6); return { q: `${n} ч = ? мин`, ans: n * 60, why: `В 1 часе 60 минут: ${n} × 60 = ${n * 60}.` }; }
+    const n = MR(2, 9); return { q: `${n} кг = ? г`, ans: n * 1000, why: `В 1 кг 1000 г: ${n} × 1000 = ${n * 1000}.` };
+  }
+  const k = MR(0, 2);
+  if (k === 0) { const h = MR(1, 3), m = MR(5, 55); return { q: `${h} ч ${m} мин = ? мин`, ans: h * 60 + m, why: `${h} ч = ${h * 60} мин, плюс ${m} мин = ${h * 60 + m}.` }; }
+  if (k === 1) { const kg = MR(1, 4), g = MR(1, 9) * 100; return { q: `${kg} кг ${g} г = ? г`, ans: kg * 1000 + g, why: `${kg} кг = ${kg * 1000} г, плюс ${g} г = ${kg * 1000 + g}.` }; }
+  const m = MR(1, 4), c = MR(1, 9) * 10; return { q: `${m} м ${c} см = ? см`, ans: m * 100 + c, why: `${m} м = ${m * 100} см, плюс ${c} см = ${m * 100 + c}.` };
+};
+MQ.muldiv10 = l => {
+  if (l === 1) { const a = MR(2, 99), k = MR(0, 2); if (k === 0) return { q: `${a} × 10`, ans: a * 10, why: `При умножении на 10 приписываем ноль: ${a * 10}.` }; if (k === 1) { const b = MR(2, 9); return { q: `${b} × 100`, ans: b * 100, why: `При умножении на 100 приписываем два нуля: ${b * 100}.` }; } return { q: `${a * 10} : 10`, ans: a, why: `Делим на 10: убираем один ноль: ${a}.` }; }
+  if (l === 2) { const a = MR(2, 9), b = MR(2, 9), k = MR(0, 1); if (k === 0) return { q: `${a * 10} × ${b}`, ans: a * b * 10, why: `${a} дес. × ${b} = ${a * b} дес. = ${a * b * 10}.` }; return { q: `${a * b * 10} : ${b}`, ans: a * 10, why: `${a * b} дес. : ${b} = ${a} дес. = ${a * 10}.` }; }
+  const a = MR(11, 33), b = MR(2, 4);
+  if (MR(0, 1)) return { q: `${a} × ${b}`, ans: a * b, why: `${a} = ${a - a % 10} + ${a % 10}; ${a - a % 10} × ${b} = ${(a - a % 10) * b}, ${a % 10} × ${b} = ${a % 10 * b}; сумма ${a * b}.` };
+  const c = MR(11, 49) * b; return { q: `${c} : ${b}`, ans: c / b, why: `Раздели десятки и единицы по отдельности: ${c} : ${b} = ${c / b}.` };
+};
+const MN = ['Стив', 'Алекс', 'Крипер', 'Рыцарь', 'Тимми'];
+MQ.word = l => {
+  if (l === 1) {
+    const a = MR(15, 60), b = MR(5, a - 5), n = MR(2, 6), k = MR(2, 9);
+    return MP([
+      () => ({ q: `У Стива было ${mpl(a, ['алмаз', 'алмаза', 'алмазов'])}. ${mpl(b, ['алмаз', 'алмаза', 'алмазов'])} он потратил. Сколько алмазов осталось?`, ans: a - b, why: `Осталось: ${a} − ${b} = ${a - b}.` }),
+      () => ({ q: `В сундуке ${mpl(a, ['блок', 'блока', 'блоков'])}, а в рюкзаке ${mpl(b, ['блок', 'блока', 'блоков'])}. Сколько блоков всего?`, ans: a + b, why: `Всего: ${a} + ${b} = ${a + b}.` }),
+      () => ({ q: `В ${mpl(n, ['сундуке', 'сундуках', 'сундуках']).replace(/^(\d+) /, '$1 ')} по ${mpl(k, ['факелу', 'факела', 'факелов'])}. Сколько факелов всего?`, ans: n * k, why: `Всего: ${n} × ${k} = ${n * k}.` }),
+      () => ({ q: `${mpl(n * k, ['яблоко', 'яблока', 'яблок'])} раздали поровну ${mpl(n, ['жителю', 'жителям', 'жителям'])}. Сколько яблок получил каждый?`, ans: k, why: `Каждому: ${n * k} : ${n} = ${k}.` })
+    ])();
+  }
+  if (l === 2) {
+    const a = MR(12, 45), d = MR(3, 15), k = MR(2, 9), n = MR(2, 5), p = MR(3, 12), c = MR(30, 90), e = MR(10, c - 5);
+    const times = x => x === 2 ? 'в 2 раза' : x === 3 ? 'в 3 раза' : x === 4 ? 'в 4 раза' : `в ${x} раз`;
+    return MP([
+      () => ({ q: `У Алекс ${mpl(a, ['блок', 'блока', 'блоков'])}, а у Стива на ${d} больше. Сколько блоков у Стива?`, ans: a + d, why: `«На ${d} больше» — прибавляем: ${a} + ${d} = ${a + d}.` }),
+      () => ({ q: `У Алекс ${mpl(a + d, ['блок', 'блока', 'блоков'])}, а у Стива на ${d} меньше. Сколько блоков у Стива?`, ans: a, why: `«На ${d} меньше» — вычитаем: ${a + d} − ${d} = ${a}.` }),
+      () => ({ q: `У Стива ${mpl(k, ['алмаз', 'алмаза', 'алмазов'])}, а у Алекс ${times(n + 1)} больше. Сколько алмазов у Алекс?`, ans: k * (n + 1), why: `«${times(n + 1)[0].toUpperCase() + times(n + 1).slice(1)} больше» — умножаем: ${k} × ${n + 1} = ${k * (n + 1)}.` }),
+      () => ({ q: `Один факел стоит ${mpl(p, ['изумруд', 'изумруда', 'изумрудов'])}. Сколько заплатим за ${mpl(n + 1, ['факел', 'факела', 'факелов'])}?`, ans: p * (n + 1), why: `Цена × количество: ${p} × ${n + 1} = ${p * (n + 1)}.` }),
+      () => ({ q: `Стив прошёл ${c} м, а Алекс ${e} м. На сколько метров Стив прошёл больше?`, ans: c - e, why: `Разница: ${c} − ${e} = ${c - e}.` })
+    ])();
+  }
+  const n = MR(2, 5), k = MR(4, 9), m = MR(3, 15), p = MR(5, 15), s = MR(10, 40), a = MR(40, 99), b = MR(5, 20), c = MR(5, 20);
+  return MP([
+    () => { const mm = m > n * k - 2 ? 2 : m; return { q: `В классе ${mpl(n, ['ряд', 'ряда', 'рядов'])} по ${mpl(k, ['парте', 'парты', 'парт'])}. Сломали ${mpl(mm, ['парту', 'парты', 'парт'])}. Сколько парт осталось?`, ans: n * k - mm, why: `Сначала всего: ${n} × ${k} = ${n * k}, потом вычитаем сломанные: ${n * k} − ${mm} = ${n * k - mm}.` }; },
+    () => ({ q: `Купили ${mpl(n, ['меч', 'меча', 'мечей'])} по ${mpl(p, ['изумруд', 'изумруда', 'изумрудов'])} и щит за ${mpl(s, ['изумруд', 'изумруда', 'изумрудов'])}. Сколько всего заплатили?`, ans: n * p + s, why: `Мечи: ${n} × ${p} = ${n * p}. Плюс щит: ${n * p} + ${s} = ${n * p + s}.` }),
+    () => ({ q: `У Стива ${mpl(a, ['алмаз', 'алмаза', 'алмазов'])}. ${mpl(b, ['алмаз', 'алмаза', 'алмазов'])} он отдал другу и ${mpl(c, ['алмаз', 'алмаза', 'алмазов'])} Алекс. Сколько алмазов осталось?`, ans: a - b - c, why: `${a} − ${b} = ${a - b}, потом ${a - b} − ${c} = ${a - b - c}.` }),
+    () => ({ q: `За ${mpl(n + 1, ['кирку', 'кирки', 'кирок'])} заплатили ${mpl((n + 1) * p, ['изумруд', 'изумруда', 'изумрудов'])}. Сколько стоят ${mpl(n + 3, ['такая кирка', 'такие кирки', 'таких кирок'])}?`, ans: (n + 3) * p, why: `Цена одной: ${(n + 1) * p} : ${n + 1} = ${p}. Потом ${p} × ${n + 3} = ${(n + 3) * p}.` })
+  ])();
+};
+MQ.geom = l => {
+  const a = MR(3, 15), b = MR(2, 12);
+  if (l === 1) { if (MR(0, 2) === 0) return { q: `Периметр квадрата со стороной ${a} см (см)`, ans: a * 4, why: `Периметр — сумма всех сторон: ${a} × 4 = ${a * 4}.` }; return { q: `Периметр прямоугольника со сторонами ${a} см и ${b} см (см)`, ans: (a + b) * 2, why: `(${a} + ${b}) × 2 = ${(a + b) * 2}.` }; }
+  if (l === 2) { if (MR(0, 2) === 0) { const s = MR(2, 9); return { q: `Площадь квадрата со стороной ${s} см (кв. см)`, ans: s * s, why: `Площадь квадрата: ${s} × ${s} = ${s * s}.` }; } const a2 = MR(3, 12); return { q: `Площадь прямоугольника со сторонами ${a2} см и ${b} см (кв. см)`, ans: a2 * b, why: `Длина × ширина: ${a2} × ${b} = ${a2 * b}.` }; }
+  if (MR(0, 1)) return { q: `Периметр прямоугольника ${(a + b) * 2} см, одна сторона ${a} см. Чему равна другая сторона (см)?`, ans: b, why: `Полупериметр ${(a + b) * 2} : 2 = ${a + b}, минус ${a} = ${b}.` };
+  return { q: `Площадь прямоугольника ${a * b} кв. см, одна сторона ${a} см. Чему равна другая сторона (см)?`, ans: b, why: `${a * b} : ${a} = ${b}.` };
+};
+MQ.frac = l => {
+  if (l === 1) { if (MR(0, 1)) { const n = MR(2, 20) * 2; return { q: `Половина (1/2) от числа ${n}`, ans: n / 2, why: `${n} : 2 = ${n / 2}.` }; } const n = MR(2, 15) * 4; return { q: `Четверть (1/4) от числа ${n}`, ans: n / 4, why: `${n} : 4 = ${n / 4}.` }; }
+  if (l === 2) { const d = MP([3, 5, 10]), n = MR(2, 9) * d; return { q: `1/${d} от числа ${n}`, ans: n / d, why: `Чтобы найти 1/${d} числа, делим на ${d}: ${n} : ${d} = ${n / d}.` }; }
+  if (MR(0, 1)) { const d = MP([3, 4, 5]), k = MR(2, d - 1), u = MR(2, 8), n = u * d; return { q: `${k}/${d} от числа ${n}`, ans: u * k, why: `Сначала 1/${d}: ${n} : ${d} = ${u}. Потом × ${k} = ${u * k}.` }; }
+  const d = MP([3, 4, 5, 10]), u = MR(2, 9); return { q: `1/${d} числа равна ${u}. Найди всё число`, ans: u * d, why: `Всё число: ${u} × ${d} = ${u * d}.` };
+};
+
+/* ---------- уроки: gens = [[тема, стартовый уровень], ...] ---------- */
+const ML = (id, icon, title, story, rule, gens) => ({ id, icon, title, story, type: 'math', rule, gens });
+const MLESSONS = [
+  ML(1001, '🏔️', 'Числа до 1000', 'Робот-геодезист строит башню из блоков. Чтобы не сбиться, надо уметь разбирать числа по разрядам.',
+    { title: 'Разряды', html: 'В трёхзначном числе три разряда: <b>сотни</b>, <b>десятки</b> и <b>единицы</b>.<br>Число <b>538</b> = 5 сотен + 3 десятка + 8 единиц.<br>Следующее число на 1 больше, предыдущее на 1 меньше.', ex: [['538 = 500 + 30 + 8', 'сотни, десятки, единицы'], ['Всего десятков в 538: 53', 'десятки считаем вместе с сотнями']] },
+    [['place', 1], ['place', 2]]),
+  ML(1002, '➕', 'Сложение до 100', 'У Стива полный сундук. Складываем блоки быстро, в уме!',
+    { title: 'Сложение в уме', html: 'Раздели второе слагаемое на десятки и единицы.<br><b>38 + 25</b>: 38 + 20 = 58, потом 58 + 5 = <b>63</b>.', ex: [['38 + 25 = 63', '38 + 20 = 58, 58 + 5 = 63'], ['47 + 30 = 77', 'прибавили только десятки']] },
+    [['add100', 1], ['add100', 2]]),
+  ML(1003, '➖', 'Вычитание до 100', 'Крипер взорвал часть моста! Считаем, сколько блоков осталось.',
+    { title: 'Вычитание в уме', html: 'Вычитай десятки, потом единицы.<br><b>72 − 35</b>: 72 − 30 = 42, потом 42 − 5 = <b>37</b>.', ex: [['72 − 35 = 37', '72 − 30 = 42, 42 − 5 = 37'], ['90 − 40 = 50', 'вычли только десятки']] },
+    [['sub100', 1], ['sub100', 2]]),
+  ML(1004, '✖️', 'Умножение на 2, 3, 4, 5', 'В деревне жителей у каждого дома по несколько окон. Умножение — это быстрый счёт одинаковых групп!',
+    { title: 'Что значит умножить', html: 'Умножение — это сложение одинаковых слагаемых.<br><b>4 × 3</b> = 4 + 4 + 4 = <b>12</b>.<br>От перестановки множителей результат не меняется: 4 × 3 = 3 × 4.', ex: [['3 × 5 = 15', '3 + 3 + 3 + 3 + 3'], ['2 × 8 = 16', 'вдвое больше 8']] },
+    [['mul', 1]]),
+  ML(1005, '➗', 'Деление', 'Надо поровну разделить алмазы между друзьями. Деление — обратное умножению.',
+    { title: 'Деление и умножение', html: 'Делить — значит разбивать на равные части.<br>Если <b>3 × 4 = 12</b>, то <b>12 : 3 = 4</b> и <b>12 : 4 = 3</b>.<br>Проверка: частное × делитель = делимое.', ex: [['20 : 4 = 5', 'потому что 4 × 5 = 20'], ['18 : 3 = 6', 'потому что 3 × 6 = 18']] },
+    [['div', 1], ['mul', 1]]),
+  ML(1006, '🧱', 'Таблица на 6, 7, 8, 9', 'В шахте самые большие сундуки. Для них нужна вся таблица умножения.',
+    { title: 'Таблица умножения', html: 'Запоминай через уже известное:<br><b>6 × 7</b> = 6 × 5 + 6 × 2 = 30 + 12 = <b>42</b>.<br><b>9 × n</b>: сначала n × 10, потом вычти n.', ex: [['9 × 7 = 63', '70 − 7 = 63'], ['8 × 6 = 48', '8 × 5 + 8 = 48']] },
+    [['mul', 2], ['div', 2], ['mul', 3]]),
+  ML(1007, '🧩', 'Уравнения', 'Забывака спрятал число под буквой x. Найди его!',
+    { title: 'Как найти x', html: '<b>x + a = b</b> → x = b − a (слагаемое).<br><b>x − a = b</b> → x = b + a (уменьшаемое).<br><b>a − x = b</b> → x = a − b (вычитаемое).<br><b>a × x = b</b> → x = b : a (множитель).<br><b>x : a = b</b> → x = b × a (делимое).', ex: [['x + 15 = 40, x = 25', '40 − 15 = 25'], ['7 × x = 56, x = 8', '56 : 7 = 8']] },
+    [['eq', 1], ['eq', 2]]),
+  ML(1008, '🧮', 'Порядок действий', 'Робот-калькулятор запутался: что считать сначала?',
+    { title: 'Что считать первым', html: '1) Действия в <b>скобках</b>.<br>2) <b>Умножение и деление</b> слева направо.<br>3) <b>Сложение и вычитание</b> слева направо.<br>Пример: 5 + 3 × 4 = 5 + 12 = <b>17</b>.', ex: [['(5 + 3) × 4 = 32', 'скобки считаем первыми'], ['20 − 2 × 6 = 8', 'сначала умножение: 20 − 12']] },
+    [['order', 1], ['order', 2]]),
+  ML(1009, '🍕', 'Деление с остатком', 'Пирог из блоков нельзя поделить поровну без остатка. Что делать с лишним кусочком?',
+    { title: 'Остаток', html: 'Иногда поровну не делится.<br><b>17 : 5</b>: в 17 помещается 3 раза по 5 (это 15), остаётся <b>2</b>.<br>Запись: 17 : 5 = 3 (ост. 2).<br>Остаток <b>всегда меньше делителя</b>.', ex: [['17 : 5 = 3 (ост. 2)', '5 × 3 = 15, 17 − 15 = 2'], ['22 : 4 = 5 (ост. 2)', '4 × 5 = 20']] },
+    [['rem', 1], ['rem', 2]]),
+  ML(1010, '⚖️', 'Сравнение', 'Страж ворот пускает только тех, кто умеет сравнивать числа. Знаки: меньше, равно, больше.',
+    { title: 'Знаки сравнения', html: '<b>&lt;</b> — меньше, <b>&gt;</b> — больше, <b>=</b> — равно.<br>Сравнивая трёхзначные числа, смотри на сотни, потом на десятки, потом на единицы.<br>Выражения сначала посчитай. Величины переведи в одинаковые единицы.', ex: [['527 > 519', 'сотни равны, 2 дес. > 1 дес.'], ['3 дм < 35 см', '3 дм = 30 см']] },
+    [['cmp', 1], ['cmp', 2]]),
+  ML(1011, '📏', 'Величины', 'Нужно измерить высоту башни. Метры, дециметры, часы и граммы!',
+    { title: 'Единицы величин', html: '1 м = 10 дм = 100 см; 1 дм = 10 см.<br>1 ч = 60 мин.<br>1 кг = 1000 г.<br>Чтобы перевести крупные единицы в мелкие, умножай.', ex: [['3 м 4 дм = 34 дм', '30 дм + 4 дм'], ['2 ч = 120 мин', '2 × 60']] },
+    [['units', 1], ['units', 2]]),
+  ML(1012, '🏗️', 'Сложение и вычитание до 1000', 'Строим большой замок! Блоков много, считаем по разрядам.',
+    { title: 'По разрядам', html: 'Складывай и вычитай по разрядам: единицы, десятки, сотни.<br><b>346 + 275</b>: 6 + 5 = 11 (1 пишем, 1 запоминаем), 4 + 7 + 1 = 12 дес., 3 + 2 + 1 = 6 сотен → <b>621</b>.', ex: [['346 + 275 = 621', 'единицы, десятки, сотни'], ['500 − 230 = 270', 'вычли сотни и десятки']] },
+    [['addsub1000', 1], ['addsub1000', 2], ['addsub1000', 3]]),
+  ML(1013, '🔟', 'Круглые числа и на 10, 100', 'Золотые слитки лежат стопками по 10. Круглые числа умножать просто!',
+    { title: 'Умножение на 10 и 100', html: 'Умножить на 10 — приписать <b>один ноль</b>, на 100 — <b>два нуля</b>.<br>Круглые числа считай десятками: 30 × 4 = 3 дес. × 4 = 12 дес. = <b>120</b>.<br>Двузначное на однозначное: 23 × 3 = 20 × 3 + 3 × 3 = 60 + 9 = <b>69</b>.', ex: [['25 × 10 = 250', 'приписали ноль'], ['23 × 3 = 69', '60 + 9']] },
+    [['muldiv10', 1], ['muldiv10', 2], ['muldiv10', 3]]),
+  ML(1014, '📖', 'Задачи в одно действие', 'Жители деревни просят помочь с подсчётами. Читай задачу внимательно!',
+    { title: 'Как решать задачу', html: '1) Прочитай и найди, что известно и что спрашивают.<br>2) Выбери действие: «всего» — сложение или умножение, «осталось» — вычитание, «поровну» — деление.<br>3) Вычисли и запиши ответ.<br>«На 5 больше» — прибавляем, «в 3 раза больше» — умножаем.', ex: [['«Осталось» → вычитание', 'было − ушло'], ['«В 4 раза больше» → умножение', 'число × 4']] },
+    [['word', 1], ['word', 2]]),
+  ML(1015, '🟦', 'Периметр и площадь', 'Огораживаем участок под ферму: нужна длина забора и площадь поля.',
+    { title: 'Периметр и площадь', html: '<b>Периметр</b> — сумма длин всех сторон. Прямоугольник: <b>P = (a + b) × 2</b>. Квадрат: <b>P = a × 4</b>.<br><b>Площадь</b> — сколько клеток внутри. Прямоугольник: <b>S = a × b</b>. Квадрат: <b>S = a × a</b>.', ex: [['Прямоугольник 5 и 3 см: P = 16 см', '(5 + 3) × 2'], ['Он же: S = 15 кв. см', '5 × 3']] },
+    [['geom', 1], ['geom', 2]]),
+  ML(1016, '🍰', 'Доли', 'Торт поделили на равные доли. Какую часть числа взять?',
+    { title: 'Доли', html: '<b>Половина</b> = 1/2 — делим на 2. <b>Четверть</b> = 1/4 — делим на 4.<br>Чтобы найти <b>1/n</b> числа, раздели его на n.<br>Чтобы найти <b>k/n</b>, сначала найди 1/n, потом умножь на k.', ex: [['1/4 от 20 = 5', '20 : 4'], ['3/4 от 20 = 15', '5 × 3']] },
+    [['frac', 1], ['frac', 2], ['frac', 3]]),
+  ML(1017, '🧠', 'Задачи в два действия', 'Самые хитрые задачи Забывака оставил напоследок. Решай по шагам!',
+    { title: 'Составная задача', html: 'В задаче два вопроса, но спрашивают про второй.<br>1) Найди то, что нужно для ответа (<b>первое действие</b>).<br>2) Используй его и найди ответ (<b>второе действие</b>).<br>Пример: 3 ряда по 8 парт, 5 сломали. 3 × 8 = 24, 24 − 5 = <b>19</b>.', ex: [['Купили 4 меча по 5 и щит за 7: 4 × 5 + 7 = 27', 'два действия'], ['Отдали 5 и 8 из 40: 40 − 5 − 8 = 27', 'вычли дважды']] },
+    [['word', 3], ['order', 2], ['addsub1000', 3]])
+];
+const MBOSS = { id: 1100, title: 'Башня Хаоса чисел', icon: '🏰', bossIcon: '🧟', story: 'Босс Хаос превратил числа в путаницу. Победи его, решив примеры и задачи!', cert: 'победил(а) Хаос и навёл(а) порядок в числах' };
+const MWORLDS = [{ name: 'Математика · 3 класс', lessons: MLESSONS, boss: MBOSS }];
+
+</script>
+<script>
 (function () {
 'use strict';
 const app = document.getElementById('app');
@@ -1792,10 +2046,13 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, mt: {}, sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
-const W = () => WORLDS[S.world] || WORLDS[0];
-const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WORLDS[k - 1].boss.id] || {}).done;
+// предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
+const WS = () => S.subj === 'math' ? MWORLDS : WORLDS;
+const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.world;
+const W = () => WS()[widx()] || WS()[0];
+const worldOpen = k => S.unlockAll || k === 0 || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
 const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
@@ -2050,7 +2307,7 @@ const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => /^
 const voiceCount = () => { try { return speechSynthesis.getVoices().length; } catch (e) { return 0; } };
 function voiceCheck() {
   const box = $('vw');
-  if (voiceDismissed || !box || !speechOn()) return;
+  if (S.subj === 'math' || voiceDismissed || !box || !speechOn()) return;
   if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или английский есть
   box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет английского голоса.</b> Английские слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
     <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «Google US English».</li>
@@ -2147,6 +2404,7 @@ function mergeState(a, b) {
   m.words = keyed(a.words, b.words, (p, q) => { const w = (p.seen || 0) >= (q.seen || 0) ? p : q; return Object.assign({}, w, { first: [p.first, q.first].filter(Boolean).sort()[0] || w.first }); });
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
+  m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
   ['sets', 'ach', 'bonusGiven'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
   m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
   m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
@@ -2303,23 +2561,28 @@ function map() {
   let rows = '';
   for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
   const cur = allDone ? null : WL[nextI];
-  const tabs = WORLDS.map((wd, k) => `<button class="btn small ${k === S.world ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
+  const nWeak = S.subj === 'math' ? mathWeak().length : weakCount();
+  const subjBar = `<div class="center subj"><button class="btn ${S.subj !== 'math' ? 'gold' : 'sec'}" id="sj_eng">🇬🇧 Английский</button><button class="btn ${S.subj === 'math' ? 'gold' : 'sec'}" id="sj_math">🧮 Математика</button></div>`;
+  const tabs = WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.name}</button>`).join('');
   app.innerHTML = `<div class="card top">
       <div>${hero(64)}</div>
       <div class="grow"><h2>Привет, ${S.name}!</h2>${S.title && TITLES[S.title] ? `<div><small>${TITLES[S.title].e} ${TITLES[S.title].n}</small></div>` : ''}
         <span class="chip">💎 ${S.emeralds}</span><span class="chip">🔥 ${shownStreak()} дн.</span>
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div></div>
-      <div class="tbtns">${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${weakCount() ? 'red' : 'sec'}" id="trn">💪 Тренировка${weakCount() ? ' (' + weakCount() + ')' : ''}</button><button class="btn small sec" id="more">📚 Ещё</button><button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
+      <div class="tbtns">${S.subj !== 'math' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn small gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn play" id="play">▶ Играть</button><button class="btn small ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${S.subj === 'math' ? '' : '<button class="btn small sec" id="more">📚 Ещё</button>'}<button class="btn small gold" id="awb">🏆 Награды (${ACH.filter(a => S.ach[a.id]).length}/${ACH.length})</button><button class="btn small gold" id="shop">🛒 Магазин</button>
         <div class="mini">${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute">${S.mute ? '🔇' : '🔊'}</button><button class="ib" id="parent" title="Родителям">🔒</button></div></div>
     </div>
     <div id="vw"></div>
+    ${subjBar}
     <div class="center">${tabs}</div>
-    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (S.world + 1 < WORLDS.length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
+    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
     <div class="map">${rows}</div>`;
   $('shop').onclick = shop; $('parent').onclick = parentGate;
   if ($('dg')) $('dg').onclick = diagIntro;
-  $('trn').onclick = training;
-  $('more').onclick = more;
+  $('trn').onclick = S.subj === 'math' ? mathTraining : training;
+  $('sj_eng').onclick = () => { if (S.subj !== 'eng') { S.subj = 'eng'; save(); map(); } };
+  $('sj_math').onclick = () => { if (S.subj !== 'math') { S.subj = 'math'; save(); map(); } };
+  if ($('more')) $('more').onclick = more;
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
     if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
@@ -2330,12 +2593,13 @@ function map() {
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   syncSoon();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
-  setTimeout(voiceCheck, 1500);
+  if (S.subj !== 'math') setTimeout(voiceCheck, 1500);
   $('mute').onclick = () => { S.mute = !S.mute; save(); map(); };
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    S.world = k; save(); map();
+    if (S.subj === 'math') S.mworld = k; else S.world = k;
+    save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
     if (n.dataset.boss) { if (!bossOk) return toast('Сначала пройди все локации 🔒'); return startBoss(); }
@@ -2356,7 +2620,11 @@ const GAMES = {
 function startLesson(i) {
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
-  if (L.type === 'read') {
+  if (L.type === 'math') {
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Тренируемся', cb => mathQuiz({ ctx, counted: true, items: mixSpecs(L.gens, 8) }, cb)]);
+    ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
+  } else if (L.type === 'read') {
     ctx.steps.push(['Читаем', cb => readCard(ctx, cb)]);
     ctx.steps.push(['Вопросы по тексту', cb => gapQuiz({ ctx, counted: true, items: L.qs }, cb)]);
     if (L.order) ctx.steps.push(['Порядок событий', cb => storyOrder(ctx, cb)]);
@@ -2642,8 +2910,8 @@ function reward(ctx) {
   const before = petStage(); S.petXp += stars; const after = petStage();
   S.emeralds += em; save(); sfx('win');
   const wd = W();
-  const last = S.world + 1 >= WORLDS.length;
-  const extra = ctx.boss ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> победил(а) Забываку<br>и вернул(а) все слова: ${wd.name}!</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
+  const last = widx() + 1 >= WS().length;
+  const extra = ctx.boss ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> ${wd.boss.cert ? wd.boss.cert + '<br>' + wd.name + '!' : 'победил(а) Забываку<br>и вернул(а) все слова: ' + wd.name + '!'}</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
   app.innerHTML = `<div class="card center"><h1>${ctx.boss ? 'Босс побеждён! 🎉' : 'Урок пройден! 🎉'}</h1>
     <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
     <p>Правильных с первой попытки: ${ctx.ok} из ${ctx.asked}</p>
@@ -2658,6 +2926,7 @@ function reward(ctx) {
 
 /* ---------- босс ---------- */
 function startBoss() {
+  if (S.subj === 'math') return mathBoss();
   const BS = W().boss, bi = BS.bossIcon || '👾';
   const vocab = [].concat(...W().lessons.filter(l => l.words).map(l => l.words)).filter((x, k, a) => a.indexOf(x) === k);
   const gaps = [].concat(...W().lessons.filter(l => l.gaps).map(l => l.gaps));
@@ -2675,6 +2944,123 @@ function startBoss() {
   ];
   if (gaps.length) ctx.steps.push(['Бой: грамматика', cb => gapQuiz({ ctx, boss: true, bossIcon: bi, counted: true, items: sample(gaps, 6) }, cb)]);
   runSteps(ctx, () => reward(ctx));
+}
+
+/* ---------- математика ---------- */
+const specOf = a => ({ g: a[0], l: a[1] });
+const mkey = sp => sp.g + sp.l;
+const keySpec = k => ({ g: k.slice(0, -1), l: +k.slice(-1) });
+// уровень сложности темы: стартовый + поправка, которую игра сама подбирает по ответам ребёнка
+const mathLv = sp => { const r = S.mt[mkey(sp)]; return Math.max(1, Math.min(3, sp.l + (r ? r.adj || 0 : 0))); };
+function mathNote(sp, ok) {
+  const r = S.mt[mkey(sp)] || (S.mt[mkey(sp)] = { seen: 0, miss: 0, hist: [], adj: 0 });
+  r.seen++; if (!ok) r.miss++;
+  r.hist.push(ok ? 1 : 0); if (r.hist.length > 6) r.hist.shift();
+  if (r.hist.length >= 5) {
+    const acc = r.hist.reduce((a, b) => a + b, 0) / r.hist.length;
+    if (acc >= 0.9 && sp.l + r.adj < 3) { r.adj++; r.hist = []; } else if (acc <= 0.5 && sp.l + r.adj > 1) { r.adj--; r.hist = []; }
+  }
+  r.last = today();
+}
+const mixSpecs = (gens, n) => shuffle(Array.from({ length: n }, (_, k) => specOf(gens[k % gens.length])));
+const mathWeak = () => Object.keys(S.mt || {}).filter(k => {
+  const r = S.mt[k]; if (!r || (r.seen || 0) < 3) return false;
+  const h = r.hist || [];
+  return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7;
+});
+function mathTopicsHtml() {
+  const rows = Object.keys(S.mt || {}).filter(k => S.mt[k].seen).map(k => {
+    const r = S.mt[k], g = k.slice(0, -1), acc = Math.round(100 * (r.seen - r.miss) / r.seen);
+    return `<tr><td>${MTOP[g] || g} (уровень ${Math.max(1, Math.min(3, +k.slice(-1) + (r.adj || 0)))})</td><td>${acc}%</td><td>задач: ${r.seen}</td></tr>`;
+  }).join('');
+  return rows ? `<table>${rows}</table><p><small>Уровень (1–3) игра подбирает сама: после 5 верных подряд задания усложняются, при ошибках — упрощаются.</small></p>` : '<p>Пока нет данных — ребёнок ещё не решал задачи.</p>';
+}
+function mathRule(ctx, cb) {
+  const r = ctx.L.rule;
+  frame(ctx, `<div class="card"><div class="story">${ctx.L.story}</div><h2>${r.title}</h2><div class="rule">${r.html}</div>
+    <h3>Примеры:</h3>${r.ex.map(e => `<div class="exb mex"><b>${e[0]}</b><br><small>${e[1]}</small></div>`).join('')}
+    <p class="center"><button class="btn gold" id="go">Понятно, решаем ➜</button></p></div>`);
+  $('go').onclick = cb;
+}
+let mathKeyFn = null;
+document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
+function mathQuiz(o, done) {
+  const ctx = o.ctx, total = o.items.length; let i = 0;
+  const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
+  function ask(sp) {
+    const q = MQ[sp.g](mathLv(sp));
+    const isEq = !q.opts && !q.parts && /x/.test(q.q);
+    const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
+    let tries = 0, locked = false, pi = 0, buf = '';
+    const head = o.boss
+      ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
+      : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const qtext = q.q + (q.opts || /[=?]/.test(q.q) || (q.parts && !isEq) ? '' : ' =');
+    const boxes = () => parts.map((p, k) => `<div class="mrow ${k === pi ? 'cur' : ''}">${p.l ? `<span>${p.l}${p.l === 'x' ? ' =' : ':'}</span>` : ''}<b class="mbox">${k < pi ? p.a : k === pi ? (buf || '&nbsp;') : '&nbsp;'}</b></div>`).join('');
+    frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
+      <div class="mq">${qtext}</div>
+      ${q.opts ? `<div class="opts mopts">${q.opts.map(x => `<button class="opt" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div>`
+        : `<div class="mans" id="mans">${boxes()}</div><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button class="btn kp ${k === '✓' ? 'gold' : 'sec'}" data-k="${k}">${k}</button>`).join('')}</div>`}
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId;
+    const ansText = q.opts ? q.ans : parts.map(p => (p.l ? p.l + ' ' : '') + p.a).join(', ');
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); logQ(ok); save(); };
+    const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
+    const reveal = () => {
+      locked = true; $('msg').innerHTML = `Правильный ответ: <b>${ansText}</b><br><small>${q.why}</small>`; count(false); i++;
+      $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next;
+    };
+    const wrong = () => { tries++; buf = ''; sfx('bad'); if (!q.opts) $('mans').innerHTML = boxes(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Подумай ещё раз 💪'; };
+    const submit = () => {
+      if (locked || buf === '') return;
+      if (+buf === parts[pi].a) { pi++; buf = ''; if (pi >= parts.length) return solved(); sfx('ok'); $('mans').innerHTML = boxes(); } else wrong();
+    };
+    const press = k => {
+      if (locked || q.opts) return;
+      if (k === '✓') return submit();
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 6) buf += k;
+      $('mans').innerHTML = boxes();
+    };
+    app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
+    app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if (locked) return;
+      if (b.dataset.v === String(q.ans)) { b.classList.add('good'); solved(); } else { b.classList.add('bad'); b.disabled = true; wrong(); }
+    });
+    mathKeyFn = e => {
+      if (screenId !== my) return;
+      if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('⌫'); else if (e.key === 'Enter') press('✓');
+    };
+  }
+  next();
+}
+function mathBoss() {
+  const BS = W().boss, specs = [];
+  W().lessons.forEach(l => l.gens.forEach(g => specs.push(specOf(g))));
+  const ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
+  ctx.steps = [
+    ['Башня', cb => {
+      frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div>
+        <p>${BS.story}</p><p>Каждый верный ответ ранит босса. Ошибки не страшны: после второй ошибки покажу решение!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
+      $('fi').onclick = cb;
+    }],
+    ['Бой', cb => mathQuiz({ ctx, boss: true, bossIcon: BS.bossIcon, counted: true, items: sample(specs, 12) }, cb)]
+  ];
+  runSteps(ctx, () => reward(ctx));
+}
+function mathTraining() {
+  epoch++; newScreen();
+  const weak = mathWeak();
+  let pool = weak.map(keySpec);
+  if (!pool.length) pool = [].concat(...MWORLDS.map(w => w.lessons)).filter(l => (S.lessons[l.id] || {}).done).flatMap(l => l.gens.map(specOf));
+  if (!pool.length) { toast('Сначала пройди хотя бы один урок математики 🙂'); return; }
+  const ctx = { L: { id: 'mtr', title: 'Тренировка' }, asked: 0, ok: 0 };
+  ctx.steps = [[weak.length ? 'Слабые места' : 'Повторение', cb => mathQuiz({ ctx, counted: true, title: weak.length ? '💪 Подтягиваем слабые места' : '🔁 Повторяем пройденное', items: shuffle(Array.from({ length: 10 }, (_, k) => pool[k % pool.length])) }, cb)]];
+  runSteps(ctx, () => {
+    const em = 2 + ctx.ok; S.emeralds += em; logDone('tr'); save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>Тренировка окончена! 💪</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="mp">На карту ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
+    $('mp').onclick = map; $('rp').onclick = mathTraining;
+  });
 }
 
 /* ---------- магазин ---------- */
@@ -2806,7 +3192,7 @@ function parentGate() {
 }
 
 function parent() {
-  const rows = WORLDS.map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = WORLDS.concat(MWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');
@@ -2826,6 +3212,7 @@ function parent() {
     <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
     ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
     <div class="card"><h3>Слабые места (слова и правила; уходят после 3 верных ответов подряд)</h3>${weak ? `<table>${weak}</table><p>Совет: повторите их без экрана — покажите предмет и попросите назвать, спрячьте карточки по комнате, сыграйте «Покажи и назови».</p>` : '<p>Пока нет данных — всё идёт хорошо!</p>'}</div>
+    <div class="card"><h3>🧮 Математика по темам</h3>${mathTopicsHtml()}</div>
     <div class="card"><h3>🎁 Семейные призы</h3>
       <p>Договоритесь с ребёнком о награде в жизни за получение наград в игре (например, «поход в кино» или «выбрать мультфильм»). Ребёнок увидит их на экране «Награды».</p>
       ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${(p.text || '').replace(/"/g, '&quot;')}"></p>`).join('')}</div>
