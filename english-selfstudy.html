@@ -230,6 +230,8 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .mopts.longopts{flex-direction:column;align-items:stretch}
 .mopts.longopts .opt{min-width:0;width:100%;font-size:1.1rem;text-align:left;padding:10px 14px}
 
+.qpic{display:flex;justify-content:center;margin:6px 0 10px}.qpic .osvg{max-width:100%;height:auto;max-height:220px}.bigem{font-size:64px;line-height:1}
+
 </style>
 </head>
 <body>
@@ -2684,6 +2686,53 @@ const O_MAP = [
 ];
 MQ.o_map = l => OP(O_MAP, l);
 
+/* ---------- картинки и схемы ---------- */
+// Эмодзи-подсказки: к вопросу о животном и к вариантам ответа (только если картинка есть у всех вариантов)
+const OEM = {
+  медведь: '🐻', волк: '🐺', лиса: '🦊', заяц: '🐰', белка: '🐿️', ёж: '🦔', кабан: '🐗', воробей: '🐦', синица: '🐦', сова: '🦉', голубь: '🕊️', утка: '🦆', лебедь: '🦢',
+  щука: '🐟', окунь: '🐟', карась: '🐟', акула: '🦈', сом: '🐟', сельдь: '🐟', пчела: '🐝', бабочка: '🦋', жук: '🐞', комар: '🦟', муравей: '🐜', кузнечик: '🦗',
+  лягушка: '🐸', жаба: '🐸', змея: '🐍', ящерица: '🦎', черепаха: '🐢', крокодил: '🐊', 'северный олень': '🦌', песец: '🦊', 'бурый медведь': '🐻', верблюд: '🐪', скорпион: '🦂', дуб: '🌳', кедр: '🌲', липа: '🌳',
+  глаз: '👁️', ухо: '👂', нос: '👃', язык: '👅', мозг: '🧠',
+  зима: '❄️', весна: '🌸', лето: '☀️', осень: '🍂',
+  зелёный: '🟢', красный: '🔴', жёлтый: '🟡', компас: '🧭', глобус: '🌐',
+  дерево: '🌳', гриб: '🍄', ромашка: '🌼', гора: '⛰️', солнце: '☀️', вода: '💧', облако: '☁️', ветер: '💨', дождь: '🌧️', радуга: '🌈', песок: '🏖️',
+  Солнце: '☀️', Луна: '🌙'
+};
+const OSVG = (w, h, body) => `<svg class="osvg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img"><rect width="${w}" height="${h}" rx="12" fill="#f6f1e3"/>${body}</svg>`;
+const badge = (x, y, n) => `<circle cx="${x}" cy="${y}" r="13" fill="#e8472b" stroke="#fff" stroke-width="2"/><text x="${x}" y="${y + 6}" text-anchor="middle" font-size="17" font-weight="700" fill="#fff" font-family="sans-serif">${n}</text>`;
+const arrow = (x1, y1, x2, y2, c = '#333') => { const a = Math.atan2(y2 - y1, x2 - x1), p = d => `${x2 - 11 * Math.cos(a + d)},${y2 - 11 * Math.sin(a + d)}`; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="4" stroke-linecap="round"/><polygon points="${x2},${y2} ${p(0.45)} ${p(-0.45)}" fill="${c}"/>`; };
+const svgLight = on => OSVG(110, 190, `<rect x="25" y="8" width="60" height="174" rx="14" fill="#2b2b2b"/>${['#e53935', '#fdd835', '#43a047'].map((c, i) => `<circle cx="55" cy="${40 + i * 55}" r="22" fill="${i === on ? c : '#4a4a4a'}"${i === on ? ' stroke="#fff" stroke-width="3"' : ''}/>`).join('')}`);
+const svgFlag = () => OSVG(220, 150, `<rect x="30" y="20" width="160" height="35" fill="#fff" stroke="#999"/><rect x="30" y="55" width="160" height="35" fill="#0039a6"/><rect x="30" y="90" width="160" height="35" fill="#d52b1e"/><rect x="22" y="14" width="8" height="125" rx="3" fill="#8a6a3b"/>`);
+const DIRS = [['север', 'С', 0], ['восток', 'В', 90], ['юг', 'Ю', 180], ['запад', 'З', 270]];
+const svgCompass = d => OSVG(200, 200, `<circle cx="100" cy="100" r="82" fill="#fff" stroke="#333" stroke-width="4"/>${DIRS.map(([, l, a]) => { const r = a * Math.PI / 180; return `<text x="${100 + 64 * Math.sin(r)}" y="${106 - 64 * Math.cos(r)}" text-anchor="middle" font-size="22" font-weight="700" fill="#333" font-family="sans-serif">${l}</text>`; }).join('')}${arrow(100, 100, 100 + 38 * Math.sin(d * Math.PI / 180), 100 - 38 * Math.cos(d * Math.PI / 180), '#e8472b')}<circle cx="100" cy="100" r="6" fill="#333"/>`);
+const svgScale = (cm, km) => { const u = 26; return OSVG(60 + cm * u, 100, `<text x="${30 + cm * u / 2}" y="26" text-anchor="middle" font-size="16" font-family="sans-serif" fill="#333">${cm} см на карте</text><line x1="30" y1="50" x2="${30 + cm * u}" y2="50" stroke="#e8472b" stroke-width="5"/>${Array.from({ length: cm + 1 }, (_, i) => `<line x1="${30 + i * u}" y1="42" x2="${30 + i * u}" y2="58" stroke="#333" stroke-width="2"/>`).join('')}<text x="30" y="84" font-size="15" font-family="sans-serif" fill="#333">1 см = ${km} км</text>`); };
+const svgWater = () => OSVG(300, 210, `<rect y="150" width="300" height="60" fill="#4aa3df"/><circle cx="255" cy="40" r="22" fill="#fdd835"/><ellipse cx="120" cy="45" rx="55" ry="24" fill="#fff" stroke="#9ab"/><ellipse cx="150" cy="38" rx="35" ry="20" fill="#fff"/>${[100, 125, 150].map(x => `<line x1="${x}" y1="78" x2="${x - 8}" y2="112" stroke="#2b7bb9" stroke-width="3" stroke-linecap="round"/>`).join('')}${arrow(60, 146, 60, 70, '#e8472b')}${badge(40, 110, 1)}${badge(120, 45, 2)}${badge(168, 100, 3)}`);
+const PLANT = ['цветок', 'лист', 'стебель', 'корень'];
+const svgPlant = () => OSVG(220, 240, `<rect y="150" width="220" height="90" fill="#8d6e4f"/><line x1="110" y1="150" x2="110" y2="60" stroke="#43a047" stroke-width="7"/><ellipse cx="82" cy="105" rx="26" ry="11" fill="#66bb6a" transform="rotate(-25 82 105)"/><ellipse cx="140" cy="125" rx="26" ry="11" fill="#66bb6a" transform="rotate(25 140 125)"/>${[0, 72, 144, 216, 288].map(a => `<ellipse cx="110" cy="38" rx="9" ry="16" fill="#f06292" transform="rotate(${a} 110 54)"/>`).join('')}<circle cx="110" cy="54" r="8" fill="#fdd835"/><path d="M110 150 L88 205 M110 150 L110 220 M110 150 L135 205" stroke="#efe0c8" stroke-width="4" fill="none"/>${badge(165, 40, 1)}${badge(60, 95, 2)}${badge(125, 100, 3)}${badge(80, 215, 4)}`);
+const PLN = ['Меркурий', 'Венера', 'Земля', 'Марс', 'Юпитер', 'Сатурн', 'Уран', 'Нептун'], PLC = ['#a99', '#e6b86a', '#3d8fd1', '#d9573a', '#d8a36b', '#e3c98a', '#7fd6d9', '#3a5fcd'], PLR = [5, 8, 8, 6, 15, 13, 10, 10];
+const svgPlanets = k => { let x = 36, s = '<circle cx="14" cy="55" r="13" fill="#fdd835"/>'; PLN.forEach((_, i) => { x += PLR[i] + (i ? PLR[i - 1] : 0) + 8; s += `<circle cx="${x}" cy="55" r="${PLR[i]}" fill="${PLC[i]}"/>`; if (i === k) s += arrow(x, 8, x, 30, '#e8472b'); }); return OSVG(x + PLR[7] + 12, 100, s); };
+const O_EXTRA = {
+  o_safety: () => { const on = MR(0, 2), r = ['стой', 'приготовься', 'иди'][on]; return { pic: svgLight(on), q: 'Что должен делать пешеход при таком сигнале светофора?', opts: RS(['стой', 'приготовься', 'иди']), ans: r, why: 'Красный: стой. Жёлтый: приготовься. Зелёный: можно идти.' }; },
+  o_russia: () => ({ pic: svgFlag(), q: 'Какого цвета средняя полоса на флаге России?', opts: RS(['синего', 'красного', 'белого']), ans: 'синего', why: 'Флаг России: белая, синяя и красная полосы сверху вниз.' }),
+  o_map: l => {
+    if (l >= 3 && MR(0, 1)) { const cm = MR(3, 7), km = MP([5, 10, 20, 50]); return { pic: svgScale(cm, km), q: 'Сколько километров на местности соответствует этому отрезку?', ans: cm * km, why: `${cm} × ${km} = ${cm * km} км.` }; }
+    const [name, , a] = MP(DIRS), ws = RS(DIRS.map(x => x[0]).filter(x => x !== name)).slice(0, 2);
+    return { pic: svgCompass(a), q: 'Какую сторону горизонта показывает красная стрелка? (С — север, Ю — юг, З — запад, В — восток)', opts: RS([name].concat(ws)), ans: name, why: `Стрелка показывает на «${DIRS.find(x => x[0] === name)[1]}» — это ${name}.` };
+  },
+  o_water: () => { const n = MR(1, 3), r = ['испарение', 'облако', 'осадки'][n - 1]; return { pic: svgWater(), q: `Что обозначено на схеме круговорота воды цифрой ${n}?`, opts: RS(['испарение', 'облако', 'осадки']), ans: r, why: 'Вода испаряется с поверхности океана (1), в небе из пара образуются облака (2), из облаков выпадают осадки (3).' }; },
+  o_plants: l => { const n = MR(0, 3), r = PLANT[n]; return { pic: svgPlant(), q: `Как называется часть растения под цифрой ${n + 1}?`, opts: RS([r].concat(RS(PLANT.filter(x => x !== r)).slice(0, l === 1 ? 1 : 2))), ans: r, why: 'Цветок (1), лист (2), стебель (3), корень (4).' }; },
+  o_space: () => { const k = MR(0, 7), r = PLN[k]; return { pic: svgPlanets(k), q: 'Планеты показаны по порядку от Солнца (слева). Как называется планета под стрелкой?', opts: RS([r].concat(RS(PLN.filter(x => x !== r)).slice(0, 2))), ans: r, why: `Порядок от Солнца: ${PLN.join(', ')}. Под стрелкой — ${r}.` }; }
+};
+['o_safety', 'o_russia', 'o_map', 'o_water', 'o_plants', 'o_space', 'o_nature', 'o_animals', 'o_zones', 'o_season'].forEach(k => {
+  const base = MQ[k], ex = O_EXTRA[k], minL = k === 'o_space' ? 2 : 1;
+  MQ[k] = l => {
+    const q = (ex && l >= minL && MR(0, 2) === 0) ? ex(l) : base(l);
+    if (!q.pic) { const m = /«([^»]+)»/.exec(q.q); if (m && OEM[m[1]] && /животное|живёт или растёт/.test(q.q)) q.pic = `<div class="bigem">${OEM[m[1]]}</div>`; }
+    if (q.opts && !q.pic && q.opts.every(x => OEM[x])) q.em = Object.fromEntries(q.opts.map(x => [x, OEM[x]]));
+    return q;
+  };
+});
+
 /* ---------- уроки ---------- */
 const OL1 = [
   RL(9001, '🍂', 'Времена года и месяцы', 'Лес меняется: то зелёный, то белый. Узнаем, какой месяц к какому сезону относится.', { title: 'Четыре времени года', html: 'В году 4 времени года и 12 месяцев, по 3 месяца в каждом.<br><b>Зима</b>: декабрь, январь, февраль. <b>Весна</b>: март, апрель, май.<br><b>Лето</b>: июнь, июль, август. <b>Осень</b>: сентябрь, октябрь, ноябрь.', ex: [['Март — весна', 'первый месяц весны'], ['Октябрь — осень', 'второй месяц осени']] }, [['o_season', 1], ['o_season', 2]]),
@@ -3893,7 +3942,7 @@ function gapQuiz(o, done) {
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : `<h3>${hasGap ? 'Выбери подходящее слово' : 'Выбери правильный ответ'}</h3>`}
       <p class="ru">${g.ru}</p><div class="gsent">${g.en.replace('___', '<span class="gap" id="gp">___</span>')}</div>
       <p><button class="speak" id="sp">🔊</button></p><div id="msg" class="msg">&nbsp;</div>
-      <div class="opts gapo ${hasGap ? '' : 'long'}">${shuffle(g.opts).map(x => `<button class="opt gapb" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div></div>`);
+      <div class="opts gapo ${hasGap ? '' : 'long'}">${shuffle(g.opts).map(x => `<button class="opt gapb" data-v="${x}"><span class="ot">${q.em && q.em[x] ? q.em[x] + ' ' : ''}${x}</span></button>`).join('')}</div></div>`);
     $('sp').onclick = () => speak(full);
     app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
       if (locked) return;
@@ -4210,7 +4259,7 @@ function mathQuiz(o, done) {
     const qtext = q.q + (q.opts || /[=?]/.test(q.q) || (q.parts && !isEq) ? '' : ' =');
     const boxes = () => parts.map((p, k) => `<div class="mrow ${k === pi ? 'cur' : ''}">${p.l ? `<span>${p.l}${p.l === 'x' ? ' =' : ':'}</span>` : ''}<b class="mbox">${k < pi ? p.a : k === pi ? (buf || '&nbsp;') : '&nbsp;'}</b></div>`).join('');
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
-      <div class="mq${qtext.length > 34 ? ' long' : ''}">${qtext}</div>
+      ${q.pic ? `<div class="qpic">${q.pic}</div>` : ''}<div class="mq${qtext.length > 34 ? ' long' : ''}">${qtext}</div>
       ${q.opts ? `<div class="opts mopts${q.opts.some(x => String(x).length > 8) ? ' longopts' : ''}">${q.opts.map(x => `<button class="opt" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div>`
         : `<div class="mans" id="mans">${boxes()}</div><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button class="btn kp ${k === '✓' ? 'gold' : 'sec'}" data-k="${k}">${k}</button>`).join('')}</div>`}
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
