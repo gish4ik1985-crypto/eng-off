@@ -1312,7 +1312,7 @@ function mathQuiz(o, done) {
     const qtext = q.q + (q.opts || /[=?]/.test(q.q) || (q.parts && !isEq) ? '' : ' =');
     const boxes = () => parts.map((p, k) => `<div class="mrow ${k === pi ? 'cur' : ''}">${p.l ? `<span>${p.l}${p.l === 'x' ? ' =' : ':'}</span>` : ''}<b class="mbox">${k < pi ? p.a : k === pi ? (buf || '&nbsp;') : '&nbsp;'}</b></div>`).join('');
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}
-      <div class="mq">${qtext}</div>
+      <div class="mq${qtext.length > 34 ? ' long' : ''}">${qtext}</div>
       ${q.opts ? `<div class="opts mopts">${q.opts.map(x => `<button class="opt" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div>`
         : `<div class="mans" id="mans">${boxes()}</div><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(k => `<button class="btn kp ${k === '✓' ? 'gold' : 'sec'}" data-k="${k}">${k}</button>`).join('')}</div>`}
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
@@ -1334,7 +1334,7 @@ function mathQuiz(o, done) {
     const press = k => {
       if (locked || q.opts) return;
       if (k === '✓') return submit();
-      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 6) buf += k;
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 8) buf += k;
       $('mans').innerHTML = boxes();
     };
     app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));

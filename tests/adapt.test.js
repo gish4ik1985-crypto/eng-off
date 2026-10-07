@@ -45,7 +45,7 @@ test('темы берутся из невыполненных заданий, з
   assert.ok(gens.includes('mul') && gens.includes('eq'));
 });
 test('ключевые слова', () => {
-  assert.deepEqual(A.mathGensFromText('периметр прямоугольника').sort(), ['geo1', 'geom']);
+  assert.deepEqual(A.mathGensFromText('периметр прямоугольника').sort(), ['area4', 'geo1', 'geom']);
   assert.deepEqual(A.mathGensFromText('рисование'), []);
 });
 test('награда за проверенную домашку выдаётся один раз', () => {
