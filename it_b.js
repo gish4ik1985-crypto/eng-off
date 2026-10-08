@@ -10,7 +10,7 @@ const IT_L2 = [
     ['gennaio|январь|Янв', 'febbraio|февраль|Фев', 'marzo|март|Мар', 'aprile|апрель|Апр', 'maggio|май|Май', 'giugno|июнь|Июн', 'luglio|июль|Июл', 'agosto|август|Авг', 'settembre|сентябрь|Сен', 'ottobre|октябрь|Окт', 'novembre|ноябрь|Ноя', 'dicembre|декабрь|Дек'],
     ['Il mio compleanno è a maggio.|Мой день рождения в мае.', 'A dicembre fa freddo.|В декабре холодно.', 'Luglio è caldo.|Июль жаркий.']),
   LW(534, '🌤️', 'Le stagioni', 'Времена года в Италии очень разные: от снега в горах до жаркого моря.',
-    ['primavera|весна|🌸', 'estate|лето|☀️', 'autunno|осень|🍂', 'inverno|зима|❄️', 'stagione|время года|🗓️', 'anno|год|📆', 'mese|месяц|🗓️'],
+    ['primavera|весна|🌸', 'estate|лето|☀️', 'autunno|осень|🍂', 'inverno|зима|❄️', 'stagione|время года|🌦️', 'anno|год|📆', 'mese|месяц|🗓️'],
     ['In estate vado al mare.|Летом я еду на море.', 'In inverno nevica.|Зимой идёт снег.', 'La primavera è bella.|Весна прекрасна.']),
   LW(535, '📚', 'Le materie', 'В итальянской школе много предметов. Какие тебе нравятся?',
     ['italiano|итальянский язык|🇮🇹', 'matematica|математика|➗', 'arte|рисование|🎨', 'musica|музыка|🎵', 'scienze|природоведение|🔬', 'geografia|география|🌍', 'storia|история|📜', 'ginnastica|физкультура|🤸'],

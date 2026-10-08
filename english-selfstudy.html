@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Школьный ассистент</title>
-<link rel="stylesheet" href="style.css?v=20261008120139">
+<link rel="stylesheet" href="style.css?v=20261008121145">
 </head>
 <body>
 <div id="app"></div>
@@ -3682,7 +3682,7 @@ const LR = (id, icon, title, story, text, qs, order, sents) => ({ id, title, ico
 
 const IT_L1 = [
   LW(501, '👋', 'Ciao!', 'Ты попал в страну вкусной пасты и музыки! Злой Диментикон украл итальянские слова. Начнём с приветствий.',
-    ['ciao|привет, пока|👋', 'arrivederci|до свидания|🚪', 'sì|да|✅', 'no|нет|❌', 'grazie|спасибо|🙏', 'prego|пожалуйста|🤝', 'scusa|извини|😔', 'per favore|пожалуйста (просьба)|🙏'],
+    ['ciao|привет, пока|👋', 'arrivederci|до свидания|🚪', 'sì|да|✅', 'no|нет|❌', 'grazie|спасибо|🙏', 'prego|пожалуйста|🤝', 'scusa|извини|😔', 'per favore|пожалуйста (просьба)|🥺'],
     ['Ciao, mi chiamo Marco.|Привет, меня зовут Марко.', 'Come stai?|Как дела?', 'Sto bene, grazie.|У меня всё хорошо, спасибо.']),
   LW(502, '🐝', 'Алфавит A–E', 'Итальянский алфавит поёт! В нём 21 буква. Найди первые пять в пчелином саду.',
     ['ape|пчела|🐝|A', 'barca|лодка|⛵|B', 'casa|дом|🏠|C', 'dado|игральная кость|🎲|D', 'elefante|слон|🐘|E'],
@@ -3727,7 +3727,7 @@ const IT_L1 = [
     ['casa', 'letto|кровать|🛏️', 'sedia|стул|🪑', 'divano|диван|🛋️', 'lampada|лампа|💡', 'tavolo|стол|🍽️', 'finestra|окно|🪟'],
     ['Questa è la mia casa.|Это мой дом.', 'La lampada è sul tavolo.|Лампа на столе.', 'Sono sul divano.|Я на диване.']),
   LW(516, '🎂', 'Il compleanno', 'Сегодня праздник! Подготовь вечеринку.',
-    ['compleanno|день рождения|🎂', 'palloncino|воздушный шарик|🎈', 'regalo|подарок|🎁', 'candela|свеча|🕯️', 'festa|праздник, вечеринка|🎉', 'torta'],
+    ['compleanno|день рождения|🥳', 'palloncino|воздушный шарик|🎈', 'regalo|подарок|🎁', 'candela|свеча|🕯️', 'festa|праздник, вечеринка|🎉', 'torta'],
     ['Buon compleanno!|С днём рождения!', 'Quanti anni hai?|Сколько тебе лет?', 'Ho otto anni.|Мне восемь лет.']),
   LW(517, '📅', 'I giorni', 'Календарь Диментикона рассыпался. Собери дни недели.',
     ['lunedì|понедельник|1', 'martedì|вторник|2', 'mercoledì|среда|3', 'giovedì|четверг|4', 'venerdì|пятница|5', 'sabato|суббота|6', 'domenica|воскресенье|7'],
@@ -3775,7 +3775,7 @@ const IT_L1 = [
     ['ciao', 'gatto', 'casa', 'mela', 'sole', 'rosso', 'mamma', 'cane', 'pane', 'scuola'],
     ['Ciao! Come stai?|Привет! Как дела?', 'Il gatto mangia il pane.|Кот ест хлеб.', 'Il sole è giallo.|Солнце жёлтое.']),
   LW(528, '🧩', 'Piccole frasi', 'Вежливые слова и простые фразы — как в настоящем Риме.',
-    ['Mi chiamo|меня зовут|👋', 'Ho fame|я голоден|🍽️', 'Ho sete|я хочу пить|🥤', 'Sono felice|я счастлив|😄', 'Sono stanco|я устал|😴', 'Ho paura|мне страшно|😨'],
+    ['Mi chiamo|меня зовут|👋', 'Ho fame|я голоден|🤤', 'Ho sete|я хочу пить|🥤', 'Sono felice|я счастлив|😄', 'Sono stanco|я устал|😴', 'Ho paura|мне страшно|😨'],
     ['Ho fame, mamma!|Я голоден, мама!', 'Sono felice oggi.|Сегодня я счастлив.', 'Ho paura del buio.|Я боюсь темноты.'])
 ];
 const IT_BOSS1 = { id: 590, title: 'Castello del Dimenticone', icon: '🏰', bossIcon: '🧙' };
@@ -3794,7 +3794,7 @@ const IT_L2 = [
     ['gennaio|январь|Янв', 'febbraio|февраль|Фев', 'marzo|март|Мар', 'aprile|апрель|Апр', 'maggio|май|Май', 'giugno|июнь|Июн', 'luglio|июль|Июл', 'agosto|август|Авг', 'settembre|сентябрь|Сен', 'ottobre|октябрь|Окт', 'novembre|ноябрь|Ноя', 'dicembre|декабрь|Дек'],
     ['Il mio compleanno è a maggio.|Мой день рождения в мае.', 'A dicembre fa freddo.|В декабре холодно.', 'Luglio è caldo.|Июль жаркий.']),
   LW(534, '🌤️', 'Le stagioni', 'Времена года в Италии очень разные: от снега в горах до жаркого моря.',
-    ['primavera|весна|🌸', 'estate|лето|☀️', 'autunno|осень|🍂', 'inverno|зима|❄️', 'stagione|время года|🗓️', 'anno|год|📆', 'mese|месяц|🗓️'],
+    ['primavera|весна|🌸', 'estate|лето|☀️', 'autunno|осень|🍂', 'inverno|зима|❄️', 'stagione|время года|🌦️', 'anno|год|📆', 'mese|месяц|🗓️'],
     ['In estate vado al mare.|Летом я еду на море.', 'In inverno nevica.|Зимой идёт снег.', 'La primavera è bella.|Весна прекрасна.']),
   LW(535, '📚', 'Le materie', 'В итальянской школе много предметов. Какие тебе нравятся?',
     ['italiano|итальянский язык|🇮🇹', 'matematica|математика|➗', 'arte|рисование|🎨', 'musica|музыка|🎵', 'scienze|природоведение|🔬', 'geografia|география|🌍', 'storia|история|📜', 'ginnastica|физкультура|🤸'],
@@ -3919,13 +3919,13 @@ const IT_BOSS2 = { id: 591, title: 'Fortezza della Confusione', icon: '🏯', bo
 /* Итальянский: Мир 3 «Viaggio in Italia» (уроки 601–630). */
 const IT_L3 = [
   LW(601, '🇮🇹', 'Le città italiane', 'Начинаем путешествие по Италии! Найди города на карте.',
-    ['Italia|Италия|🇮🇹', 'Roma|Рим|🏛️', 'Milano|Милан|🏙️', 'Venezia|Венеция|🚤', 'Napoli|Неаполь|🌋', 'Firenze|Флоренция|🎨', 'Torino|Турин|🏔️', 'Palermo|Палермо|🌴'],
+    ['Italia|Италия|🇮🇹', 'Roma|Рим|🏺', 'Milano|Милан|🏙️', 'Venezia|Венеция|🚤', 'Napoli|Неаполь|🌋', 'Firenze|Флоренция|🎨', 'Torino|Турин|🏔️', 'Palermo|Палермо|🌴'],
     ['Roma è la capitale d’Italia.|Рим — столица Италии.', 'Venezia è sull’acqua.|Венеция стоит на воде.', 'Firenze è una città d’arte.|Флоренция — город искусства.']),
   LW(602, '🏟️', 'I monumenti', 'Италия полна знаменитых мест. Узнаешь их?',
     ['Colosseo|Колизей|🏟️', 'Torre di Pisa|Пизанская башня|🗼', 'gondola|гондола|🛶', 'Vesuvio|Везувий|🌋', 'fontana|фонтан|⛲', 'ponte|мост|🌉', 'duomo|собор|⛪'],
     ['Il Colosseo è a Roma.|Колизей в Риме.', 'La Torre di Pisa è storta.|Пизанская башня кривая.', 'La gondola va sul canale.|Гондола плывёт по каналу.']),
   LW(603, '🏖️', 'La natura', 'В Италии есть море, горы, озёра и даже вулканы.',
-    ['mare|море|🌊', 'montagna|гора|⛰️', 'lago|озеро|🏞️', 'vulcano|вулкан|🌋', 'fiume|река|🏞️', 'spiaggia|пляж|🏖️', 'collina|холм|🌄'],
+    ['mare|море|🌊', 'montagna|гора|⛰️', 'lago|озеро|🏞️', 'vulcano|вулкан|🌋', 'fiume|река|🛶', 'spiaggia|пляж|🏖️', 'collina|холм|🌄'],
     ['Il mare è azzurro.|Море голубое.', 'In estate vado in spiaggia.|Летом я иду на пляж.', 'Il vulcano è alto.|Вулкан высокий.']),
   LW(604, '🍝', 'La cucina italiana', 'Самая вкусная часть путешествия — итальянская еда!',
     ['spaghetti|спагетти|🍝', 'lasagne|лазанья|🥘', 'risotto|ризотто|🍚', 'tiramisù|тирамису|🍰', 'panino|бутерброд|🥪', 'caffè|кофе|☕', 'olio|масло|🫒'],
@@ -3940,7 +3940,7 @@ const IT_L3 = [
     ['biglietto|билет|🎫', 'valigia|чемодан|🧳', 'passaporto|паспорт|🛂', 'aeroporto|аэропорт|🛫', 'albergo|гостиница|🏨', 'mappa|карта|🗺️', 'turista|турист|📸'],
     ['Ho un biglietto.|У меня есть билет.', 'La valigia è pesante.|Чемодан тяжёлый.', 'L’albergo è vicino al mare.|Гостиница рядом с морем.']),
   LW(608, '🎄', 'Le feste', 'В Италии много весёлых праздников. Какие знаешь?',
-    ['Natale|Рождество|🎄', 'Pasqua|Пасха|🐣', 'Carnevale|Карнавал|🎭', 'maschera|маска|🎭', 'Befana|Бефана|🧙‍♀️', 'fuochi d’artificio|фейерверк|🎆', 'coriandoli|конфетти|🎊'],
+    ['Natale|Рождество|🎄', 'Pasqua|Пасха|🐣', 'Carnevale|Карнавал|🎠', 'maschera|маска|🎭', 'Befana|Бефана|🧙‍♀️', 'fuochi d’artificio|фейерверк|🎆', 'coriandoli|конфетти|🎊'],
     ['A Natale ricevo regali.|На Рождество я получаю подарки.', 'A Carnevale metto una maschera.|На Карнавал я надеваю маску.', 'La Befana porta i dolci.|Бефана приносит сладости.']),
   LW(609, '🎶', 'La musica', 'Италия — родина оперы. Научимся называть инструменты.',
     ['chitarra|гитара|🎸', 'pianoforte|пианино|🎹', 'tamburo|барабан|🥁', 'violino|скрипка|🎻', 'canzone|песня|🎶', 'cantante|певец|🎤', 'opera|опера|🎭'],
@@ -4375,6 +4375,85 @@ IT_L3.push(
   DT(719, '✍️', 'Диктант: ресторан', 'Пиши слова из меню и со стола. Помни про ударения: menù, caffè, tiramisù.', wordItems(['menù', 'cameriere', 'conto', 'forchetta', 'coltello', 'cucchiaio', 'piatto', 'bicchiere', 'spaghetti', 'lasagne', 'risotto', 'tiramisù', 'panino', 'caffè'])),
   DT(720, '✍️', 'Диктант: в путешествии', 'Пиши слова из чемодана и магазина.', wordItems(['biglietto', 'valigia', 'passaporto', 'aeroporto', 'albergo', 'mappa', 'turista', 'prezzo', 'euro', 'soldi', 'carrello', 'borsa', 'mercato', 'negozio', 'Natale', 'Pasqua', 'Carnevale'])),
   DT(723, '📝', 'Диктант: фразы (3)', 'Пиши целые фразы про путешествие.', sentsOf([601, 604, 605, 607, 617]), 'Слушай фразу (🔊), читай перевод и записывай её целиком.')
+);
+
+</script>
+<script>
+/* Итальянский: ещё слова (25 бонусных уроков) и ещё диалоги (15). Нужны helpers из it_a.js, it_d.js, content3.js. */
+IT_L1.push(
+  BL(LW(731, '🙂', 'Il corpo (2)', 'Ещё части тела: от головы до коленок.', ['testa|голова|🙂', 'capelli|волосы|💇', 'braccio|рука (от плеча)|💪', 'dito|палец|☝️', 'dente|зуб|🦷', 'ginocchio|колено|🧎', 'schiena|спина|🧍'],
+    ['Ho mal di testa.|У меня болит голова.', 'Mi lavo i denti.|Я чищу зубы.', 'Alzo il braccio.|Я поднимаю руку.'])),
+  BL(LW(732, '😄', 'Le emozioni', 'Как ты себя чувствуешь? Робот-психолог хочет это узнать.', ['felice|счастливый|😄', 'triste|грустный|😢', 'arrabbiato|сердитый|😠', 'stanco|усталый|😪', 'spaventato|испуганный|😨', 'annoiato|скучающий|🥱', 'sorpreso|удивлённый|😮', 'malato|больной|🤒'],
+    ['Lei è triste.|Ей грустно.', 'Sono arrabbiato!|Я сержусь!', 'Mi sento stanco.|Я чувствую усталость.'])),
+  BL(LW(733, '🔺', 'Le forme', 'Из простых фигур строится весь мир.', ['cerchio|круг|⭕', 'quadrato|квадрат|◼️', 'triangolo|треугольник|🔺', 'rettangolo|прямоугольник|🟫', 'stella|звезда|⭐', 'cuore|сердце|❤️'],
+    ['Il sole è un cerchio.|Солнце — круг.', 'Il tetto è un triangolo.|Крыша — треугольник.', 'Disegno una stella.|Я рисую звезду.'])),
+  BL(LW(734, '🦋', 'Gli insetti', 'В траве прячутся маленькие жители. Найди их!', ['farfalla|бабочка|🦋', 'formica|муравей|🐜', 'ragno|паук|🕷️', 'coccinella|божья коровка|🐞', 'lumaca|улитка|🐌', 'zanzara|комар|🦟', 'ape'],
+    ['La farfalla vola.|Бабочка летает.', 'La formica è piccola.|Муравей маленький.', 'La coccinella è rossa.|Божья коровка красная.'])),
+  BL(LW(735, '🎠', 'Il parco giochi', 'Парк аттракционов ждёт гостей!', ['giostra|карусель|🎠', 'aquilone|воздушный змей|🪁', 'gioco|игра|🎲', 'puzzle|пазл|🧩', 'carte|карты|🃏', 'gara|соревнование|🏁'],
+    ['Giochiamo alla giostra.|Мы катаемся на карусели.', 'Faccio volare l’aquilone.|Я запускаю воздушного змея.', 'Ho un puzzle nuovo.|У меня новый пазл.'])),
+  BL(LW(736, '🍲', 'In cucina', 'Вместе с мамой готовим обед!', ['frigorifero|холодильник|🧊', 'forno|духовка|♨️', 'pentola|кастрюля|🍲', 'padella|сковорода|🥘', 'tazza|чашка|🍵', 'bottiglia|бутылка|🍾', 'sale|соль|🧂', 'zucchero|сахар|🍬'],
+    ['La pentola è sul fuoco.|Кастрюля на огне.', 'Il latte è nel frigorifero.|Молоко в холодильнике.', 'Metto il sale.|Я кладу соль.'])),
+  BL(LW(737, '🚿', 'In bagno', 'Утренние дела: умыться и почистить зубы.', ['sapone|мыло|🧼', 'spazzolino|зубная щётка|🪥', 'doccia|душ|🚿', 'specchio|зеркало|🪞', 'asciugamano|полотенце|🧖', 'dentifricio|зубная паста|🧴'],
+    ['Mi lavo con il sapone.|Я моюсь мылом.', 'Uso lo spazzolino.|Я пользуюсь зубной щёткой.', 'Mi guardo allo specchio.|Я смотрю в зеркало.'])),
+  BL(LW(738, '🚀', 'Lo spazio', 'Полетели к звёздам! Ракета ждёт космонавта.', ['pianeta|планета|🪐', 'razzo|ракета|🚀', 'astronauta|космонавт|🧑‍🚀', 'cielo|небо|🌤️', 'arcobaleno|радуга|🌈', 'stella', 'luna'],
+    ['Il razzo vola nel cielo.|Ракета летит в небе.', 'La Terra è un pianeta.|Земля — планета.', 'Vedo l’arcobaleno.|Я вижу радугу.'])),
+  BL(LW(739, '➡️', 'Le direzioni', 'Налево, направо, вперёд! Следуй за стрелками.', ['destra|направо|➡️', 'sinistra|налево|⬅️', 'avanti|вперёд|⬆️', 'indietro|назад|⬇️', 'su|вверх|🔼', 'giù|вниз|🔽', 'vicino|рядом|📍', 'lontano|далеко|🔭'],
+    ['Vai a destra.|Иди направо.', 'La scuola è a sinistra.|Школа слева.', 'Vado avanti.|Я иду вперёд.']))
+);
+IT_L2.push(
+  BL(LW(740, '📝', 'La classe', 'Всё, что нужно ученику на уроке.', ['lavagna|доска|📝', 'gomma|ластик|🧽', 'righello|линейка|📏', 'forbici|ножницы|✂️', 'colla|клей|🧷', 'astuccio|пенал|👝', 'aula|класс|🚸'],
+    ['La maestra è in aula.|Учительница в классе.', 'Ho una gomma nuova.|У меня новый ластик.', 'Taglio con le forbici.|Я режу ножницами.'])),
+  BL(LW(741, '🏪', 'I negozi', 'Где что купить? Прогуляемся по торговой улице.', ['panetteria|булочная|🥖', 'macelleria|мясная лавка|🥩', 'farmacia|аптека|⚕️', 'libreria|книжный магазин|📚', 'edicola|газетный киоск|📰', 'gelateria|кафе-мороженое|🍨', 'pizzeria|пиццерия|🍕'],
+    ['Compro il pane in panetteria.|Я покупаю хлеб в булочной.', 'La farmacia è vicina.|Аптека рядом.', 'Mangio un gelato alla gelateria.|Я ем мороженое в кафе-мороженом.'])),
+  BL(LW(742, '🏖️', 'Al mare', 'Лето, солнце и песок! Что бывает на пляже?', ['onda|волна|〰️', 'sabbia|песок|🏜️', 'conchiglia|ракушка|🐚', 'ombrellone|пляжный зонт|⛱️', 'granchio|краб|🦀', 'pesce|рыба|🐟', 'salvagente|спасательный круг|🆘'],
+    ['La sabbia è calda.|Песок тёплый.', 'Cerco una conchiglia.|Я ищу ракушку.', 'Il granchio cammina piano.|Краб идёт медленно.'])),
+  BL(LW(743, '⛺', 'In montagna', 'В горах свежий воздух и много зверей.', ['sentiero|тропинка|🛤️', 'bosco|лес|🌲', 'lupo|волк|🐺', 'cervo|олень|🦌', 'scoiattolo|белка|🐿️', 'tenda|палатка|⛺', 'cima|вершина|🏔️'],
+    ['Camminiamo nel bosco.|Мы гуляем по лесу.', 'Il cervo è nel bosco.|Олень в лесу.', 'Montiamo la tenda.|Мы ставим палатку.'])),
+  BL(LW(744, '⛈️', 'Il meteo (2)', 'Бывает не только солнце: ещё гроза, туман и град.', ['temporale|гроза|⛈️', 'nebbia|туман|🌫️', 'fulmine|молния|⚡', 'ghiaccio|лёд|🧊', 'grandine|град|🌨️', 'nuvoloso|облачно|🌥️'],
+    ['C’è un temporale.|Идёт гроза.', 'C’è la nebbia.|Туман.', 'Vedo un fulmine.|Я вижу молнию.'])),
+  BL(LW(745, '🔓', 'I verbi (3)', 'Ещё полезные глаголы на каждый день.', ['aprire|открывать|🔓', 'chiudere|закрывать|🔒', 'comprare|покупать|🛒', 'camminare|идти пешком|🚶', 'aiutare|помогать|🤲', 'lavare|мыть|🚰', 'pulire|убирать|🧹', 'cercare|искать|🔍'],
+    ['Apro la porta.|Я открываю дверь.', 'Compro il pane.|Я покупаю хлеб.', 'Aiuto la mamma.|Я помогаю маме.'])),
+  BL(LW(746, '🏎️', 'Gli aggettivi (2)', 'Быстрый и медленный, сладкий и солёный.', ['veloce|быстрый|🏎️', 'lento|медленный|🐢', 'forte|сильный|🏋️', 'debole|слабый|🥀', 'dolce|сладкий|🍯', 'salato|солёный|🥨', 'pulito|чистый|✨', 'sporco|грязный|🟤'],
+    ['La tartaruga è lenta.|Черепаха медленная.', 'Il gelato è dolce.|Мороженое сладкое.', 'La stanza è pulita.|Комната чистая.'])),
+  BL(LW(747, '📐', 'Le misure', 'Сколько? Литры, метры, килограммы и «половина».', ['litro|литр|🧪', 'chilo|килограмм|⚖️', 'metro|метр|📐', 'grammo|грамм|🪙', 'mezzo|половина|½', 'doppio|двойной|2️⃣', 'pieno|полный|🈵', 'vuoto|пустой|🕳️'],
+    ['Bevo un litro d’acqua.|Я пью литр воды.', 'Un metro è lungo.|Метр — это длинно.', 'Il bicchiere è pieno.|Стакан полон.']))
+);
+IT_L3.push(
+  BL(LW(748, '🗺️', 'Le regioni', 'Италия состоит из регионов, и у каждого свой характер.', ['Sicilia|Сицилия|🌋', 'Toscana|Тоскана|🌻', 'Sardegna|Сардиния|🏖️', 'Lombardia|Ломбардия|🏙️', 'Veneto|Венето|🛶', 'Puglia|Апулия|🫒', 'Liguria|Лигурия|⛵', 'Lazio|Лацио|🏺'],
+    ['La Sicilia è un’isola.|Сицилия — остров.', 'La Toscana ha belle colline.|В Тоскане красивые холмы.', 'Venezia è nel Veneto.|Венеция в Венето.'])),
+  BL(LW(749, '🖼️', 'Arte e storia', 'В музеях Италии хранятся великие сокровища.', ['pittore|художник|🧑‍🎨', 'scultore|скульптор|🗿', 'museo|музей|🖼️', 'statua|статуя|🗽', 'castello|замок|🏰', 'antico|древний|🏺', 'romano|римский|🛡️', 'tesoro|сокровище|💎'],
+    ['Il pittore dipinge un quadro.|Художник пишет картину.', 'Il museo è antico.|Музей древний.', 'La statua è grande.|Статуя большая.'])),
+  BL(LW(750, '🏆', 'Lo sport (2)', 'Футбол — главная итальянская игра. Какие слова нужны болельщику?', ['allenatore|тренер|📣', 'squadra|команда|👥', 'partita|матч|⚽', 'coppa|кубок|🏆', 'gol|гол|🥅', 'campo|поле|🏟️', 'arbitro|судья|📢', 'medaglia|медаль|🥇'],
+    ['La mia squadra vince.|Моя команда побеждает.', 'Che bel gol!|Какой красивый гол!', 'Ho una medaglia.|У меня есть медаль.'])),
+  BL(LW(751, '💻', 'La tecnologia', 'Современные вещи: компьютер, телефон и интернет.', ['computer|компьютер|💻', 'telefono|телефон|📱', 'schermo|экран|🖥️', 'tastiera|клавиатура|⌨️', 'internet|интернет|🌐', 'messaggio|сообщение|💬', 'foto|фото|📷', 'videogioco|видеоигра|🕹️'],
+    ['Ho un computer nuovo.|У меня новый компьютер.', 'Mando un messaggio.|Я отправляю сообщение.', 'Faccio una foto.|Я делаю фото.'])),
+  BL(LW(752, '🤒', 'La salute', 'Что сказать, если заболел? Нужные слова для врача.', ['dottore|врач|🧑‍⚕️', 'medicina|лекарство|💊', 'febbre|температура|🌡️', 'mal di testa|головная боль|🤕', 'ambulanza|скорая помощь|🚑', 'cerotto|пластырь|🩹', 'tosse|кашель|😷'],
+    ['Ho la febbre.|У меня температура.', 'Chiamo il dottore.|Я зову врача.', 'L’ambulanza è veloce.|Скорая помощь быстрая.'])),
+  BL(LW(753, '🚦', 'Per strada', 'Правила на дороге одинаковы во всём мире.', ['semaforo|светофор|🚦', 'strada|улица, дорога|🛣️', 'incrocio|перекрёсток|🔀', 'autostrada|автострада|🚧', 'benzina|бензин|⛽', 'metropolitana|метро|🚇', 'tram|трамвай|🚊', 'pedone|пешеход|🚸'],
+    ['Il semaforo è rosso.|Светофор красный.', 'Prendo la metropolitana.|Я еду на метро.', 'Il tram è nuovo.|Трамвай новый.'])),
+  BL(LW(754, '🥐', 'Al bar', 'Итальянцы любят завтракать в баре: кофе и круассан.', ['cappuccino|капучино|🥛', 'cornetto|круассан|🥐', 'spremuta|свежевыжатый сок|🍊', 'panna|сливки|🥄', 'tè|чай|🫖', 'cioccolata calda|горячий шоколад|☕'],
+    ['Prendo un cappuccino.|Я возьму капучино.', 'Mangio un cornetto.|Я ем круассан.', 'Bevo una spremuta.|Я пью свежевыжатый сок.'])),
+  BL(LW(755, '🏢', 'I lavori', 'Кем работают взрослые? Ещё профессии.', ['ufficio|офис|🏢', 'ingegnere|инженер|👷', 'avvocato|адвокат|👔', 'fotografo|фотограф|📸', 'contadino|фермер|🧑‍🌾', 'giornalista|журналист|🎙️', 'musicista|музыкант|🎼', 'scrittore|писатель|📖'],
+    ['Mio padre lavora in ufficio.|Мой папа работает в офисе.', 'La giornalista scrive.|Журналистка пишет.', 'Il contadino lavora la terra.|Фермер обрабатывает землю.'])),
+  BL(LW(756, '🌳', 'La natura (2)', 'В парке и лесу растёт много интересного.', ['albero|дерево|🌳', 'foglia|лист|🍃', 'erba|трава|🌿', 'ramo|ветка|🪵', 'seme|семя|🌰', 'frutto|плод|🍐'],
+    ['L’albero ha molte foglie.|У дерева много листьев.', 'L’erba è verde.|Трава зелёная.', 'Il ramo è lungo.|Ветка длинная.']))
+);
+IT_DIALOGS.push(
+  DI('id21', 0, 735, '🎠', 'В парке', 'Sofia', '👧', ['Giochiamo insieme al parco?|Поиграем вместе в парке?|Sì, volentieri!|No, sono blu.|Sì, ho sette anni.', 'Vuoi volare con l’aquilone?|Хочешь запустить воздушного змея?|Sì, che bello!|Sì, è lunedì.|No, ho sei anni.', 'Guarda, il vento è forte!|Смотри, ветер сильный!|Sì, vola in alto!|Sì, è una mela.|No, grazie, ciao.', 'Torniamo a casa?|Пойдём домой?|Sì, è tardi.|Sì, è giallo.|No, è un gatto.']),
+  DI('id22', 1, 741, '🏪', 'Где купить?', 'Passante', '🧑', ['Cerchi qualcosa?|Ты что-то ищешь?|Sì, cerco il pane.|Sì, cerco il mare.|No, ho nove anni.', 'Il pane si compra in panetteria.|Хлеб покупают в булочной.|Grazie! E dov’è?|Grazie! È blu.|Prego, sono le tre.', 'È dopo la farmacia.|Это после аптеки.|Va bene, grazie mille!|Va bene, sono io.|Sono stanco, ciao.', 'Prego!|Пожалуйста!|Arrivederci!|Buonanotte!|Mi chiamo pane.']),
+  DI('id23', 1, 742, '🏖️', 'На пляже', 'Amico', '🧒', ['Che bella spiaggia!|Какой красивый пляж!|Sì, e il mare è blu!|Sì, e il pane è caldo.|No, è la scuola.', 'Vuoi costruire un castello di sabbia?|Хочешь построить замок из песка?|Sì, giochiamo!|Sì, sono io.|No, è rosso.', 'Guarda, un granchio!|Смотри, краб!|Che strano!|Che sera!|Mi chiamo granchio.', 'Facciamo il bagno?|Искупаемся?|Sì, andiamo in acqua!|Sì, andiamo a scuola!|No, sono le sette.']),
+  DI('id24', 1, 743, '⛺', 'В горах', 'Guida', '🧑‍🏫', ['Siamo in montagna!|Мы в горах!|Che bello, c’è la neve!|Che bello, c’è il mare!|Che brutto, ciao.', 'Vedi quel cervo?|Видишь того оленя?|Sì, è grande!|Sì, è un libro.|No, ho fame.', 'Mettiamo la tenda qui?|Поставим палатку здесь?|Sì, è un bel posto.|Sì, è mercoledì.|No, sono tre.', 'Buonanotte!|Спокойной ночи!|Buonanotte!|Buongiorno!|Arrivederci, scusa.']),
+  DI('id25', 1, 744, '⛈️', 'Гроза', 'Mamma', '👩', ['Senti il tuono?|Слышишь гром?|Sì, c’è un temporale.|Sì, c’è una mela.|No, sono due.', 'Che paura!|Как страшно!|Non preoccuparti, siamo a casa.|Non preoccuparti, è blu.|Sì, ho sette anni.', 'Guarda l’arcobaleno!|Смотри, радуга!|Che bello, ci sono sette colori!|Che bello, è lunedì!|No, grazie.', 'Andiamo fuori?|Пойдём на улицу?|Sì, il sole è tornato.|Sì, il pane è tornato.|No, sono le tre.']),
+  DI('id26', 1, 740, '🧑‍🎓', 'В классе', 'Compagno', '🧑‍🎓', ['Hai il righello?|У тебя есть линейка?|Sì, eccolo.|Sì, è rosso.|No, sono otto.', 'Mi presti la gomma?|Одолжишь ластик?|Certo, prendi!|Certo, è lunedì!|No, ciao.', 'La maestra scrive sulla lavagna.|Учительница пишет на доске.|Copio nel quaderno.|Copio nel mare.|Mangio il pane.', 'Che compito difficile!|Какое трудное задание!|Facciamolo insieme!|Facciamolo blu!|Sono le tre.']),
+  DI('id27', 2, 752, '🏥', 'У врача', 'Dottore', '🧑‍⚕️', ['Come ti senti?|Как ты себя чувствуешь?|Ho mal di testa.|Ho un gatto.|Sono le tre.', 'Hai la febbre?|У тебя температура?|Sì, ho la febbre.|Sì, ho il pane.|No, ho una mela.', 'Devi riposare e bere acqua.|Тебе нужно отдохнуть и пить воду.|Va bene, grazie dottore.|Va bene, sono blu.|No, ho sei anni.', 'Guarisci presto!|Выздоравливай скорее!|Grazie!|Prego!|Scusa!']),
+  DI('id28', 2, 753, '🚦', 'На улице', 'Passante', '🧑', ['Scusa, dov’è la metropolitana?|Извини, где метро?|Vai dritto e poi a destra.|Vai pane e poi gatto.|Sono le tre.', 'Il semaforo è rosso.|Светофор красный.|Aspetto qui.|Mangio qui.|Ho sei anni.', 'Ora è verde!|Теперь зелёный!|Attraversiamo!|Mangiamo!|Dormiamo!', 'Grazie dell’aiuto!|Спасибо за помощь!|Di niente!|Sì, sono io!|Ho sette anni.']),
+  DI('id29', 2, 754, '🥐', 'В баре', 'Barista', '🧑‍🍳', ['Buongiorno! Cosa prendi?|Добрый день! Что будешь?|Un cappuccino e un cornetto.|Un cappuccino e un cane.|Sono le tre.', 'Con la panna?|Со сливками?|Sì, grazie.|Sì, sono io.|No, ho otto anni.', 'Ecco a te.|Вот, держи.|Grazie mille!|Scusa!|Ciao, mamma.', 'Sono tre euro.|С тебя три евро.|Ecco i soldi.|Ecco la luna.|Sono felice.']),
+  DI('id30', 2, 750, '⚽', 'Футбол', 'Marco', '🧒', ['Hai visto la partita?|Ты видел матч?|Sì, che bel gol!|Sì, che bel gatto!|No, sono le tre.', 'Chi ha vinto?|Кто выиграл?|Ha vinto la mia squadra!|Ha vinto il mio pane!|Ho sei anni.', 'Che bravo l’allenatore!|Какой хороший тренер!|Sì, è molto bravo.|Sì, è un libro.|No, è verde.', 'Giochiamo domani?|Поиграем завтра?|Sì, a domani!|Sì, a casa!|No, è blu.']),
+  DI('id31', 2, 748, '🗺️', 'Откуда ты?', 'Amica', '👧', ['Da dove vieni?|Откуда ты?|Vengo dalla Toscana.|Vengo dal pane.|Ho nove anni.', 'Che cosa c’è in Toscana?|Что есть в Тоскане?|Ci sono belle colline.|Ci sono belle mamme.|Sono le tre.', 'Mi piacciono le colline!|Я люблю холмы!|Anche a me!|Anche a pane!|Sì, sono io.', 'Ci vediamo in Italia!|Увидимся в Италии!|Sì, a presto!|Sì, a pane!|No, ho sei anni.']),
+  DI('id32', 2, 749, '🖼️', 'В музее', 'Guida', '🧑‍🏫', ['Benvenuti al museo!|Добро пожаловать в музей!|Grazie, che bello!|Grazie, che pane!|Ho nove anni.', 'Guarda quella statua antica.|Посмотри на ту древнюю статую.|È molto grande!|È molto lunedì!|Mi chiamo statua.', 'Chi l’ha fatta?|Кто её сделал?|Uno scultore romano.|Un gatto romano.|Il pane.', 'Mi piace l’arte!|Мне нравится искусство!|Anche a me!|Anche pane!|No, ho fame.']),
+  DI('id33', 2, 751, '📱', 'Телефон', 'Amico', '🧒', ['Hai un telefono?|У тебя есть телефон?|Sì, ecco il mio telefono.|Sì, ecco il mio pane.|No, ho sei anni.', 'Mi mandi una foto?|Пришлёшь фото?|Certo, subito!|Certo, è blu!|No, sono tre.', 'Ho ricevuto il messaggio.|Я получил сообщение.|Che bello!|Che sera!|Sono le tre.', 'Giochiamo al videogioco?|Поиграем в видеоигру?|Sì, volentieri!|Sì, il pane!|No, ciao, gatto.']),
+  DI('id34', 1, 736, '🍲', 'На кухне', 'Mamma', '👩', ['Mamma, ho fame!|Мама, я голоден!|Aspetta, cucino la pasta.|Aspetta, cucino la luna.|Ho sei anni.', 'Posso aiutarti?|Можно помочь тебе?|Sì, prendi la pentola.|Sì, prendi la luna.|No, sono tre.', 'Metti un po’ di sale.|Добавь немного соли.|Va bene!|Va pane!|Sono le tre.', 'La cena è pronta!|Ужин готов!|Che buono!|Che sera!|Mi chiamo cena.']),
+  DI('id35', 0, 737, '🚿', 'Утро', 'Papà', '👨', ['Buongiorno! Ti sei lavato?|Доброе утро! Ты умылся?|Sì, ho usato il sapone.|Sì, ho usato il gatto.|No, ho sei anni.', 'E i denti?|А зубы?|Li lavo con lo spazzolino.|Li lavo con la mela.|Li lavo con la luna.', 'Bravo! Ora la colazione.|Молодец! Теперь завтрак.|Evviva!|Arrivederci!|No, sono otto.', 'Che cosa mangi?|Что ты ешь?|Un cornetto e il latte.|Un cornetto e la luna.|Una mela e il gatto.'])
 );
 
 </script>

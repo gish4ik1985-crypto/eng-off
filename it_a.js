@@ -19,7 +19,7 @@ const LR = (id, icon, title, story, text, qs, order, sents) => ({ id, title, ico
 
 const IT_L1 = [
   LW(501, '👋', 'Ciao!', 'Ты попал в страну вкусной пасты и музыки! Злой Диментикон украл итальянские слова. Начнём с приветствий.',
-    ['ciao|привет, пока|👋', 'arrivederci|до свидания|🚪', 'sì|да|✅', 'no|нет|❌', 'grazie|спасибо|🙏', 'prego|пожалуйста|🤝', 'scusa|извини|😔', 'per favore|пожалуйста (просьба)|🙏'],
+    ['ciao|привет, пока|👋', 'arrivederci|до свидания|🚪', 'sì|да|✅', 'no|нет|❌', 'grazie|спасибо|🙏', 'prego|пожалуйста|🤝', 'scusa|извини|😔', 'per favore|пожалуйста (просьба)|🥺'],
     ['Ciao, mi chiamo Marco.|Привет, меня зовут Марко.', 'Come stai?|Как дела?', 'Sto bene, grazie.|У меня всё хорошо, спасибо.']),
   LW(502, '🐝', 'Алфавит A–E', 'Итальянский алфавит поёт! В нём 21 буква. Найди первые пять в пчелином саду.',
     ['ape|пчела|🐝|A', 'barca|лодка|⛵|B', 'casa|дом|🏠|C', 'dado|игральная кость|🎲|D', 'elefante|слон|🐘|E'],
@@ -64,7 +64,7 @@ const IT_L1 = [
     ['casa', 'letto|кровать|🛏️', 'sedia|стул|🪑', 'divano|диван|🛋️', 'lampada|лампа|💡', 'tavolo|стол|🍽️', 'finestra|окно|🪟'],
     ['Questa è la mia casa.|Это мой дом.', 'La lampada è sul tavolo.|Лампа на столе.', 'Sono sul divano.|Я на диване.']),
   LW(516, '🎂', 'Il compleanno', 'Сегодня праздник! Подготовь вечеринку.',
-    ['compleanno|день рождения|🎂', 'palloncino|воздушный шарик|🎈', 'regalo|подарок|🎁', 'candela|свеча|🕯️', 'festa|праздник, вечеринка|🎉', 'torta'],
+    ['compleanno|день рождения|🥳', 'palloncino|воздушный шарик|🎈', 'regalo|подарок|🎁', 'candela|свеча|🕯️', 'festa|праздник, вечеринка|🎉', 'torta'],
     ['Buon compleanno!|С днём рождения!', 'Quanti anni hai?|Сколько тебе лет?', 'Ho otto anni.|Мне восемь лет.']),
   LW(517, '📅', 'I giorni', 'Календарь Диментикона рассыпался. Собери дни недели.',
     ['lunedì|понедельник|1', 'martedì|вторник|2', 'mercoledì|среда|3', 'giovedì|четверг|4', 'venerdì|пятница|5', 'sabato|суббота|6', 'domenica|воскресенье|7'],
@@ -112,7 +112,7 @@ const IT_L1 = [
     ['ciao', 'gatto', 'casa', 'mela', 'sole', 'rosso', 'mamma', 'cane', 'pane', 'scuola'],
     ['Ciao! Come stai?|Привет! Как дела?', 'Il gatto mangia il pane.|Кот ест хлеб.', 'Il sole è giallo.|Солнце жёлтое.']),
   LW(528, '🧩', 'Piccole frasi', 'Вежливые слова и простые фразы — как в настоящем Риме.',
-    ['Mi chiamo|меня зовут|👋', 'Ho fame|я голоден|🍽️', 'Ho sete|я хочу пить|🥤', 'Sono felice|я счастлив|😄', 'Sono stanco|я устал|😴', 'Ho paura|мне страшно|😨'],
+    ['Mi chiamo|меня зовут|👋', 'Ho fame|я голоден|🤤', 'Ho sete|я хочу пить|🥤', 'Sono felice|я счастлив|😄', 'Sono stanco|я устал|😴', 'Ho paura|мне страшно|😨'],
     ['Ho fame, mamma!|Я голоден, мама!', 'Sono felice oggi.|Сегодня я счастлив.', 'Ho paura del buio.|Я боюсь темноты.'])
 ];
 const IT_BOSS1 = { id: 590, title: 'Castello del Dimenticone', icon: '🏰', bossIcon: '🧙' };
