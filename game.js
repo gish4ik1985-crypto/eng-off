@@ -153,7 +153,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
@@ -243,7 +243,27 @@ const sfx = k => tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 7
 
 // say: говорит t (rate — скорость). Если уже что-то говорится, сначала останавливает, ждёт немного (иначе на Android
 // слово «съедается») и говорит новое. done вызывается, когда фраза закончилась или отменена.
+let ONLINE_AUDIO = null; // запасная озвучка через интернет (только если включена родителем и на устройстве нет голоса языка)
+function sayOnline(t, rate, delay, done) {
+  const my = ++SPK.seq; let fin = false; const finish = () => { if (!fin) { fin = true; if (done) done(); } };
+  try { speechSynthesis.cancel(); } catch (e) {}
+  if (ONLINE_AUDIO) { try { ONLINE_AUDIO.pause(); } catch (e) {} ONLINE_AUDIO = null; }
+  const wait = Math.max(delay || 0, SPK.sfxUntil - Date.now(), 0);
+  SPK.ended = false; SPK.until = Date.now() + wait + Math.max(1500, t.length * 120 + 1000);
+  setTimeout(finish, wait + t.length * 150 + 6000);
+  setTimeout(() => {
+    if (my !== SPK.seq) return finish();
+    try {
+      const a = new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=' + LNOW.tts.slice(0, 2) + '&q=' + encodeURIComponent(t));
+      ONLINE_AUDIO = a; a.playbackRate = rate && rate < .8 ? .85 : 1;
+      a.onended = a.onerror = () => { if (my === SPK.seq) SPK.ended = true; finish(); };
+      const pr = a.play(); if (pr && pr.catch) pr.catch(() => { if (my === SPK.seq) SPK.ended = true; finish(); });
+    } catch (e) { finish(); }
+  }, wait);
+}
+const useOnlineTts = () => { try { return !!S.onlineTts && navigator.onLine && (!speechOn() || (speechSynthesis.getVoices().length > 0 && !speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)))); } catch (e) { return false; } };
 function say(t, rate, delay, done) {
+  if (useOnlineTts()) return sayOnline(t, rate, delay, done);
   if (!speechOn()) { if (done) setTimeout(done, t.length * 90 + 800); return; }
   const my = ++SPK.seq;
   let busy = false;
@@ -279,6 +299,7 @@ let epoch = 0; // «поколение» экрана: после выхода �
 // надёжно останавливает речь: на планшетах одиночный cancel() иногда не срабатывает сразу, поэтому повторяем
 function hardStop() {
   SPK.seq++; SPK.ended = true; SPK.until = 0; // отменяет и ещё не начавшиеся фразы
+  if (ONLINE_AUDIO) { try { ONLINE_AUDIO.pause(); } catch (e) {} ONLINE_AUDIO = null; }
   const my = SPK.seq;
   try {
     speechSynthesis.cancel();
@@ -992,6 +1013,9 @@ function startLesson(i) {
     const ds = focusOf(skind()).focus || focusOf(skind()).exams.length ? diarySpecs().slice(0, 4) : [];
     if (ds.length) ctx.steps.push(['Из дневника', cb => mathQuiz({ ctx, counted: true, title: '📓 Темы из дневника', items: ds }, cb)]);
     ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
+  } else if (L.type === 'dict') {
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Диктант', cb => dictLesson(ctx, L, cb)]);
   } else if (L.type === 'draw') {
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
     ctx.steps.push(['Рисуем', cb => drawLesson(ctx, L.draw, cb)]);
@@ -1845,6 +1869,56 @@ function izoFree(rec) {
   };
   mark();
 }
+/* ---------- итальянский: диктант со вводом с экранной клавиатуры (слова и фразы) ---------- */
+function dictLesson(ctx, spec, done) {
+  const items = shuffle(spec.items).slice(0, spec.n || 8), total = items.length; let i = 0;
+  const strip = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’'`´]/g, '’').replace(/[^a-z’ ]/g, '').replace(/\s+/g, ' ').trim();
+  const exact = s => s.toLowerCase().normalize('NFC').replace(/[’'`´]/g, '’').replace(/[^a-zàèéìòù’ ]/g, '').replace(/\s+/g, ' ').trim();
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'àèéìòù’'];
+  const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(items[i]); };
+  function ask(it) {
+    let tries = 0, accent = 0, locked = false, buf = '';
+    const head = `<div class="prog">${items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const box = () => `<b class="mbox wbox">${esc(buf) || '&nbsp;'}</b>`;
+    frame(ctx, `<div class="card center">${head}<h3>Диктант: ${i + 1} из ${total}</h3>${it.e ? `<div class="bigemoji">${it.e}</div>` : ''}<p class="clue">${esc(it.ru)}</p>
+      <p><button class="speak" id="sp">🔊</button> <small>Послушай и напиши по-итальянски</small></p>
+      <div class="mans" id="mans">${box()}</div>
+      <div class="lkeys">${rows.map(r => `<div class="lrow">${[...r].map(c => `<button class="btn sec kp" data-k="${c}">${c}</button>`).join('')}</div>`).join('')}
+        <div class="lrow"><button class="btn sec kp" data-k=" " style="min-width:160px">пробел</button><button class="btn sec kp" data-k="⌫">⌫</button><button class="btn gold kp" data-k="✓">✓</button></div></div>
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId;
+    const count = ok => { ctx.asked++; if (ok) ctx.ok++; logQ(ok); save(); };
+    const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0 && accent === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
+    const reveal = () => { locked = true; $('msg').innerHTML = `Правильно пишется: <b>${esc(it.en)}</b>`; count(false); i++; $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next; speak(it.en); };
+    const wrong = () => {
+      if (shieldUse(ctx)) { buf = ''; sfx('bad'); $('mans').innerHTML = box(); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
+      tries++; buf = ''; sfx('bad'); $('mans').innerHTML = box(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Проверь буквы и попробуй ещё раз 💪';
+    };
+    const submit = () => {
+      if (locked || !buf.trim()) return;
+      if (exact(buf) === exact(it.en)) { $('mans').innerHTML = box(); return solved(); }
+      if (strip(buf) === strip(it.en)) { // буквы верные, не хватает знака ударения или он лишний
+        accent++; if (accent >= 3) return reveal(); $('msg').textContent = 'Почти! Проверь значки ударения: à è é ì ò ù'; return;
+      }
+      wrong();
+    };
+    const press = k => {
+      if (locked) return;
+      if (k === '✓') return submit();
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 40) buf += k;
+      $('mans').innerHTML = box();
+    };
+    app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
+    $('sp').onclick = () => speak(it.en);
+    setTimeout(() => { if (screenId === my) speak(it.en); }, 350);
+    hintUI(ctx, () => { $('msg').textContent = `💡 Начинается на «${it.en[0]}», букв: ${it.en.replace(/[^A-Za-zàèéìòù]/g, '').length}`; tries = Math.max(tries, 1); return true; });
+    mathKeyFn = e => {
+      if (screenId !== my) return;
+      if (e.key === 'Backspace') press('⌫'); else if (e.key === 'Enter') press('✓'); else if (e.key.length === 1 && /[a-zA-Zàèéìòù’' ]/.test(e.key)) press(e.key.toLowerCase().replace("'", '’'));
+    };
+  }
+  next();
+}
 function izoGallery() {
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🖼️ Моя галерея</h2><div id="gl" class="bkl"><small>Загрузка…</small></div><p id="gm"></p></div>`;
@@ -1960,6 +2034,8 @@ function parent() {
         ${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small" id="dgp">🔎 Разведка (определить уровень)</button>
       <button class="btn small ${S.strict ? 'red' : ''}" id="strict">${S.strict ? '🔒 Строгий режим: ВКЛ (без подсказок и щита)' : 'Строгий режим: выкл'}</button>
+      <button class="btn small ${S.onlineTts ? 'red' : ''}" id="otts">${S.onlineTts ? '🌐 Озвучка через интернет: ВКЛ' : 'Озвучка через интернет: выкл'}</button>
+      <p><small>Включайте, только если на устройстве нет голоса для английского или итальянского. Слова озвучиваются онлайн-сервисом Google, нужен интернет.</small></p>
       <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
       <button class="btn small red" id="rs">Сбросить всё</button>
       <p id="vm"></p>
@@ -1972,6 +2048,7 @@ function parent() {
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
+  $('otts').onclick = () => { S.onlineTts = !S.onlineTts; save(); parent(); };
   $('clp').onclick = () => cloudScreen(parent);
   booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Остров английских слов</title>
-<link rel="stylesheet" href="style.css?v=20261008115208">
+<link rel="stylesheet" href="style.css?v=20261008120112">
 </head>
 <body>
 <div id="app"></div>
@@ -4282,6 +4282,103 @@ const IT_AUDIOS = [];
 
 </script>
 <script>
+/* Итальянский: прописи (обводка печатных букв) и диктанты (слова и фразы на слух, ввод с экранной клавиатуры с ударениями).
+   Все эти уроки бонусные: они не блокируют основные уроки и босса. Нужны izo.js (фигуры IZ) и content3.js (BL, BR). */
+
+/* ---------- буквы: контуры в координатах холста 640×480 ---------- */
+const { line: SL, ell: SE, poly: SPL } = IZ;
+const SP = pts => SPL(pts, false);
+// заглавные: верх 100, низ 400, ширина около 200 по центру
+const LET_UP = {
+  A: [SL(220, 400, 320, 100).concat(SL(320, 100, 420, 400)), SL(262, 290, 378, 290)],
+  B: [SL(235, 100, 235, 400), SE(235, 175, 150, 75, 0, -90, 90), SE(235, 325, 165, 75, 0, -90, 90)],
+  C: [SE(330, 250, 110, 150, 0, -40, -320)],
+  D: [SL(235, 100, 235, 400), SE(235, 250, 180, 150, 0, -90, 90)],
+  E: [SL(245, 100, 245, 400), SL(245, 100, 410, 100), SL(245, 250, 385, 250), SL(245, 400, 410, 400)],
+  F: [SL(245, 100, 245, 400), SL(245, 100, 410, 100), SL(245, 250, 385, 250)],
+  G: [SE(330, 250, 110, 150, 0, -40, -360).concat(SL(440, 250, 350, 250))],
+  H: [SL(235, 100, 235, 400), SL(405, 100, 405, 400), SL(235, 250, 405, 250)],
+  I: [SL(320, 100, 320, 400)],
+  L: [SL(245, 100, 245, 400).concat(SL(245, 400, 405, 400))],
+  M: [SP([[225, 400], [225, 100], [320, 310], [415, 100], [415, 400]])],
+  N: [SP([[235, 400], [235, 100], [405, 400], [405, 100]])],
+  O: [SE(320, 250, 100, 150)],
+  P: [SL(245, 400, 245, 100), SE(245, 185, 150, 85, 0, -90, 90)],
+  Q: [SE(320, 250, 100, 150), SL(340, 330, 425, 420)],
+  R: [SL(245, 400, 245, 100), SE(245, 185, 150, 85, 0, -90, 90), SL(270, 270, 405, 400)],
+  S: [SE(320, 175, 95, 75, 0, -30, -270).concat(SE(320, 325, 95, 75, 0, -90, 150))],
+  T: [SL(215, 100, 425, 100), SL(320, 100, 320, 400)],
+  U: [SL(235, 100, 235, 300).concat(SE(320, 300, 85, 100, 0, 180, 0), SL(405, 300, 405, 100))],
+  V: [SL(220, 100, 320, 400).concat(SL(320, 400, 420, 100))],
+  Z: [SP([[230, 100], [410, 100], [230, 400], [410, 400]])]
+};
+// строчные: линия строки 380, высота строчных до 200, верх выносных 90, низ выносных 460
+const LET_LO = {
+  a: [SE(315, 290, 75, 90), SL(390, 200, 390, 380)],
+  b: [SL(240, 90, 240, 380), SE(315, 290, 75, 90)],
+  c: [SE(325, 290, 85, 90, 0, -40, -320)],
+  d: [SE(305, 290, 75, 90), SL(380, 90, 380, 380)],
+  e: [SL(235, 290, 405, 290).concat(SE(320, 290, 85, 90, 0, 0, -315))],
+  f: [SL(305, 380, 305, 140).concat(SE(350, 140, 45, 50, 0, 180, 290)), SL(250, 205, 365, 205)],
+  g: [SE(315, 280, 75, 80), SL(390, 200, 390, 420).concat(SE(315, 420, 75, 40, 0, 0, 160))],
+  h: [SL(240, 90, 240, 380), SE(320, 285, 80, 85, 0, 180, 360).concat(SL(400, 285, 400, 380))],
+  i: [SL(320, 200, 320, 380), SE(320, 150, 9, 9)],
+  l: [SL(320, 90, 320, 380)],
+  m: [SL(225, 200, 225, 380), SE(275, 275, 50, 75, 0, 180, 360).concat(SL(325, 275, 325, 380)), SE(375, 275, 50, 75, 0, 180, 360).concat(SL(425, 275, 425, 380))],
+  n: [SL(240, 200, 240, 380), SE(320, 275, 80, 75, 0, 180, 360).concat(SL(400, 275, 400, 380))],
+  o: [SE(320, 290, 85, 90)],
+  p: [SL(240, 200, 240, 460), SE(320, 290, 80, 90)],
+  q: [SE(320, 290, 80, 90), SL(400, 200, 400, 460)],
+  r: [SL(250, 200, 250, 380), SE(335, 275, 85, 75, 0, 180, 290)],
+  s: [SE(320, 245, 75, 45, 0, -30, -270).concat(SE(320, 335, 75, 45, 0, -90, 150))],
+  t: [SL(310, 120, 310, 380), SL(250, 205, 380, 205)],
+  u: [SL(240, 200, 240, 300).concat(SE(320, 300, 80, 80, 0, 180, 0)), SL(400, 200, 400, 380)],
+  v: [SL(235, 200, 320, 380).concat(SL(320, 380, 405, 200))],
+  z: [SP([[240, 200], [400, 200], [240, 380], [400, 380]])]
+};
+const GRAVE = SL(300, 135, 335, 170), ACUTE = SL(305, 170, 340, 135);
+const LET_AC = { 'à': [LET_LO.a, GRAVE], 'è': [LET_LO.e, GRAVE], 'é': [LET_LO.e, ACUTE], 'ì': [[SL(320, 200, 320, 380)], GRAVE], 'ò': [LET_LO.o, GRAVE], 'ù': [LET_LO.u, GRAVE] };
+const letSteps = (set, kind, letters) => letters.split('').map(c => ({ t: kind === 'up' ? `Обведи заглавную букву ${c}` : `Обведи строчную букву ${c}`, s: set[c] }));
+const accSteps = letters => letters.split('').map(c => ({ t: `Обведи букву ${c}: сверху знак ударения`, s: LET_AC[c][0].concat([LET_AC[c][1]]) }));
+const PR = (id, icon, title, story, rule, steps) => BL(Object.assign(ML(id, icon, title, story, rule, []), { type: 'draw', go: 'Понятно, пишем ➜', draw: { tol: 26, color: false, steps } }));
+
+/* ---------- диктанты ---------- */
+const sentsOf = ids => [].concat(...ids.map(id => [].concat(...[IT_L1, IT_L2, IT_L3].map(L => L.filter(l => l.id === id))).flatMap(l => l.sents || [])));
+const DT = (id, icon, title, story, items, hint) => BL({
+  id, title, icon, type: 'dict', story, go: 'Понятно, пишем ➜', gens: [], items,
+  rule: { title: 'Как писать диктант', html: hint || 'Послушай слово (🔊), прочитай подсказку по-русски и напиши слово <b>по-итальянски</b> буквами с экрана. Не забудь значки ударения: <b>à è é ì ò ù</b>.', ex: [['sì', 'да: с ударением'], ['papà', 'папа: с ударением на последней букве']] }
+});
+const wordItems = words => words.map(w => { const x = IT_WORDS[itId(w)]; if (!x) throw new Error('нет слова ' + w); return { en: x.en, ru: x.ru, e: x.e }; });
+
+IT_L1.push(
+  PR(701, '🔤', 'Прописи: A–G', 'Научимся писать итальянские печатные буквы. Начинаем с первых!', { title: 'Как обводить', html: 'Веди пальцем (или мышкой) по пунктиру от зелёной точки. Рисуй плавно, не торопись. Итальянские буквы такие же, как латинские, их 21 в алфавите.', ex: [['A', 'как крыша домика'], ['C', 'как открытая подкова']] }, letSteps(LET_UP, 'up', 'ABCDEFG')),
+  PR(702, '🔤', 'Прописи: H–P', 'Следующие семь заглавных букв.', { title: 'Заглавные буквы', html: 'Заглавные буквы нужны в начале имён и предложений: <b>Marco, Roma, Ciao!</b>', ex: [['H', 'две палочки и перекладина'], ['M', 'как горы']] }, letSteps(LET_UP, 'up', 'HILMNOP')),
+  PR(703, '🔤', 'Прописи: Q–Z', 'Последние заглавные буквы алфавита.', { title: 'Заглавные буквы', html: 'В итальянском 21 буква. Букв J, K, W, X, Y нет: они встречаются только в иностранных словах.', ex: [['S', 'как змейка'], ['Z', 'как молния']] }, letSteps(LET_UP, 'up', 'QRSTUVZ')),
+  PR(704, '✏️', 'Прописи: a–g', 'Теперь строчные буквы, они нужны чаще всего.', { title: 'Строчные буквы', html: 'Строчные буквы стоят на линии строки. Некоторые выше (b, d, f, h, l, t), некоторые уходят вниз (g, p, q).', ex: [['a', 'круг и палочка'], ['e', 'линия и колечко']] }, letSteps(LET_LO, 'lo', 'abcdefg')),
+  PR(705, '✏️', 'Прописи: h–p', 'Продолжаем обводить строчные буквы.', { title: 'Строчные буквы', html: 'Буквы <b>m</b> и <b>n</b> состоят из палочки и арок. Следи, чтобы арки были одинаковыми.', ex: [['n', 'палочка и арка'], ['m', 'палочка и две арки']] }, letSteps(LET_LO, 'lo', 'hilmnop')),
+  PR(706, '✏️', 'Прописи: q–z', 'Последние строчные буквы алфавита.', { title: 'Строчные буквы', html: 'Буква <b>q</b> в итальянском всегда с <b>u</b>: <i>quadro, questo</i>.', ex: [['u', 'как чашечка'], ['z', 'как молния']] }, letSteps(LET_LO, 'lo', 'qrstuvz')),
+  DT(711, '✍️', 'Диктант: слова на буквы', 'Слушай слова из алфавита и пиши их без подсказки.', wordItems(['ape', 'barca', 'casa', 'dado', 'fiore', 'gatto', 'isola', 'luna', 'mela', 'naso', 'pane', 'sole', 'torta', 'uva', 'volpe', 'zebra'])),
+  DT(712, '✍️', 'Диктант: числа', 'Пиши итальянские числа словами.', wordItems(['uno', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci', 'undici', 'dodici'])),
+  DT(713, '✍️', 'Диктант: семья и цвета', 'Слова про семью и цвета.', wordItems(['mamma', 'papà', 'fratello', 'sorella', 'nonna', 'nonno', 'rosso', 'blu', 'verde', 'giallo', 'arancione', 'rosa', 'nero', 'bianco'])),
+  DT(721, '📝', 'Диктант: фразы (1)', 'Теперь пиши целые фразы!', sentsOf([501, 509, 513, 515, 518]), 'Слушай фразу (🔊), читай перевод и записывай её целиком. Знаки препинания можно не ставить, но следи за буквами и ударением.')
+);
+IT_L2.push(
+  PR(707, '🅰️', 'Прописи: à è é ì ò ù', 'В итальянском над некоторыми буквами ставят знак ударения.', { title: 'Знак ударения', html: 'Ударение пишется в конце слов: <b>papà, città, caffè, sì</b>. Бывает «\\» (grave): à è ì ò ù и «/» (acuto): é.', ex: [['papà', 'à на конце'], ['sì', 'ì с ударением']] }, accSteps('àèéìòù')),
+  DT(714, '✍️', 'Диктант: еда', 'Пиши названия еды и овощей.', wordItems(['pasta', 'formaggio', 'prosciutto', 'gelato', 'cioccolato', 'biscotti', 'uova', 'acqua', 'pomodoro', 'patata', 'carota', 'cipolla', 'insalata', 'zucchina'])),
+  DT(715, '✍️', 'Диктант: животные', 'Пиши названия зверей и птиц.', wordItems(['leone', 'scimmia', 'tigre', 'giraffa', 'orso', 'delfino', 'balena', 'mucca', 'maiale', 'pecora', 'gallina', 'anatra', 'capra', 'cavallo', 'coniglio', 'uccello'])),
+  DT(716, '✍️', 'Диктант: дни, месяцы, сезоны', 'Пиши дни недели, месяцы и времена года (не забудь ударения: lunedì!).', wordItems(['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'primavera', 'estate', 'autunno', 'inverno'])),
+  DT(717, '✍️', 'Диктант: город и профессии', 'Пиши слова про город, работу и транспорт.', wordItems(['parco', 'negozio', 'stazione', 'ospedale', 'chiesa', 'piazza', 'medico', 'maestra', 'cuoco', 'pompiere', 'poliziotto', 'pilota', 'panettiere', 'autobus', 'aereo', 'nave'])),
+  DT(722, '📝', 'Диктант: фразы (2)', 'Пиши целые фразы про город, школу и день.', sentsOf([532, 535, 537, 547, 549]), 'Слушай фразу (🔊), читай перевод и записывай её целиком.')
+);
+IT_L3.push(
+  DT(718, '✍️', 'Диктант: Италия', 'Пиши города и достопримечательности.', wordItems(['Roma', 'Milano', 'Venezia', 'Napoli', 'Firenze', 'Torino', 'Palermo', 'Colosseo', 'gondola', 'Vesuvio', 'fontana', 'ponte', 'duomo'])),
+  DT(719, '✍️', 'Диктант: ресторан', 'Пиши слова из меню и со стола. Помни про ударения: menù, caffè, tiramisù.', wordItems(['menù', 'cameriere', 'conto', 'forchetta', 'coltello', 'cucchiaio', 'piatto', 'bicchiere', 'spaghetti', 'lasagne', 'risotto', 'tiramisù', 'panino', 'caffè'])),
+  DT(720, '✍️', 'Диктант: в путешествии', 'Пиши слова из чемодана и магазина.', wordItems(['biglietto', 'valigia', 'passaporto', 'aeroporto', 'albergo', 'mappa', 'turista', 'prezzo', 'euro', 'soldi', 'carrello', 'borsa', 'mercato', 'negozio', 'Natale', 'Pasqua', 'Carnevale'])),
+  DT(723, '📝', 'Диктант: фразы (3)', 'Пиши целые фразы про путешествие.', sentsOf([601, 604, 605, 607, 617]), 'Слушай фразу (🔊), читай перевод и записывай её целиком.')
+);
+
+</script>
+<script>
 /* Языки изучения. Английский и итальянский работают на одном движке: слова, уроки, диалоги, песенки и аудирование
    лежат в наборах (пакетах), а игра на лету подменяет глобальные данные на нужный язык (функция langUse в game.js).
    Данные итальянского — файлы it_*.js (подключаются до этого файла). Пакет английского снимается здесь «снимком» из уже загруженных данных. */
@@ -4596,7 +4693,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
@@ -4686,7 +4783,27 @@ const sfx = k => tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 7
 
 // say: говорит t (rate — скорость). Если уже что-то говорится, сначала останавливает, ждёт немного (иначе на Android
 // слово «съедается») и говорит новое. done вызывается, когда фраза закончилась или отменена.
+let ONLINE_AUDIO = null; // запасная озвучка через интернет (только если включена родителем и на устройстве нет голоса языка)
+function sayOnline(t, rate, delay, done) {
+  const my = ++SPK.seq; let fin = false; const finish = () => { if (!fin) { fin = true; if (done) done(); } };
+  try { speechSynthesis.cancel(); } catch (e) {}
+  if (ONLINE_AUDIO) { try { ONLINE_AUDIO.pause(); } catch (e) {} ONLINE_AUDIO = null; }
+  const wait = Math.max(delay || 0, SPK.sfxUntil - Date.now(), 0);
+  SPK.ended = false; SPK.until = Date.now() + wait + Math.max(1500, t.length * 120 + 1000);
+  setTimeout(finish, wait + t.length * 150 + 6000);
+  setTimeout(() => {
+    if (my !== SPK.seq) return finish();
+    try {
+      const a = new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=' + LNOW.tts.slice(0, 2) + '&q=' + encodeURIComponent(t));
+      ONLINE_AUDIO = a; a.playbackRate = rate && rate < .8 ? .85 : 1;
+      a.onended = a.onerror = () => { if (my === SPK.seq) SPK.ended = true; finish(); };
+      const pr = a.play(); if (pr && pr.catch) pr.catch(() => { if (my === SPK.seq) SPK.ended = true; finish(); });
+    } catch (e) { finish(); }
+  }, wait);
+}
+const useOnlineTts = () => { try { return !!S.onlineTts && navigator.onLine && (!speechOn() || (speechSynthesis.getVoices().length > 0 && !speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)))); } catch (e) { return false; } };
 function say(t, rate, delay, done) {
+  if (useOnlineTts()) return sayOnline(t, rate, delay, done);
   if (!speechOn()) { if (done) setTimeout(done, t.length * 90 + 800); return; }
   const my = ++SPK.seq;
   let busy = false;
@@ -4722,6 +4839,7 @@ let epoch = 0; // «поколение» экрана: после выхода �
 // надёжно останавливает речь: на планшетах одиночный cancel() иногда не срабатывает сразу, поэтому повторяем
 function hardStop() {
   SPK.seq++; SPK.ended = true; SPK.until = 0; // отменяет и ещё не начавшиеся фразы
+  if (ONLINE_AUDIO) { try { ONLINE_AUDIO.pause(); } catch (e) {} ONLINE_AUDIO = null; }
   const my = SPK.seq;
   try {
     speechSynthesis.cancel();
@@ -5435,6 +5553,9 @@ function startLesson(i) {
     const ds = focusOf(skind()).focus || focusOf(skind()).exams.length ? diarySpecs().slice(0, 4) : [];
     if (ds.length) ctx.steps.push(['Из дневника', cb => mathQuiz({ ctx, counted: true, title: '📓 Темы из дневника', items: ds }, cb)]);
     ctx.steps.push(['Мини-тест', cb => mathQuiz({ ctx, counted: true, title: 'Мини-тест', items: mixSpecs(L.gens, 6) }, cb)]);
+  } else if (L.type === 'dict') {
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Диктант', cb => dictLesson(ctx, L, cb)]);
   } else if (L.type === 'draw') {
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
     ctx.steps.push(['Рисуем', cb => drawLesson(ctx, L.draw, cb)]);
@@ -6288,6 +6409,56 @@ function izoFree(rec) {
   };
   mark();
 }
+/* ---------- итальянский: диктант со вводом с экранной клавиатуры (слова и фразы) ---------- */
+function dictLesson(ctx, spec, done) {
+  const items = shuffle(spec.items).slice(0, spec.n || 8), total = items.length; let i = 0;
+  const strip = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’'`´]/g, '’').replace(/[^a-z’ ]/g, '').replace(/\s+/g, ' ').trim();
+  const exact = s => s.toLowerCase().normalize('NFC').replace(/[’'`´]/g, '’').replace(/[^a-zàèéìòù’ ]/g, '').replace(/\s+/g, ' ').trim();
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'àèéìòù’'];
+  const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(items[i]); };
+  function ask(it) {
+    let tries = 0, accent = 0, locked = false, buf = '';
+    const head = `<div class="prog">${items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const box = () => `<b class="mbox wbox">${esc(buf) || '&nbsp;'}</b>`;
+    frame(ctx, `<div class="card center">${head}<h3>Диктант: ${i + 1} из ${total}</h3>${it.e ? `<div class="bigemoji">${it.e}</div>` : ''}<p class="clue">${esc(it.ru)}</p>
+      <p><button class="speak" id="sp">🔊</button> <small>Послушай и напиши по-итальянски</small></p>
+      <div class="mans" id="mans">${box()}</div>
+      <div class="lkeys">${rows.map(r => `<div class="lrow">${[...r].map(c => `<button class="btn sec kp" data-k="${c}">${c}</button>`).join('')}</div>`).join('')}
+        <div class="lrow"><button class="btn sec kp" data-k=" " style="min-width:160px">пробел</button><button class="btn sec kp" data-k="⌫">⌫</button><button class="btn gold kp" data-k="✓">✓</button></div></div>
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId;
+    const count = ok => { ctx.asked++; if (ok) ctx.ok++; logQ(ok); save(); };
+    const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0 && accent === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
+    const reveal = () => { locked = true; $('msg').innerHTML = `Правильно пишется: <b>${esc(it.en)}</b>`; count(false); i++; $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next; speak(it.en); };
+    const wrong = () => {
+      if (shieldUse(ctx)) { buf = ''; sfx('bad'); $('mans').innerHTML = box(); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
+      tries++; buf = ''; sfx('bad'); $('mans').innerHTML = box(); if (tries >= 2) return reveal(); $('msg').textContent = 'Почти! Проверь буквы и попробуй ещё раз 💪';
+    };
+    const submit = () => {
+      if (locked || !buf.trim()) return;
+      if (exact(buf) === exact(it.en)) { $('mans').innerHTML = box(); return solved(); }
+      if (strip(buf) === strip(it.en)) { // буквы верные, не хватает знака ударения или он лишний
+        accent++; if (accent >= 3) return reveal(); $('msg').textContent = 'Почти! Проверь значки ударения: à è é ì ò ù'; return;
+      }
+      wrong();
+    };
+    const press = k => {
+      if (locked) return;
+      if (k === '✓') return submit();
+      if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 40) buf += k;
+      $('mans').innerHTML = box();
+    };
+    app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
+    $('sp').onclick = () => speak(it.en);
+    setTimeout(() => { if (screenId === my) speak(it.en); }, 350);
+    hintUI(ctx, () => { $('msg').textContent = `💡 Начинается на «${it.en[0]}», букв: ${it.en.replace(/[^A-Za-zàèéìòù]/g, '').length}`; tries = Math.max(tries, 1); return true; });
+    mathKeyFn = e => {
+      if (screenId !== my) return;
+      if (e.key === 'Backspace') press('⌫'); else if (e.key === 'Enter') press('✓'); else if (e.key.length === 1 && /[a-zA-Zàèéìòù’' ]/.test(e.key)) press(e.key.toLowerCase().replace("'", '’'));
+    };
+  }
+  next();
+}
 function izoGallery() {
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🖼️ Моя галерея</h2><div id="gl" class="bkl"><small>Загрузка…</small></div><p id="gm"></p></div>`;
@@ -6403,6 +6574,8 @@ function parent() {
         ${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small" id="dgp">🔎 Разведка (определить уровень)</button>
       <button class="btn small ${S.strict ? 'red' : ''}" id="strict">${S.strict ? '🔒 Строгий режим: ВКЛ (без подсказок и щита)' : 'Строгий режим: выкл'}</button>
+      <button class="btn small ${S.onlineTts ? 'red' : ''}" id="otts">${S.onlineTts ? '🌐 Озвучка через интернет: ВКЛ' : 'Озвучка через интернет: выкл'}</button>
+      <p><small>Включайте, только если на устройстве нет голоса для английского или итальянского. Слова озвучиваются онлайн-сервисом Google, нужен интернет.</small></p>
       <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
       <button class="btn small red" id="rs">Сбросить всё</button>
       <p id="vm"></p>
@@ -6415,6 +6588,7 @@ function parent() {
   if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
+  $('otts').onclick = () => { S.onlineTts = !S.onlineTts; save(); parent(); };
   $('clp').onclick = () => cloudScreen(parent);
   booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
