@@ -232,3 +232,4 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .pwi{font:inherit;font-size:1.2rem;padding:10px;border:3px solid #1b1b1b;border-radius:8px;width:90%;max-width:320px}
 #tmchip{position:fixed;left:8px;bottom:8px;z-index:50;background:#fff;border:3px solid #1b1b1b;border-radius:10px;padding:4px 10px;font-weight:700;opacity:.9}
 #tmchip.low{background:#ffcdd2}
+.subjopt{display:block;font-size:1.15rem;padding:6px 0}.subjopt input{width:22px;height:22px;vertical-align:middle;margin-right:6px}
