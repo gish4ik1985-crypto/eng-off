@@ -153,14 +153,14 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
-const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
+const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
 const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo'; // предметы с генерируемыми заданиями
 const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.world;
+const widx = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
 const worldOpen = k => S.unlockAll || k === 0 || isGen() || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
@@ -213,11 +213,13 @@ function unlockAudio() {
    sfxUntil — до какого момента звучит звуковой сигнал (речь стартует после него, чтобы они не мешали друг другу). */
 const SPK = { seq: 0, until: 0, ended: true, sfxUntil: 0 };
 const speechOn = () => 'speechSynthesis' in window;
-let enVoice = null;
+let enVoice = null; // голос изучаемого языка (английского или итальянского)
+let LNOW = LANGINFO.en; // сведения о текущем языке изучения
+const LN = () => LNOW;
 function pickVoice() {
   try {
-    const vs = speechSynthesis.getVoices();
-    enVoice = vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+    const vs = speechSynthesis.getVoices(), base = LNOW.tts.replace('-', '[-_]');
+    enVoice = vs.find(v => new RegExp('^' + base, 'i').test(v.lang)) || vs.find(v => LNOW.re.test(v.lang)) || null;
   } catch (e) {}
   return enVoice;
 }
@@ -254,7 +256,7 @@ function say(t, rate, delay, done) {
     if (my !== SPK.seq) return finish(); // за это время запросили другую фразу или остановили речь
     let started = false, retrying = false;
     try {
-      const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = rate || .8;
+      const u = new SpeechSynthesisUtterance(t); u.lang = LNOW.tts; u.rate = rate || .8;
       try { const v = enVoice || pickVoice(); if (v) u.voice = v; } catch (e) { enVoice = null; } // сбой голоса не должен заглушать речь
       u.onstart = () => { started = true; };
       u.onend = u.onerror = () => { if (retrying) return; started = true; if (my === SPK.seq) SPK.ended = true; finish(); };
@@ -393,9 +395,25 @@ function srs(id, ok) {
 /* учёт ошибок в грамматике и чтении (пропуски и вопросы по тексту) */
 const gkey = g => g.en + '|' + g.ans;
 const GAPIDX = {};
-WORLDS.forEach(wd => wd.lessons.forEach(l => (l.gaps || []).forEach(g => { GAPIDX[gkey(g)] = g; }))); // вопросы по тексту без самого текста в «Тренировку» не берём
-DIALOGS.forEach(d => d.turns.forEach(t => { GAPIDX[gkey(t)] = t; })); // реплики диалогов тоже попадают в «Тренировку»
-SONGS.forEach(s => s.lines.forEach(l => { const g = songGap(l); if (g) GAPIDX[gkey(g)] = g; })); // и рифмы из песенок
+function buildGapIdx() {
+  Object.keys(GAPIDX).forEach(k => delete GAPIDX[k]);
+  WORLDS.forEach(wd => wd.lessons.forEach(l => (l.gaps || []).forEach(g => { GAPIDX[gkey(g)] = g; }))); // вопросы по тексту без самого текста в «Тренировку» не берём
+  DIALOGS.forEach(d => d.turns.forEach(t => { GAPIDX[gkey(t)] = t; })); // реплики диалогов тоже попадают в «Тренировку»
+  SONGS.forEach(s => s.lines.forEach(l => { const g = songGap(l); if (g) GAPIDX[gkey(g)] = g; })); // и рифмы из песенок
+}
+buildGapIdx();
+// смена языка изучения: подменяем данные на месте (слова, миры, диалоги, песенки, аудирование)
+let curLang = 'en';
+function langUse(code) {
+  if (code === curLang) return;
+  const pack = code === 'it' ? IT_PACK : EN_PACK;
+  Object.keys(WORDS).forEach(k => delete WORDS[k]); Object.assign(WORDS, pack.WORDS);
+  [[WORLDS, pack.WORLDS], [DIALOGS, pack.DIALOGS], [SONGS, pack.SONGS], [AUDIOS, pack.AUDIOS], [TALES, pack.TALES]].forEach(([arr, src]) => { arr.length = 0; src.forEach(x => arr.push(x)); });
+  curLang = code; LNOW = LANGINFO[code]; enVoice = null;
+  EXAMPLES = null; ENG_IDX = null; audWorld = -1; try { vf.world = -1; } catch (e) {}
+  buildGapIdx(); if (speechOn()) pickVoice();
+}
+const syncLang = () => langUse(S.subj === 'it' ? 'it' : 'en');
 function grSrs(g, ok) {
   logQ(ok);
   const r = S.gr[gkey(g)] || (S.gr[gkey(g)] = { box: 0, miss: 0, due: today() });
@@ -467,17 +485,18 @@ function runSteps(ctx, final) {
 
 /* если на устройстве нет английского голоса, слова читаются русским голосом и ничего не понятно — предупреждаем родителей */
 let voiceDismissed = false; // «Понятно» нажато — до перезапуска больше не напоминаем
-const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => /^en/i.test(v.lang)); } catch (e) { return false; } };
+const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)); } catch (e) { return false; } };
 const voiceCount = () => { try { return speechSynthesis.getVoices().length; } catch (e) { return 0; } };
 function voiceCheck() {
   const box = $('vw');
   if (isGen() || voiceDismissed || !box || !speechOn()) return;
-  if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или английский есть
-  box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет английского голоса.</b> Английские слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
-    <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «Google US English».</li>
-    <li><b>Windows:</b> Параметры → Время и язык → Язык и регион → Добавить язык → English (United States) → после установки включите «Преобразование текста в речь», затем перезапустите браузер.</li>
-    <li><b>Android:</b> Настройки → Язык и ввод → Синтез речи → Google → Установить голосовые данные → English.</li>
-    <li><b>iPad:</b> Настройки → Универсальный доступ → Устный контент → Голоса → English.</li></ul>
+  if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или нужный язык есть
+  const lg = LN();
+  box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет голоса для языка: ${lg.adj}.</b> Слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
+    <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «${lg.chrome}».</li>
+    <li><b>Windows:</b> Параметры → Время и язык → Язык и регион → Добавить язык → ${lg.win} → после установки включите «Преобразование текста в речь», затем перезапустите браузер.</li>
+    <li><b>Android:</b> Настройки → Язык и ввод → Синтез речи → Google → Установить голосовые данные → ${lg.short}.</li>
+    <li><b>iPad:</b> Настройки → Универсальный доступ → Устный контент → Голоса → ${lg.short}.</li></ul>
     <button class="btn small sec" id="vwx">Понятно</button></div>`;
   $('vwx').onclick = () => { voiceDismissed = true; box.innerHTML = ''; };
 }
@@ -768,6 +787,7 @@ function engIndex() {
   return ENG_IDX;
 }
 function engDiaryLessons() {
+  if (S.subj !== 'eng') return []; // дневник сопоставляется только с уроками английского
   const f = focusOf('eng'), texts = f.topics.concat(f.exams.map(e => e.text));
   if (!texts.length) return [];
   const score = {};
@@ -823,7 +843,7 @@ function missionCard() {
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
   if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
-  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', eng: 'английскому' }[sj];
+  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', eng: 'английскому', it: 'итальянскому' }[sj];
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
@@ -858,14 +878,14 @@ function nextIdx() {
 // Два уровня, чтобы ребёнок не путался: сначала главный экран (крупно: играть, предметы, магазин, награды),
 // и только внутри предмета — карта уроков, тренировка и задание дня.
 let homeView = true;
-const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS] };
+const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS] };
 const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
 function mapTail() {
   syncSoon(); writeSummary();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
 }
 function home() {
-  epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
+  syncLang(); epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
   const st = petStage(), nxt = PET_STAGES[st + 1];
   const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
   const cur = skind(), meta = SUBJ_META[cur];
@@ -894,6 +914,7 @@ function home() {
 }
 function map() {
   if (homeView) return home();
+  syncLang();
   epoch++; newScreen();
   applyTheme();
   const WL = W().lessons, BS = W().boss;
@@ -916,7 +937,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name}</button>`).join('') : '';
-  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
+  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -943,7 +964,7 @@ function map() {
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else S.world = k;
+    if (S.subj === 'it') S.itworld = k; else if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else S.world = k;
     save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
@@ -1164,7 +1185,7 @@ function quiz(o, done) {
       ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
       : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
     const prompt = mode === 'see'
-      ? `<div class="bigemoji">${w.e}</div><p>Как это по-английски?</p>`
+      ? `<div class="bigemoji">${w.e}</div><p>Как это ${LN().adv}?</p>`
       : `<button class="speak" id="sp">🔊</button><p>${mode === 'mine' ? 'Найди блок с этим словом и копай!' : 'Послушай и найди картинку'}</p>`;
     const optHTML = opts.map(id => {
       const x = WORDS[id];
@@ -1868,7 +1889,7 @@ const BK = {
     });
   }
 };
-const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['eng', 'Английский'], ['other', 'Другое']];
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['eng', 'Английский'], ['it', 'Итальянский'], ['other', 'Другое']];
 function booksHtml() {
   const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
   return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
@@ -1904,7 +1925,7 @@ function booksInit() {
   draw();
 }
 function parent() {
-  const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS, IWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = EN_PACK.WORLDS.concat(IT_PACK.WORLDS, MWORLDS, RWORLDS, OWORLDS, IWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');
@@ -1958,8 +1979,8 @@ function parent() {
   const vstat = () => {
     let list = ''; try { list = speechSynthesis.getVoices().map(v => v.name + ' (' + v.lang + ')').join('; '); } catch (e) {}
     $('vm').innerHTML = hasEnVoice()
-      ? '✅ Английский голос найден: ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
-      : '❌ Английский голос не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
+      ? '✅ Голос найден (' + LN().adj + '): ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
+      : '❌ Голос для языка «' + LN().adj + '» не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
   };
   vstat();
   $('vc').onclick = () => { speak('Hello! I am a robot.'); vstat(); };
@@ -1973,7 +1994,7 @@ function parent() {
 }
 
 /* ---------- награды и ачивки ---------- */
-const allLessons = () => [].concat(...WORLDS.map(w => w.lessons));
+const allLessons = () => [].concat(...EN_PACK.WORLDS.concat(IT_PACK.WORLDS).map(w => w.lessons)); // достижения считаем по иностранным языкам (английский + итальянский)
 const doneLessons = () => allLessons().filter(l => (S.lessons[l.id] || {}).done);
 const cntDone = obj => Object.values(obj || {}).filter(x => x.done).length;
 const A = (cat, id, i, t, d, goal, r, val) => ({ cat, id, i, t, d, goal, r, val });
@@ -1992,9 +2013,9 @@ const ACH = [
   A('Звёзды', 's100', '🌟', 'Звёздный путь', 'Собери 100 звёзд за локации', 100, 25, () => doneLessons().reduce((s, l) => s + (S.lessons[l.id].stars || 0), 0)),
   A('Звёзды', 't10', '🎖️', 'Отличник', 'Получи 3 звезды в 10 локациях', 10, 15, () => doneLessons().filter(l => S.lessons[l.id].stars === 3).length),
   A('Звёзды', 't30', '👑', 'Супер-отличник', 'Получи 3 звезды в 30 локациях', 30, 30, () => doneLessons().filter(l => S.lessons[l.id].stars === 3).length),
-  A('Миры', 'b1', '👾', 'Победитель Забывака', 'Победи босса мира 1', 1, 15, () => ((S.lessons[WORLDS[0].boss.id] || {}).done ? 1 : 0)),
-  A('Миры', 'b2', '👹', 'Укротитель путаницы', 'Победи босса мира 2', 1, 20, () => ((S.lessons[WORLDS[1].boss.id] || {}).done ? 1 : 0)),
-  A('Миры', 'b3', '🧙', 'Победитель цитадели', 'Победи босса мира 3', 1, 25, () => ((S.lessons[WORLDS[2].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b1', '👾', 'Победитель Забывака', 'Победи босса мира 1', 1, 15, () => ((S.lessons[EN_PACK.WORLDS[0].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b2', '👹', 'Укротитель путаницы', 'Победи босса мира 2', 1, 20, () => ((S.lessons[EN_PACK.WORLDS[1].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b3', '🧙', 'Победитель цитадели', 'Победи босса мира 3', 1, 25, () => ((S.lessons[EN_PACK.WORLDS[2].boss.id] || {}).done ? 1 : 0)),
   A('Миры', 'all', '🏝️', 'Покоритель острова', 'Победи всех трёх боссов', 3, 50, () => WORLDS.filter(w => (S.lessons[w.boss.id] || {}).done).length),
   A('Слова', 'w25', '📖', 'Первая коллекция', 'Собери 25 слов в словарик', 25, 5, () => collectedSet().size),
   A('Слова', 'w100', '🗣️', 'Полиглот', 'Собери 100 слов', 100, 15, () => collectedSet().size),
@@ -2104,7 +2125,7 @@ function exampleOf(id) {
     WORLDS.forEach(wd => wd.lessons.forEach(l => (l.sents || []).forEach(s => {
       Object.keys(WORDS).forEach(k => {
         if (EXAMPLES[k]) return;
-        const re = new RegExp('(^|[^A-Za-z])' + WORDS[k].en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Za-z]|$)', 'i');
+        const re = new RegExp('(^|[^A-Za-zÀ-ÿ])' + WORDS[k].en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Za-zÀ-ÿ]|$)', 'i');
         if (re.test(s.en)) EXAMPLES[k] = s;
       });
     })));
@@ -2142,7 +2163,7 @@ function vocab() {
     <div class="card"><p>Собрано слов: <b>${mine}</b> из ${total} · 🥇 знаю отлично: <b>${gold}</b></p>
       <div class="bar"><i style="width:${Math.round(mine / total * 100)}%"></i></div>
       <p>${chips} <button class="btn small ${vf.weak ? 'red' : 'sec'}" id="vk">❗ Только слабые (${weak.size})</button></p>
-      <input type="text" id="vq" placeholder="🔎 Найти слово (по-английски или по-русски)" value="${vf.q.replace(/"/g, '&quot;')}">
+      <input type="text" id="vq" placeholder="🔎 Найти слово (${LN().adv} или по-русски)" value="${vf.q.replace(/"/g, '&quot;')}">
       <p><small>🥉 учу · 🥈 знаю хорошо · 🥇 знаю отлично. Нажми на карточку — послушаешь слово и увидишь пример.</small></p>
       ${sections || '<p>Здесь пока ничего нет. Проходи локации — и слова появятся в словарике!</p>'}</div>`;
   $('bk').onclick = map; $('fc').onclick = flashcards;
@@ -2182,7 +2203,7 @@ function flashcards() {
     const w = WORDS[deck[i]]; let flipped = false;
     app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Словарик</button><div class="stepname">Карточка ${i + 1} из ${deck.length}</div></div>
       <div class="card center"><div class="prog">${deck.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
-      <div class="flash" id="fl"><div class="ve" style="font-size:min(30vw,8rem)">${w.e}</div><p id="fh">Вспомни слово по-английски и скажи вслух. Потом нажми на карточку!</p></div>
+      <div class="flash" id="fl"><div class="ve" style="font-size:min(30vw,8rem)">${w.e}</div><p id="fh">Вспомни слово ${LN().adv} и скажи вслух. Потом нажми на карточку!</p></div>
       <div id="fb"></div></div>`;
     $('exit').onclick = vocab;
     $('fl').onclick = () => {
@@ -2222,7 +2243,7 @@ function familyReport() {
   const t0 = today(), days = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 6)), prev = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 13));
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   const agg = (st, ds) => { const r = { sec: 0, q: 0, ok: 0, act: 0 }; ds.forEach(d => { const x = (st.log || {})[d]; if (x && (x.sec || x.q)) { r.act++; r.sec += x.sec || 0; r.q += x.q || 0; r.ok += x.ok || 0; } }); return r; };
-  const subj = [['eng', '🇬🇧 Английский', WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS]];
+  const subj = [['eng', '🇬🇧 Английский', EN_PACK.WORLDS], ['it', '🇮🇹 Итальянский', IT_PACK.WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS]];
   const weakOf = st => Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; })
     .map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 5);
   const kids = PR.list.map(pl => {
@@ -2337,7 +2358,7 @@ const audioOpen = a => S.unlockAll || (S.lessons[a.req] || {}).done;
 let audWorld = -1;
 function listening() {
   hardStop();
-  if (audWorld < 0) audWorld = Math.min(S.world, WORLDS.length - 1);
+  if (audWorld < 0) audWorld = Math.min(widx(), WORLDS.length - 1);
   const list = AUDIOS.filter(a => a.world === audWorld);
   const doneN = list.filter(a => (S.audio[a.id] || {}).done).length, openN = list.filter(audioOpen).length;
   const groups = [];
@@ -2537,7 +2558,7 @@ function dialogs() {
     }).join('') + '</div>';
   }).join('');
   app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>💬 Диалоги</h2></div></div>
-    <div class="card"><p>Поговори с жителями острова по-английски! Выбирай подходящие ответы. Диалоги открываются, когда пройдена нужная тема.</p>${cards}</div>`;
+    <div class="card"><p>Поговори с жителями ${LN().adv === 'по-итальянски' ? 'Италии' : 'острова'} ${LN().adv}! Выбирай подходящие ответы. Диалоги открываются, когда пройдена нужная тема.</p>${cards}</div>`;
   $('bk').onclick = map;
   app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => playDialog(DIALOGS.find(d => d.id === b.dataset.d)));
 }
@@ -2668,7 +2689,7 @@ function diag() {
     let prompt, optHTML, ans, sayOk;
     if (q.kind === 'word') {
       const w = WORDS[q.id]; ans = q.id; sayOk = w.en;
-      prompt = `<div class="bigemoji">${w.e}</div><p>Как это по-английски?</p>`;
+      prompt = `<div class="bigemoji">${w.e}</div><p>Как это ${LN().adv}?</p>`;
       optHTML = q.opts.map(id => `<button class="opt see" data-v="${id}"><span class="ot">${WORDS[id].en}</span></button>`).join('');
     } else {
       const g = q.g, hasGap = g.en.includes('___'); ans = g.ans; sayOk = g.en.replace('___', g.ans);

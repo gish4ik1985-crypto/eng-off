@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Остров английских слов</title>
-<link rel="stylesheet" href="style.css?v=20261008115054">
+<link rel="stylesheet" href="style.css?v=20261008115208">
 </head>
 <body>
 <div id="app"></div>
@@ -3661,6 +3661,642 @@ MB(IWORLDS[3], [
 
 </script>
 <script>
+/* Итальянский язык: слова и уроки Мира 1 («Primi passi»). Данные устроены так же, как у английского (поле en хранит итальянский текст),
+   поэтому все режимы игры (слова, аудирование, диалоги, песенки, карточки) работают без изменений. Номера уроков 501–599. */
+const IT_WORDS = {};
+const itId = s => 'it_' + s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+// слово: «итальянский|русский|эмодзи|буква азбуки»; без «|» — ссылка на уже описанное слово
+const wi = spec => {
+  if (!spec.includes('|')) { const id = itId(spec); if (!IT_WORDS[id]) throw new Error('нет слова ' + spec); return id; }
+  const [it, ru, e, L] = spec.split('|'), id = itId(it); IT_WORDS[id] = { id, en: it, ru, e, L: L || '' }; return id;
+};
+const IS = a => (a || []).map(s => { const [en, ru] = s.split('|'); return { en, ru }; });
+const GP = spec => { const [en, ans, opts, ru] = spec.split('|'); return { en, ans, opts: opts.split('/'), ru }; };
+// урок со словами
+const LW = (id, icon, title, story, words, sents) => ({ id, title, icon, words: words.map(wi), story, sents: IS(sents) });
+// урок по грамматике: правило + пропуски
+const LG = (id, icon, title, story, rt, rhtml, ex, gaps, sents) => ({ id, title, icon, type: 'gram', story, rule: { title: rt, html: rhtml, ex: ex.map(s => s.split('|')) }, gaps: gaps.map(GP), sents: IS(sents) });
+// чтение: текст, вопросы «вопрос|перевод|ответ|вариант|вариант», порядок событий (индексы строк), предложения для сборки
+const LR = (id, icon, title, story, text, qs, order, sents) => ({ id, title, icon, type: 'read', story, nextLabel: 'Вопросы по тексту ➜', text: IS(text),
+  qs: qs.map(q => { const [en, ru, ans, o2, o3] = q.split('|'); return { en, ru, ans, opts: [ans, o2, o3].filter(Boolean) }; }), order, sents: IS(sents) });
+
+const IT_L1 = [
+  LW(501, '👋', 'Ciao!', 'Ты попал в страну вкусной пасты и музыки! Злой Диментикон украл итальянские слова. Начнём с приветствий.',
+    ['ciao|привет, пока|👋', 'arrivederci|до свидания|🚪', 'sì|да|✅', 'no|нет|❌', 'grazie|спасибо|🙏', 'prego|пожалуйста|🤝', 'scusa|извини|😔', 'per favore|пожалуйста (просьба)|🙏'],
+    ['Ciao, mi chiamo Marco.|Привет, меня зовут Марко.', 'Come stai?|Как дела?', 'Sto bene, grazie.|У меня всё хорошо, спасибо.']),
+  LW(502, '🐝', 'Алфавит A–E', 'Итальянский алфавит поёт! В нём 21 буква. Найди первые пять в пчелином саду.',
+    ['ape|пчела|🐝|A', 'barca|лодка|⛵|B', 'casa|дом|🏠|C', 'dado|игральная кость|🎲|D', 'elefante|слон|🐘|E'],
+    ['Questa è una casa.|Это дом.', 'Vedo un elefante.|Я вижу слона.', 'La barca è blu.|Лодка синяя.']),
+  LW(503, '🌸', 'Алфавит F–L', 'Буквы F–L спрятались на острове цветов. Слово «hotel» читается без буквы H!',
+    ['fiore|цветок|🌸|F', 'gatto|кот|🐱|G', 'hotel|отель|🏨|H', 'isola|остров|🏝️|I', 'luna|луна|🌙|L'],
+    ['Il gatto è sull’isola.|Кот на острове.', 'Vedo la luna.|Я вижу луну.', 'Ecco un fiore!|Вот цветок!']),
+  LW(504, '🍎', 'Алфавит M–R', 'В итальянском нет букв J, K, W, X, Y — они только в иностранных словах. Найди M–R.',
+    ['mela|яблоко|🍎|M', 'naso|нос|👃|N', 'occhio|глаз|👁️|O', 'pane|хлеб|🍞|P', 'quadro|картина|🖼️|Q', 'riso|рис|🍚|R'],
+    ['Mangio una mela.|Я ем яблоко.', 'Ho un naso piccolo.|У меня маленький нос.', 'Il pane è buono.|Хлеб вкусный.']),
+  LW(505, '☀️', 'Алфавит S–Z', 'Последние буквы мира: S, T, U, V, Z.',
+    ['sole|солнце|☀️|S', 'torta|торт|🎂|T', 'uva|виноград|🍇|U', 'volpe|лиса|🦊|V', 'zebra|зебра|🦓|Z'],
+    ['Il sole è giallo.|Солнце жёлтое.', 'Mi piace la torta.|Мне нравится торт.', 'La volpe è furba.|Лиса хитрая.']),
+  LW(506, '🔢', 'Числа 1–10', 'В шахте итальянских чисел Диментикон спрятал цифры от одного до десяти.',
+    ['uno|1|1️⃣', 'due|2|2️⃣', 'tre|3|3️⃣', 'quattro|4|4️⃣', 'cinque|5|5️⃣', 'sei|6|6️⃣', 'sette|7|7️⃣', 'otto|8|8️⃣', 'nove|9|9️⃣', 'dieci|10|🔟'],
+    ['Ho due gatti.|У меня два кота.', 'Ho sei anni.|Мне шесть лет.', 'Conto fino a dieci.|Я считаю до десяти.']),
+  LW(507, '🔟', 'Числа 11–20', 'Дальше — от одиннадцати до двадцати. Почти все числа заканчиваются на -dici.',
+    ['undici|11|11', 'dodici|12|12', 'tredici|13|13', 'quattordici|14|14', 'quindici|15|15', 'sedici|16|16', 'diciassette|17|17', 'diciotto|18|18', 'diciannove|19|19', 'venti|20|20'],
+    ['Ho dodici matite.|У меня двенадцать карандашей.', 'Mia sorella ha quindici anni.|Моей сестре пятнадцать лет.', 'Venti è un bel numero.|Двадцать — красивое число.']),
+  LW(508, '🌈', 'Colori', 'Диментикон выкрасил Италию в серый цвет. Верни краски!',
+    ['rosso|красный|🟥', 'blu|синий|🟦', 'verde|зелёный|🟩', 'giallo|жёлтый|🟨', 'arancione|оранжевый|🟧', 'rosa|розовый|🩷', 'nero|чёрный|⬛', 'bianco|белый|⬜'],
+    ['La mela è rossa.|Яблоко красное.', 'Il cielo è blu.|Небо синее.', 'Mi piace il verde.|Мне нравится зелёный.']),
+  LW(509, '👨‍👩‍👧', 'La famiglia', 'В доме собралась вся итальянская семья. Поздоровайся с каждым!',
+    ['mamma|мама|👩', 'papà|папа|👨', 'fratello|брат|👦', 'sorella|сестра|👧', 'nonna|бабушка|👵', 'nonno|дедушка|👴', 'bambino|малыш, ребёнок|👶'],
+    ['Questa è la mia mamma.|Это моя мама.', 'Ho un fratello.|У меня есть брат.', 'Il nonno è simpatico.|Дедушка приятный.']),
+  LW(510, '🧸', 'Giocattoli', 'В мастерской роботы собирают игрушки. Названия забыты!',
+    ['robot|робот|🤖', 'macchina|машина|🚗', 'treno|поезд|🚂', 'bicicletta|велосипед|🚲', 'bambola|кукла|🪆', 'orsacchiotto|плюшевый мишка|🧸', 'palla|мяч|⚽'],
+    ['Ho un robot.|У меня есть робот.', 'La palla è rotonda.|Мяч круглый.', 'Gioco con il treno.|Я играю с поездом.']),
+  LW(511, '🐾', 'Gli animali', 'Домашние питомцы сбежали. Назови их — и они вернутся.',
+    ['cane|собака|🐶', 'uccello|птица|🐦', 'topo|мышь|🐭', 'coniglio|кролик|🐰', 'rana|лягушка|🐸', 'cavallo|лошадь|🐴', 'gatto'],
+    ['Il cane abbaia.|Собака лает.', 'Il gatto beve il latte.|Кот пьёт молоко.', 'Il coniglio salta.|Кролик прыгает.']),
+  LW(512, '🧍', 'Il corpo', 'Робот-учёный собирает нового робота. Подскажи названия частей тела.',
+    ['occhi|глаза|👀', 'orecchie|уши|👂', 'naso', 'bocca|рот|👄', 'mano|рука (кисть)|✋', 'gamba|нога|🦵', 'piede|стопа|🦶'],
+    ['Ho due occhi.|У меня два глаза.', 'Apro la bocca.|Я открываю рот.', 'Ho un piede grande.|У меня большая ступня.']),
+  LW(513, '🥖', 'Il cibo', 'Из пекарни пахнет вкусным! Только ценники пропали.',
+    ['pane', 'latte|молоко|🥛', 'torta', 'pizza|пицца|🍕', 'banana|банан|🍌', 'mela', 'succo|сок|🧃'],
+    ['Bevo il latte.|Я пью молоко.', 'La pizza è buona.|Пицца вкусная.', 'Mangio una banana.|Я ем банан.']),
+  LW(514, '👚', 'I vestiti', 'Диментикон перемешал всю одежду. Разложи её по названиям.',
+    ['cappello|шляпа, шапка|🎩', 'scarpe|ботинки|👟', 'calzini|носки|🧦', 'vestito|платье|👗', 'jeans|джинсы|👖', 'camicia|рубашка|👕', 'giacca|куртка|🧥'],
+    ['Metto il cappello.|Я надеваю шляпу.', 'Le scarpe sono nuove.|Ботинки новые.', 'Ho una giacca rossa.|У меня красная куртка.']),
+  LW(515, '🏠', 'La casa', 'Ты нашёл свой первый итальянский дом. Расставим мебель!',
+    ['casa', 'letto|кровать|🛏️', 'sedia|стул|🪑', 'divano|диван|🛋️', 'lampada|лампа|💡', 'tavolo|стол|🍽️', 'finestra|окно|🪟'],
+    ['Questa è la mia casa.|Это мой дом.', 'La lampada è sul tavolo.|Лампа на столе.', 'Sono sul divano.|Я на диване.']),
+  LW(516, '🎂', 'Il compleanno', 'Сегодня праздник! Подготовь вечеринку.',
+    ['compleanno|день рождения|🎂', 'palloncino|воздушный шарик|🎈', 'regalo|подарок|🎁', 'candela|свеча|🕯️', 'festa|праздник, вечеринка|🎉', 'torta'],
+    ['Buon compleanno!|С днём рождения!', 'Quanti anni hai?|Сколько тебе лет?', 'Ho otto anni.|Мне восемь лет.']),
+  LW(517, '📅', 'I giorni', 'Календарь Диментикона рассыпался. Собери дни недели.',
+    ['lunedì|понедельник|1', 'martedì|вторник|2', 'mercoledì|среда|3', 'giovedì|четверг|4', 'venerdì|пятница|5', 'sabato|суббота|6', 'domenica|воскресенье|7'],
+    ['Oggi è lunedì.|Сегодня понедельник.', 'Sabato vado al parco.|В субботу я иду в парк.', 'La domenica riposo.|В воскресенье я отдыхаю.']),
+  LW(518, '⛅', 'Il tempo', 'Какая сегодня погода? Узнай у жителей острова.',
+    ['sole', 'pioggia|дождь|🌧️', 'neve|снег|❄️', 'vento|ветер|💨', 'nuvola|облако|☁️', 'caldo|жарко|🥵', 'freddo|холодно|🥶'],
+    ['Oggi c’è il sole.|Сегодня солнечно.', 'Fa freddo.|Холодно.', 'Piove.|Идёт дождь.']),
+  LW(519, '🏃', 'Le azioni', 'Герои хвастаются, что умеют делать. Угадай глаголы!',
+    ['correre|бегать|🏃', 'saltare|прыгать|🤸', 'nuotare|плавать|🏊', 'volare|летать|🕊️', 'cantare|петь|🎤', 'ballare|танцевать|💃', 'giocare|играть|🎮'],
+    ['Mi piace correre.|Мне нравится бегать.', 'Gli uccelli volano.|Птицы летают.', 'Noi cantiamo.|Мы поём.']),
+  LW(520, '😊', 'I saluti', 'В Италии здороваются по-разному в течение дня.',
+    ['buongiorno|добрый день|🌞', 'buonasera|добрый вечер|🌆', 'buonanotte|спокойной ночи|🌙', 'bene|хорошо|👍', 'male|плохо|👎', 'Come stai?|Как дела?|😊'],
+    ['Buongiorno, signora!|Добрый день, синьора!', 'Buonanotte, mamma.|Спокойной ночи, мама.', 'Sto bene, e tu?|У меня хорошо, а у тебя?']),
+  LG(521, '🧑', 'Io sono…', 'Давай расскажем, кто мы. Для этого нужен глагол essere — «быть».',
+    'essere — «быть»', '<ul><li><b>io sono</b> — я</li><li><b>tu sei</b> — ты</li><li><b>lui/lei è</b> — он/она</li><li><b>noi siamo</b> — мы</li><li><b>voi siete</b> — вы</li><li><b>loro sono</b> — они</li></ul>',
+    ['Io sono Marco.|Я Марко.', 'Tu sei alto.|Ты высокий.', 'Lei è Anna.|Она Анна.'],
+    ['Io ___ un bambino.|sono|sono/sei/è|Я ребёнок.', 'Tu ___ simpatico.|sei|sono/sei/è|Ты симпатичный.', 'Lei ___ la mia mamma.|è|sono/sei/è|Она моя мама.', 'Noi ___ amici.|siamo|siamo/siete/sono|Мы друзья.',
+     'Voi ___ a scuola.|siete|siamo/siete/sono|Вы в школе.', 'Loro ___ felici.|sono|è/siete/sono|Они счастливы.', 'Lui ___ il mio fratello.|è|è/sei/siamo|Он мой брат.', 'Io ___ italiano.|sono|sei/sono/è|Я итальянец.'],
+    ['Io sono felice.|Я счастлив.', 'Tu sei il mio amico.|Ты мой друг.', 'Noi siamo a casa.|Мы дома.']),
+  LG(522, '👋', 'Mi chiamo…', 'Знакомство! Как зовут, сколько лет, откуда.',
+    'Знакомство', '<ul><li><b>Come ti chiami?</b> — Как тебя зовут?</li><li><b>Mi chiamo Anna.</b> — Меня зовут Анна.</li><li><b>Quanti anni hai?</b> — Сколько тебе лет?</li><li><b>Ho nove anni.</b> — Мне девять лет.</li></ul>',
+    ['Come ti chiami?|Как тебя зовут?', 'Mi chiamo Luca.|Меня зовут Лука.', 'Ho otto anni.|Мне восемь лет.'],
+    ['Come ti ___?|chiami|chiami/chiamo/chiama|Как тебя зовут?', 'Mi ___ Anna.|chiamo|chiami/chiamo/chiama|Меня зовут Анна.', 'Quanti anni ___?|hai|hai/ho/ha|Сколько тебе лет?', 'Ho ___ anni.|nove|nove/nave/neve|Мне девять лет.',
+     'Piacere, ___ Luca.|sono|sono/hai/ho|Приятно познакомиться, я Лука.', 'Di dove ___?|sei|sei/ho/hai|Откуда ты?', 'Sono ___ Roma.|di|di/in/con|Я из Рима.', 'Lui si ___ Paolo.|chiama|chiamo/chiama/chiami|Его зовут Паоло.'],
+    ['Mi chiamo Sofia.|Меня зовут София.', 'Ho sette anni.|Мне семь лет.', 'Piacere di conoscerti!|Приятно познакомиться!']),
+  LW(524, '🎒', 'La scuola', 'Звонок! Собери рюкзак для школы.',
+    ['scuola|школа|🏫', 'libro|книга|📘', 'quaderno|тетрадь|📓', 'penna|ручка|🖊️', 'matita|карандаш|✏️', 'zaino|рюкзак|🎒', 'banco|парта|🪑'],
+    ['Il libro è sul banco.|Книга на парте.', 'Ho una penna blu.|У меня синяя ручка.', 'Vado a scuola.|Я иду в школу.']),
+  LG(523, '🅰️', 'Un, una', 'Все слова в итальянском — мужского или женского рода. Перед ними ставят un или una.',
+    'Артикли un / una', '<ul><li><b>un</b> — перед словами мужского рода: <i>un gatto, un libro</i></li><li><b>una</b> — перед словами женского рода: <i>una casa, una mela</i></li></ul><p>Слова на -o обычно мужского рода, на -a — женского.</p>',
+    ['un gatto|кот', 'una casa|дом', 'un libro|книга'],
+    ['Ho ___ gatto.|un|un/una|У меня есть кот.', 'Ho ___ casa.|una|un/una|У меня есть дом.', 'Questo è ___ libro.|un|un/una|Это книга.', 'Lei ha ___ penna.|una|un/una|У неё есть ручка.',
+     'È ___ amico.|un|un/una|Это друг.', 'È ___ amica.|una|un/una|Это подруга.', 'Vedo ___ albero.|un|un/una|Я вижу дерево.', 'Mangio ___ mela.|una|un/una|Я ем яблоко.'],
+    ['Ho un cane.|У меня есть собака.', 'Vedo una luna.|Я вижу луну.', 'È un bel giorno.|Это прекрасный день.']),
+  LW(525, '🍊', 'La frutta', 'В корзинке Диментикона фрукты без названий.',
+    ['arancia|апельсин|🍊', 'limone|лимон|🍋', 'pesca|персик|🍑', 'fragola|клубника|🍓', 'ciliegia|вишня|🍒', 'pera|груша|🍐', 'uva'],
+    ['Mi piace la fragola.|Мне нравится клубника.', 'Il limone è giallo.|Лимон жёлтый.', 'Mangio una pera.|Я ем грушу.']),
+  LG(526, '2️⃣', 'Una, due: plurale', 'Один — это un gatto, а два? Меняем окончание!',
+    'Множественное число', '<ul><li>-<b>o</b> → -<b>i</b>: <i>un gatto → due gatti</i></li><li>-<b>a</b> → -<b>e</b>: <i>una casa → due case</i></li><li>-<b>e</b> → -<b>i</b>: <i>un fiore → due fiori</i></li></ul>',
+    ['un gatto — due gatti|кот — два кота', 'una casa — due case|дом — два дома', 'una mela — tre mele|яблоко — три яблока'],
+    ['Ho due gatt___.|i|i/e/a|У меня два кота.', 'Ho tre cas___.|e|i/e/o|У меня три дома.', 'Ecco due libr___.|i|i/e/o|Вот две книги.', 'Mangio due mel___.|e|i/e/o|Я ем два яблока.',
+     'Vedo quattro fior___.|i|i/e/o|Я вижу четыре цветка.', 'Ho cinque matit___.|e|i/e/o|У меня пять карандашей.', 'Ci sono due cani, tre gatt___.|i|i/e/o|Есть две собаки и три кота.', 'Ho sei penn___.|e|i/e/o|У меня шесть ручек.'],
+    ['Ho due fratelli.|У меня два брата.', 'Vedo tre case.|Я вижу три дома.', 'Ci sono due mele.|Тут два яблока.']),
+  LW(527, '🔁', 'Ripasso 1', 'Перед боссом повторим слова из первых уроков!',
+    ['ciao', 'gatto', 'casa', 'mela', 'sole', 'rosso', 'mamma', 'cane', 'pane', 'scuola'],
+    ['Ciao! Come stai?|Привет! Как дела?', 'Il gatto mangia il pane.|Кот ест хлеб.', 'Il sole è giallo.|Солнце жёлтое.']),
+  LW(528, '🧩', 'Piccole frasi', 'Вежливые слова и простые фразы — как в настоящем Риме.',
+    ['Mi chiamo|меня зовут|👋', 'Ho fame|я голоден|🍽️', 'Ho sete|я хочу пить|🥤', 'Sono felice|я счастлив|😄', 'Sono stanco|я устал|😴', 'Ho paura|мне страшно|😨'],
+    ['Ho fame, mamma!|Я голоден, мама!', 'Sono felice oggi.|Сегодня я счастлив.', 'Ho paura del buio.|Я боюсь темноты.'])
+];
+const IT_BOSS1 = { id: 590, title: 'Castello del Dimenticone', icon: '🏰', bossIcon: '🧙' };
+
+</script>
+<script>
+/* Итальянский: Мир 2 «La mia vita» (уроки 531–561). */
+const IT_L2 = [
+  LW(531, '🔢', 'Числа 30–100', 'Считаем десятками, как настоящие итальянские торговцы.',
+    ['trenta|30|30', 'quaranta|40|40', 'cinquanta|50|50', 'sessanta|60|60', 'settanta|70|70', 'ottanta|80|80', 'novanta|90|90', 'cento|100|100'],
+    ['Ho cinquanta euro.|У меня пятьдесят евро.', 'Mio nonno ha settanta anni.|Моему дедушке семьдесят лет.', 'Cento è un numero grande.|Сто — большое число.']),
+  LW(532, '🏙️', 'In città', 'Прогуляемся по итальянскому городу и найдём важные места.',
+    ['parco|парк|🌳', 'negozio|магазин|🏪', 'bar|бар, кафе|☕', 'stazione|вокзал|🚉', 'ospedale|больница|🏥', 'chiesa|церковь|⛪', 'piazza|площадь|🏛️'],
+    ['Vado al parco.|Я иду в парк.', 'La stazione è grande.|Вокзал большой.', 'In piazza c’è una fontana.|На площади есть фонтан.']),
+  LW(533, '🗓️', 'I mesi', 'Двенадцать месяцев ждут тебя. Собери календарь!',
+    ['gennaio|январь|Янв', 'febbraio|февраль|Фев', 'marzo|март|Мар', 'aprile|апрель|Апр', 'maggio|май|Май', 'giugno|июнь|Июн', 'luglio|июль|Июл', 'agosto|август|Авг', 'settembre|сентябрь|Сен', 'ottobre|октябрь|Окт', 'novembre|ноябрь|Ноя', 'dicembre|декабрь|Дек'],
+    ['Il mio compleanno è a maggio.|Мой день рождения в мае.', 'A dicembre fa freddo.|В декабре холодно.', 'Luglio è caldo.|Июль жаркий.']),
+  LW(534, '🌤️', 'Le stagioni', 'Времена года в Италии очень разные: от снега в горах до жаркого моря.',
+    ['primavera|весна|🌸', 'estate|лето|☀️', 'autunno|осень|🍂', 'inverno|зима|❄️', 'stagione|время года|🗓️', 'anno|год|📆', 'mese|месяц|🗓️'],
+    ['In estate vado al mare.|Летом я еду на море.', 'In inverno nevica.|Зимой идёт снег.', 'La primavera è bella.|Весна прекрасна.']),
+  LW(535, '📚', 'Le materie', 'В итальянской школе много предметов. Какие тебе нравятся?',
+    ['italiano|итальянский язык|🇮🇹', 'matematica|математика|➗', 'arte|рисование|🎨', 'musica|музыка|🎵', 'scienze|природоведение|🔬', 'geografia|география|🌍', 'storia|история|📜', 'ginnastica|физкультура|🤸'],
+    ['Mi piace la matematica.|Мне нравится математика.', 'Oggi ho arte e musica.|Сегодня у меня рисование и музыка.', 'La ginnastica è divertente.|Физкультура весёлая.']),
+  LW(536, '⚽', 'Lo sport', 'Итальянцы обожают спорт. Назови любимые игры!',
+    ['calcio|футбол|⚽', 'tennis|теннис|🎾', 'nuoto|плавание|🏊', 'pallavolo|волейбол|🏐', 'pallacanestro|баскетбол|🏀', 'sci|лыжи|⛷️', 'ciclismo|велоспорт|🚴'],
+    ['Gioco a calcio.|Я играю в футбол.', 'Il nuoto è bello.|Плавание — это здорово.', 'Mi piace il tennis.|Мне нравится теннис.']),
+  LW(537, '🍝', 'Il cibo (2)', 'В итальянской кухне столько вкусного! Разберись, что есть что.',
+    ['pasta|макароны, паста|🍝', 'formaggio|сыр|🧀', 'prosciutto|ветчина|🥓', 'gelato|мороженое|🍦', 'cioccolato|шоколад|🍫', 'biscotti|печенье|🍪', 'uova|яйца|🥚', 'acqua|вода|💧'],
+    ['Mangio la pasta.|Я ем пасту.', 'Il gelato è freddo.|Мороженое холодное.', 'Bevo l’acqua.|Я пью воду.']),
+  LW(538, '🥕', 'La verdura', 'На рынке Диментикона овощи без ценников. Разложи по названиям.',
+    ['pomodoro|помидор|🍅', 'patata|картофель|🥔', 'carota|морковь|🥕', 'cipolla|лук|🧅', 'insalata|салат|🥗', 'zucchina|кабачок|🥒'],
+    ['Il pomodoro è rosso.|Помидор красный.', 'Mangio la carota.|Я ем морковь.', 'L’insalata è verde.|Салат зелёный.']),
+  LW(539, '🦁', 'Lo zoo', 'Зоопарк ждёт гостей. Узнай всех зверей!',
+    ['leone|лев|🦁', 'scimmia|обезьяна|🐒', 'tigre|тигр|🐯', 'giraffa|жираф|🦒', 'orso|медведь|🐻', 'delfino|дельфин|🐬', 'balena|кит|🐋', 'elefante'],
+    ['Il leone è forte.|Лев сильный.', 'La giraffa è alta.|Жираф высокий.', 'Il delfino nuota.|Дельфин плавает.']),
+  LW(540, '🐄', 'La fattoria', 'На ферме просыпаются животные. Кто как называется?',
+    ['mucca|корова|🐄', 'maiale|свинья|🐷', 'pecora|овца|🐑', 'gallina|курица|🐔', 'anatra|утка|🦆', 'capra|коза|🐐', 'cavallo'],
+    ['La mucca dà il latte.|Корова даёт молоко.', 'La gallina fa le uova.|Курица несёт яйца.', 'Il cavallo corre.|Лошадь бежит.']),
+  LW(541, '👨‍🍳', 'I mestieri', 'Кем работают люди в городе?',
+    ['medico|врач|👨‍⚕️', 'maestra|учительница|👩‍🏫', 'cuoco|повар|👨‍🍳', 'pompiere|пожарный|🧑‍🚒', 'poliziotto|полицейский|👮', 'pilota|лётчик|🧑‍✈️', 'panettiere|пекарь|🥖'],
+    ['Mio padre è medico.|Мой папа врач.', 'La maestra è gentile.|Учительница добрая.', 'Il cuoco cucina la pasta.|Повар готовит пасту.']),
+  LW(542, '🚌', 'I trasporti', 'Чем можно ехать в Италии? Выбери транспорт!',
+    ['autobus|автобус|🚌', 'aereo|самолёт|✈️', 'nave|корабль|🚢', 'moto|мотоцикл|🏍️', 'taxi|такси|🚕', 'camion|грузовик|🚚', 'treno'],
+    ['Prendo l’autobus.|Я еду на автобусе.', 'L’aereo vola in alto.|Самолёт летит высоко.', 'Il treno è veloce.|Поезд быстрый.']),
+  LW(543, '🍳', 'Le stanze', 'Заглянем в разные комнаты итальянского дома.',
+    ['cucina|кухня|🍳', 'bagno|ванная|🛁', 'camera|комната, спальня|🛏️', 'giardino|сад|🌷', 'porta|дверь|🚪', 'tetto|крыша|🏠', 'scala|лестница|🪜'],
+    ['Mamma è in cucina.|Мама на кухне.', 'Il giardino è bello.|Сад красивый.', 'Apro la porta.|Я открываю дверь.']),
+  LW(544, '👨‍👩‍👧‍👦', 'La famiglia (2)', 'У итальянцев большая семья. Познакомься с родственниками!',
+    ['zio|дядя|🧔', 'zia|тётя|👩‍🦳', 'cugino|двоюродный брат|🧑', 'nipote|внук, племянник|👶', 'genitori|родители|👪', 'figlio|сын|👦', 'figlia|дочь|👧'],
+    ['Lo zio è alto.|Дядя высокий.', 'La zia ha un figlio.|У тёти есть сын.', 'I miei genitori sono a casa.|Мои родители дома.']),
+  LW(545, '↔️', 'Gli aggettivi', 'Слова-описания помогают рассказать, какие предметы и люди.',
+    ['grande|большой|🐘', 'piccolo|маленький|🐭', 'nuovo|новый|✨', 'vecchio|старый|👴', 'bello|красивый|😍', 'brutto|некрасивый|😝', 'alto|высокий|🦒', 'basso|низкий|🐜'],
+    ['Il cane è grande.|Собака большая.', 'La casa è vecchia.|Дом старый.', 'Il mio zaino è nuovo.|Мой рюкзак новый.']),
+  LW(546, '📖', 'I verbi', 'Что мы делаем каждый день? Верни глаголы на место.',
+    ['mangiare|есть|🍽️', 'bere|пить|🥤', 'dormire|спать|😴', 'leggere|читать|📖', 'scrivere|писать|✍️', 'guardare|смотреть|👀', 'ascoltare|слушать|👂', 'parlare|говорить|🗣️'],
+    ['Mi piace leggere.|Мне нравится читать.', 'Il gatto dorme.|Кот спит.', 'Ascolto la musica.|Я слушаю музыку.']),
+  LW(547, '🌅', 'La giornata', 'Распорядок дня: что и когда ты делаешь.',
+    ['mattina|утро|🌅', 'pomeriggio|день (после обеда)|🌇', 'sera|вечер|🌆', 'notte|ночь|🌙', 'colazione|завтрак|🥐', 'pranzo|обед|🍝', 'cena|ужин|🍽️'],
+    ['La mattina faccio colazione.|Утром я завтракаю.', 'A pranzo mangio la pasta.|На обед я ем пасту.', 'La sera guardo un film.|Вечером я смотрю фильм.']),
+  LW(548, '🎨', 'I passatempi', 'Чем заняться на досуге? Выбери хобби!',
+    ['disegnare|рисовать|🖌️', 'dipingere|писать красками|🎨', 'cucinare|готовить|🍳', 'suonare|играть на инструменте|🎸', 'passeggiare|гулять|🚶', 'viaggiare|путешествовать|🧳'],
+    ['Mi piace disegnare.|Мне нравится рисовать.', 'Mia nonna cucina bene.|Моя бабушка хорошо готовит.', 'Suono la chitarra.|Я играю на гитаре.']),
+  LG(549, '✋', 'Avere — «иметь»', 'С глаголом avere рассказывают, что у нас есть, и ещё сколько нам лет.',
+    'avere — «иметь»', '<ul><li><b>io ho</b> — у меня</li><li><b>tu hai</b> — у тебя</li><li><b>lui/lei ha</b> — у него/неё</li><li><b>noi abbiamo</b> — у нас</li><li><b>voi avete</b> — у вас</li><li><b>loro hanno</b> — у них</li></ul>',
+    ['Ho un cane.|У меня есть собака.', 'Hai fame?|Ты голоден?', 'Ha dieci anni.|Ему десять лет.'],
+    ['Io ___ un cane.|ho|ho/hai/ha|У меня есть собака.', 'Tu ___ una sorella.|hai|ho/hai/ha|У тебя есть сестра.', 'Lui ___ fame.|ha|ho/hai/ha|Он голоден.', 'Noi ___ una casa.|abbiamo|abbiamo/avete/hanno|У нас есть дом.',
+     'Voi ___ due gatti.|avete|abbiamo/avete/hanno|У вас два кота.', 'Loro ___ un giardino.|hanno|abbiamo/avete/hanno|У них есть сад.', 'Lei ___ dieci anni.|ha|ho/hai/ha|Ей десять лет.', 'Io ___ sete.|ho|ho/hai/ha|Я хочу пить.'],
+    ['Ho un fratello.|У меня есть брат.', 'Abbiamo un cane.|У нас есть собака.', 'Hai una penna?|У тебя есть ручка?']),
+  LG(550, '🅰️', 'Il, lo, la, l’', 'В итальянском перед словом стоит артикль. Нужный зависит от рода и первой буквы.',
+    'Определённый артикль', '<ul><li><b>il</b> — мужской род: <i>il gatto, il libro</i></li><li><b>lo</b> — мужской род перед z, s+согласная: <i>lo zaino, lo studente</i></li><li><b>la</b> — женский род: <i>la casa, la mela</i></li><li><b>l’</b> — перед гласной: <i>l’amico, l’arancia</i></li></ul>',
+    ['il gatto|кот', 'lo zaino|рюкзак', 'la casa|дом', 'l’amico|друг'],
+    ['___ libro è rosso.|Il|Il/Lo/La|Книга красная.', '___ zaino è nuovo.|Lo|Il/Lo/La|Рюкзак новый.', '___ casa è grande.|La|Il/Lo/La|Дом большой.', '___ amico è alto.|L’|Il/L’/La|Друг высокий.',
+     '___ arancia è dolce.|L’|La/L’/Lo|Апельсин сладкий.', '___ studente legge.|Lo|Il/Lo/La|Студент читает.', '___ gatto dorme.|Il|Il/Lo/La|Кот спит.', '___ penna è blu.|La|Il/Lo/La|Ручка синяя.'],
+    ['Il gatto dorme.|Кот спит.', 'La mela è rossa.|Яблоко красное.', 'Lo zaino è pesante.|Рюкзак тяжёлый.', 'L’amico è simpatico.|Друг симпатичный.']),
+  LG(551, '🗣️', 'Parlare, mangiare…', 'Большинство глаголов оканчиваются на -are. Меняем окончания!',
+    'Глаголы на -are', '<ul><li><b>io</b> parl<b>o</b></li><li><b>tu</b> parl<b>i</b></li><li><b>lui/lei</b> parl<b>a</b></li><li><b>noi</b> parl<b>iamo</b></li><li><b>voi</b> parl<b>ate</b></li><li><b>loro</b> parl<b>ano</b></li></ul>',
+    ['Io parlo italiano.|Я говорю по-итальянски.', 'Lei mangia la mela.|Она ест яблоко.', 'Noi giochiamo a calcio.|Мы играем в футбол.'],
+    ['Io ___ italiano.|parlo|parlo/parli/parla|Я говорю по-итальянски.', 'Tu ___ molto.|parli|parlo/parli/parla|Ты много говоришь.', 'Lei ___ con la mamma.|parla|parlo/parli/parla|Она говорит с мамой.', 'Noi ___ in italiano.|parliamo|parliamo/parlate/parlano|Мы говорим по-итальянски.',
+     'Voi ___ forte.|parlate|parliamo/parlate/parlano|Вы говорите громко.', 'Loro ___ russo.|parlano|parliamo/parlate/parlano|Они говорят по-русски.', 'Io ___ la musica.|ascolto|ascolto/ascolti/ascolta|Я слушаю музыку.', 'Marco ___ a calcio.|gioca|gioco/giochi/gioca|Марко играет в футбол.'],
+    ['Mangio una mela.|Я ем яблоко.', 'Tu ascolti la musica.|Ты слушаешь музыку.', 'Loro giocano nel parco.|Они играют в парке.']),
+  LG(552, '🎨', 'Il gatto nero, la casa nera', 'Прилагательные меняют окончание в зависимости от рода и числа.',
+    'Согласование прилагательных', '<ul><li><i>il gatto <b>nero</b></i> (м. р., ед. ч.)</li><li><i>la casa <b>nera</b></i> (ж. р., ед. ч.)</li><li><i>i gatti <b>neri</b></i> (м. р., мн. ч.)</li><li><i>le case <b>nere</b></i> (ж. р., мн. ч.)</li></ul>',
+    ['il gatto nero|чёрный кот', 'la casa bianca|белый дом', 'le mele rosse|красные яблоки'],
+    ['Il gatto è ___.|nero|nero/nera/neri|Кот чёрный.', 'La casa è ___.|bianca|bianco/bianca/bianchi|Дом белый.', 'I libri sono ___.|nuovi|nuovo/nuova/nuovi|Книги новые.', 'Le mele sono ___.|rosse|rosso/rossa/rosse|Яблоки красные.',
+     'La bambina è ___.|piccola|piccolo/piccola/piccoli|Девочка маленькая.', 'Il cane è ___.|grande|grande/granda/grandi|Собака большая.', 'Le scarpe sono ___.|nuove|nuovo/nuove/nuova|Туфли новые.', 'Il fratello è ___.|alto|alto/alta/alti|Брат высокий.'],
+    ['Il cielo è azzurro.|Небо голубое.', 'La mamma è bella.|Мама красивая.', 'I gatti sono neri.|Коты чёрные.']),
+  LG(553, '❤️', 'Mi piace, mi piacciono', 'Как сказать, что нравится? Всё зависит от числа!',
+    'Mi piace / mi piacciono', '<ul><li><b>mi piace</b> + один предмет или глагол: <i>Mi piace la pizza. Mi piace correre.</i></li><li><b>mi piacciono</b> + несколько: <i>Mi piacciono i gatti.</i></li><li><b>non mi piace</b> — не нравится</li></ul>',
+    ['Mi piace la pizza.|Мне нравится пицца.', 'Mi piacciono i gatti.|Мне нравятся кошки.', 'Non mi piace il latte.|Мне не нравится молоко.'],
+    ['Mi ___ la pizza.|piace|piace/piacciono/piaci|Мне нравится пицца.', 'Mi ___ i gatti.|piacciono|piace/piacciono/piaci|Мне нравятся кошки.', 'Non mi ___ il latte.|piace|piace/piacciono/piaci|Мне не нравится молоко.', 'Ti ___ il gelato?|piace|piace/piacciono/piaci|Тебе нравится мороженое?',
+     'Ti ___ le mele?|piacciono|piace/piacciono/piaci|Тебе нравятся яблоки?', 'Mi piace ___ la musica.|ascoltare|ascoltare/ascolto/ascolta|Мне нравится слушать музыку.', 'Non mi ___ i ragni.|piacciono|piace/piacciono/piaci|Мне не нравятся пауки.', 'A Marco ___ il calcio.|piace|piace/piacciono/piaci|Марко нравится футбол.'],
+    ['Mi piace giocare.|Мне нравится играть.', 'Non mi piacciono i ragni.|Мне не нравятся пауки.', 'Ti piace la pasta?|Тебе нравится паста?']),
+  LG(554, '📍', 'C’è e ci sono', 'Как сказать, что где-то что-то есть? Для одного предмета — c’è, для многих — ci sono.',
+    'C’è / ci sono', '<ul><li><b>c’è</b> + один предмет: <i>C’è un gatto.</i></li><li><b>ci sono</b> + несколько: <i>Ci sono due gatti.</i></li></ul>',
+    ['C’è un gatto.|Есть кот.', 'Ci sono due cani.|Есть две собаки.', 'Nel parco ci sono molti alberi.|В парке много деревьев.'],
+    ['Nella stanza ___ un letto.|c’è|c’è/ci sono|В комнате есть кровать.', 'Nel parco ___ molti alberi.|ci sono|c’è/ci sono|В парке много деревьев.', 'Sul tavolo ___ una mela.|c’è|c’è/ci sono|На столе яблоко.', 'In classe ___ venti bambini.|ci sono|c’è/ci sono|В классе двадцать детей.',
+     'Nel frigo ___ il latte.|c’è|c’è/ci sono|В холодильнике молоко.', 'Nel cielo ___ tre nuvole.|ci sono|c’è/ci sono|В небе три облака.', 'Qui ___ un gatto.|c’è|c’è/ci sono|Здесь кот.', 'Nel giardino ___ due cani.|ci sono|c’è/ci sono|В саду две собаки.'],
+    ['In città c’è un parco.|В городе есть парк.', 'Nello zaino ci sono tre libri.|В рюкзаке три книги.', 'Qui non c’è nessuno.|Здесь никого нет.']),
+  LG(555, '📦', 'Sopra, sotto, dentro', 'Где находится предмет? Слова-подсказки помогут описать.',
+    'Где находится?', '<ul><li><b>sopra</b> — над, на</li><li><b>sotto</b> — под</li><li><b>dentro</b> — внутри</li><li><b>fuori</b> — снаружи</li><li><b>vicino</b> — рядом</li><li><b>lontano</b> — далеко</li></ul>',
+    ['Il gatto è sotto il tavolo.|Кот под столом.', 'La palla è dentro la scatola.|Мяч внутри коробки.', 'La scuola è vicina al parco.|Школа рядом с парком.'],
+    ['Il gatto è ___ il tavolo.|sotto|sotto/sopra/fuori|Кот под столом.', 'La lampada è ___ il tavolo.|sopra|sotto/sopra/dentro|Лампа над столом.', 'La palla è ___ la scatola.|dentro|dentro/fuori/lontano|Мяч внутри коробки.', 'Il libro è ___ lo zaino.|dentro|dentro/fuori/lontano|Книга в рюкзаке.',
+     'La scuola è ___ al parco.|vicina|vicina/lontana/dentro|Школа рядом с парком.', 'Roma è ___ da Mosca.|lontana|vicina/lontana/dentro|Рим далеко от Москвы.', 'Gli uccelli volano ___ la casa.|sopra|sopra/sotto/dentro|Птицы летают над домом.', 'Il cane è ___ della casa.|fuori|fuori/dentro/sotto|Собака снаружи дома.'],
+    ['Il gatto è sotto la sedia.|Кот под стулом.', 'L’uccello è sopra l’albero.|Птица над деревом.', 'Siamo dentro la casa.|Мы внутри дома.']),
+  LG(556, '❓', 'Chi? Dove? Quando?', 'Вопросительные слова нужны, чтобы узнать всё на свете.',
+    'Вопросительные слова', '<ul><li><b>chi?</b> — кто?</li><li><b>che cosa?</b> — что?</li><li><b>dove?</b> — где?</li><li><b>quando?</b> — когда?</li><li><b>come?</b> — как?</li><li><b>quanto/quanti?</b> — сколько?</li></ul>',
+    ['Dove abiti?|Где ты живёшь?', 'Quando è il tuo compleanno?|Когда твой день рождения?', 'Chi è lui?|Кто он?'],
+    ['___ ti chiami?|Come|Come/Dove/Chi|Как тебя зовут?', '___ abiti?|Dove|Come/Dove/Chi|Где ты живёшь?', '___ è lui?|Chi|Chi/Dove/Quando|Кто он?', '___ anni hai?|Quanti|Quanti/Quando/Come|Сколько тебе лет?',
+     '___ è il tuo compleanno?|Quando|Quando/Dove/Chi|Когда твой день рождения?', '___ stai?|Come|Come/Dove/Quanti|Как ты?', '___ costa la pizza?|Quanto|Quanto/Quanti/Come|Сколько стоит пицца?', '___ la mia penna?|Dov’è|Dov’è/Chi è/Quando è|Где моя ручка?'],
+    ['Come stai?|Как ты?', 'Quanti anni hai?|Сколько тебе лет?', 'Dove vai?|Куда ты идёшь?']),
+  LG(557, '👤', 'Il mio, la mia', 'Моё, твоё, его — слова-владельцы меняются по роду и числу.',
+    'Притяжательные слова', '<ul><li><b>il mio</b> / <b>la mia</b> — мой / моя</li><li><b>i miei</b> / <b>le mie</b> — мои</li><li><b>il tuo</b> / <b>la tua</b> — твой / твоя</li><li><b>il suo</b> / <b>la sua</b> — его, её</li></ul>',
+    ['il mio libro|моя книга', 'la mia mamma|моя мама', 'i miei amici|мои друзья'],
+    ['Questo è il ___ libro.|mio|mio/mia/miei|Это моя книга.', 'Questa è la ___ mamma.|mia|mio/mia/miei|Это моя мама.', 'Dov’è il ___ zaino?|tuo|tuo/tua/tuoi|Где твой рюкзак?', 'Dov’è la ___ penna?|tua|tuo/tua/tue|Где твоя ручка?',
+     'Il ___ gatto è nero.|suo|suo/sua/sui|Его кот чёрный.', 'La ___ casa è grande.|sua|suo/sua/suoi|Его дом большой.', 'Questi sono i ___ amici.|miei|mio/mia/miei|Это мои друзья.', 'Ecco le ___ scarpe.|mie|miei/mie/mia|Вот мои туфли.'],
+    ['Questo è il mio gatto.|Это мой кот.', 'La tua casa è bella.|Твой дом красивый.', 'Ecco i miei libri.|Вот мои книги.']),
+  LG(558, '🚫', 'Non', 'Чтобы сказать «не», перед глаголом ставят слово non.',
+    'Отрицание: non', '<ul><li><i>Io parlo.</i> → <i>Io <b>non</b> parlo.</i></li><li><i>Ho un cane.</i> → <i><b>Non</b> ho un cane.</i></li><li>Короткий ответ: <i>No, non ho fame.</i></li></ul>',
+    ['Non parlo inglese.|Я не говорю по-английски.', 'Non ho fame.|Я не голоден.', 'Non piove oggi.|Сегодня нет дождя.'],
+    ['Io ___ parlo inglese.|non|non/no/mai|Я не говорю по-английски.', 'No, ___ ho un cane.|non|non/no/mai|Нет, у меня нет собаки.', 'Lei ___ è a casa.|non|non/no/mai|Её нет дома.', 'Noi ___ mangiamo carne.|non|non/no/mai|Мы не едим мясо.',
+     'Ti piace il caffè? — No, ___ mi piace.|non|non/no/mai|Нравится кофе? — Нет, не нравится.', 'Oggi ___ piove.|non|non/no/mai|Сегодня нет дождя.', 'Loro ___ sono in classe.|non|non/no/mai|Их нет в классе.', 'Tu ___ hai fame?|non|non/no/mai|Ты не голоден?'],
+    ['Non sono stanco.|Я не устал.', 'Non mi piace il caffè.|Мне не нравится кофе.', 'Marco non è a casa.|Марко нет дома.']),
+  LR(559, '🦁', 'Il leone e il topo', 'Старая басня. Может ли маленькая мышка помочь большому льву?',
+    ['Un leone dorme nella foresta.|Лев спит в лесу.', 'Un piccolo topo corre sul leone.|Маленькая мышь бежит по льву.', 'Il leone si sveglia ed è arrabbiato.|Лев просыпается и сердится.', '«Lasciami andare!» dice il topo.|«Отпусти меня!» говорит мышь.',
+     '«Un giorno ti aiuterò.»|«Однажды я тебе помогу.»', 'Il leone ride e lascia andare il topo.|Лев смеётся и отпускает мышь.', 'Un giorno il leone cade in una rete.|Однажды лев попадает в сеть.', 'Il topo rosicchia la rete e il leone è libero.|Мышь перегрызает сеть, и лев свободен.'],
+    ['Dove dorme il leone?|Где спит лев?|Nella foresta|Nel mare|In casa', 'Chi corre sul leone?|Кто бежит по льву?|Un topo|Un gatto|Un cane', 'In cosa cade il leone?|Во что попадает лев?|In una rete|In un fiume|In una casa', 'Chi aiuta il leone?|Кто помогает льву?|Il topo|L’uccello|Il cane'],
+    [0, 2, 6, 7], ['Il leone dorme.|Лев спит.', 'Il topo aiuta il leone.|Мышь помогает льву.', 'Il leone è libero.|Лев свободен.']),
+  LR(560, '🥕', 'La rapa gigante', 'Старая сказка о том, как все вместе вытаскивали огромную репку.',
+    ['Il nonno ha una rapa grande.|У дедушки большая репка.', 'Il nonno tira, ma non può.|Дедушка тянет, но не может.', 'La nonna aiuta il nonno.|Бабушка помогает дедушке.', 'La nipotina aiuta la nonna.|Внучка помогает бабушке.',
+     'Il cane aiuta la nipotina.|Собака помогает внучке.', 'Il gatto aiuta il cane.|Кот помогает собаке.', 'Il topo aiuta il gatto.|Мышка помогает коту.', 'Tira, tira, tira… la rapa è fuori!|Тяни-потяни… репка вытащена!'],
+    ['Chi ha una rapa grande?|У кого большая репка?|Il nonno|Il cane|Il gatto', 'Chi aiuta il gatto?|Кто помогает коту?|Il topo|La nonna|Il nonno', 'Chi aiuta per prima?|Кто помогает первой?|La nonna|Il cane|Il topo', 'Alla fine la rapa è fuori?|В конце репка вытащена?|Sì, è fuori|No, non è fuori|Non si sa'],
+    [0, 2, 6, 7], ['Il nonno ha una rapa.|У дедушки есть репка.', 'Il cane aiuta.|Собака помогает.', 'La rapa è fuori!|Репка вытащена!']),
+  LW(561, '🔁', 'Ripasso 2', 'Перед вторым боссом вспомним слова из второго мира.',
+    ['parco', 'pasta', 'gelato', 'leone', 'autobus', 'primavera', 'calcio', 'cucina', 'mucca', 'medico'],
+    ['Vado al parco con il cane.|Я иду в парк с собакой.', 'Mi piace il gelato.|Мне нравится мороженое.', 'In primavera nascono i fiori.|Весной появляются цветы.'])
+];
+const IT_BOSS2 = { id: 591, title: 'Fortezza della Confusione', icon: '🏯', bossIcon: '🧟' };
+
+</script>
+<script>
+/* Итальянский: Мир 3 «Viaggio in Italia» (уроки 601–630). */
+const IT_L3 = [
+  LW(601, '🇮🇹', 'Le città italiane', 'Начинаем путешествие по Италии! Найди города на карте.',
+    ['Italia|Италия|🇮🇹', 'Roma|Рим|🏛️', 'Milano|Милан|🏙️', 'Venezia|Венеция|🚤', 'Napoli|Неаполь|🌋', 'Firenze|Флоренция|🎨', 'Torino|Турин|🏔️', 'Palermo|Палермо|🌴'],
+    ['Roma è la capitale d’Italia.|Рим — столица Италии.', 'Venezia è sull’acqua.|Венеция стоит на воде.', 'Firenze è una città d’arte.|Флоренция — город искусства.']),
+  LW(602, '🏟️', 'I monumenti', 'Италия полна знаменитых мест. Узнаешь их?',
+    ['Colosseo|Колизей|🏟️', 'Torre di Pisa|Пизанская башня|🗼', 'gondola|гондола|🛶', 'Vesuvio|Везувий|🌋', 'fontana|фонтан|⛲', 'ponte|мост|🌉', 'duomo|собор|⛪'],
+    ['Il Colosseo è a Roma.|Колизей в Риме.', 'La Torre di Pisa è storta.|Пизанская башня кривая.', 'La gondola va sul canale.|Гондола плывёт по каналу.']),
+  LW(603, '🏖️', 'La natura', 'В Италии есть море, горы, озёра и даже вулканы.',
+    ['mare|море|🌊', 'montagna|гора|⛰️', 'lago|озеро|🏞️', 'vulcano|вулкан|🌋', 'fiume|река|🏞️', 'spiaggia|пляж|🏖️', 'collina|холм|🌄'],
+    ['Il mare è azzurro.|Море голубое.', 'In estate vado in spiaggia.|Летом я иду на пляж.', 'Il vulcano è alto.|Вулкан высокий.']),
+  LW(604, '🍝', 'La cucina italiana', 'Самая вкусная часть путешествия — итальянская еда!',
+    ['spaghetti|спагетти|🍝', 'lasagne|лазанья|🥘', 'risotto|ризотто|🍚', 'tiramisù|тирамису|🍰', 'panino|бутерброд|🥪', 'caffè|кофе|☕', 'olio|масло|🫒'],
+    ['Mangio gli spaghetti.|Я ем спагетти.', 'Il tiramisù è dolce.|Тирамису сладкое.', 'La lasagna è calda.|Лазанья горячая.']),
+  LW(605, '🍽️', 'Al ristorante', 'Столик заказан! Давай попробуем заказать обед.',
+    ['menù|меню|📋', 'cameriere|официант|🤵', 'conto|счёт|🧾', 'forchetta|вилка|🍴', 'coltello|нож|🔪', 'cucchiaio|ложка|🥄', 'piatto|тарелка|🍽️', 'bicchiere|стакан|🥤'],
+    ['Il menù, per favore.|Меню, пожалуйста.', 'Il conto, per favore.|Счёт, пожалуйста.', 'Vorrei un bicchiere d’acqua.|Я хотел бы стакан воды.']),
+  LW(606, '🛍️', 'Nel negozio', 'Время покупок! Узнай, сколько что стоит.',
+    ['negozio', 'prezzo|цена|🏷️', 'euro|евро|💶', 'soldi|деньги|💰', 'carrello|тележка|🛒', 'sacchetto|пакет|🛍️', 'borsa|сумка|👜', 'mercato|рынок|🧺'],
+    ['Quanto costa?|Сколько это стоит?', 'Costa cinque euro.|Это стоит пять евро.', 'Vado al mercato.|Я иду на рынок.']),
+  LW(607, '🧳', 'In viaggio', 'Чемодан собран! Что нужно для путешествия?',
+    ['biglietto|билет|🎫', 'valigia|чемодан|🧳', 'passaporto|паспорт|🛂', 'aeroporto|аэропорт|🛫', 'albergo|гостиница|🏨', 'mappa|карта|🗺️', 'turista|турист|📸'],
+    ['Ho un biglietto.|У меня есть билет.', 'La valigia è pesante.|Чемодан тяжёлый.', 'L’albergo è vicino al mare.|Гостиница рядом с морем.']),
+  LW(608, '🎄', 'Le feste', 'В Италии много весёлых праздников. Какие знаешь?',
+    ['Natale|Рождество|🎄', 'Pasqua|Пасха|🐣', 'Carnevale|Карнавал|🎭', 'maschera|маска|🎭', 'Befana|Бефана|🧙‍♀️', 'fuochi d’artificio|фейерверк|🎆', 'coriandoli|конфетти|🎊'],
+    ['A Natale ricevo regali.|На Рождество я получаю подарки.', 'A Carnevale metto una maschera.|На Карнавал я надеваю маску.', 'La Befana porta i dolci.|Бефана приносит сладости.']),
+  LW(609, '🎶', 'La musica', 'Италия — родина оперы. Научимся называть инструменты.',
+    ['chitarra|гитара|🎸', 'pianoforte|пианино|🎹', 'tamburo|барабан|🥁', 'violino|скрипка|🎻', 'canzone|песня|🎶', 'cantante|певец|🎤', 'opera|опера|🎭'],
+    ['Suono la chitarra.|Я играю на гитаре.', 'Mi piace questa canzone.|Мне нравится эта песня.', 'Il cantante canta bene.|Певец хорошо поёт.']),
+  LW(610, '🧣', 'Vestiti (2)', 'Что взять с собой в дорогу? Всё зависит от сезона!',
+    ['maglione|свитер|🧶', 'sciarpa|шарф|🧣', 'guanti|перчатки|🧤', 'stivali|сапоги|🥾', 'costume|купальник|🩱', 'occhiali da sole|солнечные очки|🕶️', 'pantaloncini|шорты|🩳'],
+    ['In inverno metto la sciarpa.|Зимой я надеваю шарф.', 'In estate porto gli occhiali da sole.|Летом я ношу солнечные очки.', 'Ho un maglione caldo.|У меня тёплый свитер.']),
+  LW(611, '🥇', 'Primo, secondo, terzo', 'Порядковые числительные нужны, когда считаем места и этажи.',
+    ['primo|первый|1', 'secondo|второй|2', 'terzo|третий|3', 'quarto|четвёртый|4', 'quinto|пятый|5', 'sesto|шестой|6', 'settimo|седьмой|7', 'ottavo|восьмой|8', 'nono|девятый|9', 'decimo|десятый|10'],
+    ['Sono il primo.|Я первый.', 'Abito al terzo piano.|Я живу на третьем этаже.', 'Il decimo giorno è domenica.|Десятый день — воскресенье.']),
+  LG(612, '📖', 'Leggere, dormire', 'Кроме -are, есть глаголы на -ere и -ire. У них свои окончания.',
+    'Глаголы на -ere и -ire', '<ul><li><b>leggere</b>: io legg<b>o</b>, tu legg<b>i</b>, lui legg<b>e</b>, noi legg<b>iamo</b>, voi legg<b>ete</b>, loro legg<b>ono</b></li><li><b>dormire</b>: io dorm<b>o</b>, tu dorm<b>i</b>, lui dorm<b>e</b>, noi dorm<b>iamo</b>, voi dorm<b>ite</b>, loro dorm<b>ono</b></li></ul>',
+    ['Io leggo un libro.|Я читаю книгу.', 'Tu dormi molto.|Ты много спишь.', 'Noi scriviamo una lettera.|Мы пишем письмо.'],
+    ['Io ___ un libro.|leggo|leggo/leggi/legge|Я читаю книгу.', 'Tu ___ molto.|dormi|dormo/dormi/dorme|Ты много спишь.', 'Marco ___ una lettera.|scrive|scrivo/scrivi/scrive|Марко пишет письмо.', 'Noi ___ la pizza.|prendiamo|prendiamo/prendete/prendono|Мы берём пиццу.',
+     'Voi ___ sul divano.|dormite|dormiamo/dormite/dormono|Вы спите на диване.', 'Loro ___ il giornale.|leggono|leggiamo/leggete/leggono|Они читают газету.', 'Lei ___ la porta.|apre|apro/apri/apre|Она открывает дверь.', 'Io ___ la finestra.|chiudo|chiudo/chiudi/chiude|Я закрываю окно.'],
+    ['Leggo un libro interessante.|Я читаю интересную книгу.', 'Il bambino dorme.|Ребёнок спит.', 'Voi scrivete bene.|Вы хорошо пишете.']),
+  LG(613, '✨', 'Volere e potere', 'Два важных глагола: хотеть и мочь. После них стоит глагол в начальной форме.',
+    'volere и potere', '<ul><li><b>volere</b>: io voglio, tu vuoi, lui vuole, noi vogliamo, voi volete, loro vogliono</li><li><b>potere</b>: io posso, tu puoi, lui può, noi possiamo, voi potete, loro possono</li></ul><p>Voglio mangiare. Posso giocare?</p>',
+    ['Voglio un gelato.|Я хочу мороженое.', 'Posso entrare?|Можно войти?', 'Vuoi giocare?|Хочешь поиграть?'],
+    ['Io ___ un gelato.|voglio|voglio/vuoi/vuole|Я хочу мороженое.', 'Tu ___ giocare?|vuoi|voglio/vuoi/vuole|Ты хочешь играть?', 'Lei ___ un panino.|vuole|voglio/vuoi/vuole|Она хочет бутерброд.', 'Noi ___ andare al mare.|vogliamo|vogliamo/volete/vogliono|Мы хотим пойти на море.',
+     'Tu ___ nuotare?|puoi|posso/puoi/può|Ты можешь плавать?', 'Lui ___ correre veloce.|può|posso/puoi/può|Он может быстро бегать.', 'Loro ___ giocare qui.|possono|possiamo/potete/possono|Они могут играть здесь.', 'Io ___ aiutare.|posso|posso/puoi/può|Я могу помочь.'],
+    ['Voglio mangiare.|Я хочу есть.', 'Non posso venire.|Я не могу прийти.', 'Possiamo giocare?|Можно нам поиграть?']),
+  LG(614, '🚶', 'Andare', 'Куда ты идёшь? Нужен глагол andare и предлоги a, in.',
+    'andare — «идти, ехать»', '<ul><li>io <b>vado</b>, tu <b>vai</b>, lui <b>va</b>, noi <b>andiamo</b>, voi <b>andate</b>, loro <b>vanno</b></li><li><b>a</b> + город: <i>a Roma</i></li><li><b>in</b> + страна: <i>in Italia</i></li></ul>',
+    ['Vado a scuola.|Я иду в школу.', 'Vai in Italia.|Ты едешь в Италию.', 'Andiamo al mare.|Мы идём на море.'],
+    ['Io ___ a scuola.|vado|vado/vai/va|Я иду в школу.', 'Tu ___ al parco.|vai|vado/vai/va|Ты идёшь в парк.', 'Lei ___ in Italia.|va|vado/vai/va|Она едет в Италию.', 'Noi ___ al mare.|andiamo|andiamo/andate/vanno|Мы едем на море.',
+     'Voi ___ a casa.|andate|andiamo/andate/vanno|Вы идёте домой.', 'Loro ___ a Roma.|vanno|andiamo/andate/vanno|Они едут в Рим.', 'Vado ___ Roma.|a|a/in/da|Я еду в Рим.', 'Vado ___ Italia.|in|a/in/da|Я еду в Италию.'],
+    ['Vado a Milano.|Я еду в Милан.', 'Andiamo in Francia.|Мы едем во Францию.', 'Dove vai?|Куда ты идёшь?']),
+  LG(615, '🛠️', 'Fare', 'Глагол fare — «делать». Он есть и в вопросе про погоду!',
+    'fare — «делать»', '<ul><li>io <b>faccio</b>, tu <b>fai</b>, lui <b>fa</b>, noi <b>facciamo</b>, voi <b>fate</b>, loro <b>fanno</b></li><li><b>Che tempo fa?</b> — Какая погода? <b>Fa caldo.</b> — Жарко.</li></ul>',
+    ['Faccio colazione.|Я завтракаю.', 'Che tempo fa?|Какая погода?', 'Oggi fa freddo.|Сегодня холодно.'],
+    ['Io ___ colazione.|faccio|faccio/fai/fa|Я завтракаю.', 'Tu ___ i compiti.|fai|faccio/fai/fa|Ты делаешь уроки.', 'Lei ___ una torta.|fa|faccio/fai/fa|Она печёт торт.', 'Noi ___ una passeggiata.|facciamo|facciamo/fate/fanno|Мы гуляем.',
+     'Che tempo ___?|fa|fa/fai/fanno|Какая погода?', 'Oggi ___ freddo.|fa|fa/è/ha|Сегодня холодно.', 'Loro ___ un gioco.|fanno|facciamo/fate/fanno|Они играют в игру.', 'Voi ___ la spesa.|fate|facciamo/fate/fanno|Вы делаете покупки.'],
+    ['Faccio i compiti.|Я делаю уроки.', 'Fa caldo in estate.|Летом жарко.', 'Facciamo una torta.|Мы печём торт.']),
+  LG(616, '🧭', 'A, in, di, da', 'Маленькие слова-предлоги помогают сказать куда, откуда и чьё.',
+    'Предлоги a, in, di, da', '<ul><li><b>a</b> — в, к (города): <i>vado a Roma</i></li><li><b>in</b> — в (страны): <i>sono in Italia</i></li><li><b>di</b> — из, чей: <i>sono di Milano</i>, <i>il libro di Marco</i></li><li><b>da</b> — от, у: <i>vengo da Roma</i>, <i>vado da Marco</i></li></ul>',
+    ['Sono di Roma.|Я из Рима.', 'Vengo da Milano.|Я приезжаю из Милана.', 'Il libro di Marco.|Книга Марко.'],
+    ['Vado ___ scuola.|a|a/di/da|Я иду в школу.', 'Sono ___ Roma.|di|di/a/in|Я из Рима.', 'Il libro ___ Marco.|di|di/da/in|Книга Марко.', 'Vengo ___ Milano.|da|da/di/a|Я приезжаю из Милана.',
+     'Siamo ___ Italia.|in|in/a/da|Мы в Италии.', 'Vado ___ Marco.|da|a/da/di|Я иду к Марко.', 'Il treno ___ Roma.|per|per/da/con|Поезд на Рим.', 'Gioco ___ il mio amico.|con|con/di/su|Я играю с другом.'],
+    ['Abito a Torino.|Я живу в Турине.', 'Il gatto di Anna è nero.|Кот Анны чёрный.', 'Vado in vacanza con la mamma.|Я еду в отпуск с мамой.']),
+  LG(617, '🕒', 'Che ore sono?', 'Узнаём время по-итальянски. Для этого нужны числа и слова «e mezza» — «половина».',
+    'Который час?', '<ul><li><b>È l’una.</b> — Час.</li><li><b>Sono le tre.</b> — Три часа.</li><li><b>…e mezza</b> — половина: <i>Sono le otto e mezza.</i></li><li><b>…e un quarto</b> — пятнадцать минут</li><li><b>…meno un quarto</b> — без пятнадцати</li></ul>',
+    ['Che ore sono?|Который час?', 'Sono le otto e mezza.|Половина девятого (8:30).', 'È l’una.|Час дня.'],
+    ['Che ore ___?|sono|sono/è/ha|Который час?', '___ le tre.|Sono|Sono/È/Ha|Три часа.', '___ l’una.|È|Sono/È/Ha|Час.', 'Sono le otto e ___.|mezza|mezza/quarto/meno|Восемь тридцать.',
+     'Sono le due e un ___.|quarto|quarto/mezza/meno|Два пятнадцать.', 'Sono le cinque ___ un quarto.|meno|meno/e/di|Без пятнадцати пять.', 'A che ora ___ la scuola?|inizia|inizia/inizio/iniziano|Во сколько начинается школа?', 'Il film inizia ___ otto.|alle|alle/le/a|Фильм начинается в восемь.'],
+    ['Sono le dieci.|Десять часов.', 'Mangio alle dodici.|Я ем в двенадцать.', 'Che ore sono adesso?|Который сейчас час?']),
+  LG(618, '💶', 'Quanto costa?', 'Покупаем мороженое! Спрашиваем цену и отвечаем.',
+    'Сколько это стоит?', '<ul><li><b>Quanto costa?</b> — Сколько стоит (один предмет)?</li><li><b>Quanto costano?</b> — Сколько стоят (несколько)?</li><li><b>Costa tre euro.</b> — Стоит три евро.</li><li><b>Vorrei…</b> — Я бы хотел…</li></ul>',
+    ['Quanto costa il gelato?|Сколько стоит мороженое?', 'Costa due euro.|Стоит два евро.', 'Vorrei un panino.|Я бы хотел бутерброд.'],
+    ['Quanto ___ il gelato?|costa|costa/costano/costo|Сколько стоит мороженое?', 'Quanto ___ le mele?|costano|costa/costano/costo|Сколько стоят яблоки?', 'Costa due ___.|euro|euro/euri/euros|Стоит два евро.', 'Il panino costa ___ euro.|tre|tre/tra/tri|Бутерброд стоит три евро.',
+     'Vorrei un ___.|gelato|gelato/gelati/gelata|Я бы хотел мороженое.', 'Ecco ___ euro.|dieci|dieci/dici/decimo|Вот десять евро.', 'Il conto è di ___ euro.|venti|venti/vento/vente|Счёт двадцать евро.', 'Grazie! — ___!|Prego|Prego/Ciao/Scusa|Спасибо! — Пожалуйста!'],
+    ['Quanto costa questo?|Сколько это стоит?', 'Costa cinque euro.|Это стоит пять евро.', 'Un gelato, per favore.|Одно мороженое, пожалуйста.']),
+  LG(619, '📣', 'Guarda! Ascolta!', 'Команды помогают играть: скажем, что делать другу.',
+    'Приказ: guarda, ascolta…', '<ul><li><b>Guarda!</b> — Смотри!</li><li><b>Ascolta!</b> — Слушай!</li><li><b>Mangia!</b> — Ешь!</li><li><b>Scrivi!</b> — Пиши!</li><li><b>Vieni qui!</b> — Иди сюда!</li></ul>',
+    ['Guarda!|Смотри!', 'Ascolta la musica!|Слушай музыку!', 'Vieni qui!|Иди сюда!'],
+    ['___! Un gatto!|Guarda|Guarda/Guardo/Guardi|Смотри! Кот!', '___ la musica!|Ascolta|Ascolta/Ascolto/Ascolti|Слушай музыку!', '___ la pizza!|Mangia|Mangia/Mangio/Mangi|Ешь пиццу!', '___ il tuo nome!|Scrivi|Scrivi/Scrivo/Scrive|Напиши своё имя!',
+     '___ la porta!|Chiudi|Chiudi/Chiudo/Chiude|Закрой дверь!', '___ qui!|Vieni|Vieni/Vengo/Viene|Иди сюда!', '___ il libro!|Leggi|Leggi/Leggo/Legge|Читай книгу!', '___ la finestra!|Apri|Apri/Apro/Apre|Открой окно!'],
+    ['Guarda il mare!|Смотри на море!', 'Ascolta bene.|Слушай внимательно.', 'Apri il libro.|Открой книгу.']),
+  LG(620, '⏪', 'Ieri ho mangiato', 'Как рассказать, что было вчера? Используем ho + причастие.',
+    'Прошедшее время (passato prossimo)', '<ul><li><b>ho / hai / ha / abbiamo / avete / hanno</b> + причастие</li><li>-are → <b>-ato</b>: mangi<b>ato</b>, guard<b>ato</b></li><li>-ere → <b>-uto</b>: bev<b>uto</b></li><li>особые: letto (читал), scritto (писал)</li></ul>',
+    ['Ho mangiato la pizza.|Я съел пиццу.', 'Hai guardato il film?|Ты смотрел фильм?', 'Abbiamo giocato.|Мы играли.'],
+    ['Ieri ho ___ la pizza.|mangiato|mangiato/mangio/mangiare|Вчера я ел пиццу.', 'Ho ___ la televisione.|guardato|guardato/guardo/guardare|Я смотрел телевизор.', 'Hai ___ il latte?|bevuto|bevuto/bevo/bere|Ты выпил молоко?', 'Abbiamo ___ al parco.|giocato|giocato/giochiamo/giocare|Мы играли в парке.',
+     'Marco ha ___ una lettera.|scritto|scritto/scrive/scrivere|Марко написал письмо.', 'Ho ___ un libro.|letto|letto/leggo/leggere|Я прочитал книгу.', 'Ieri ___ andato al mare.|sono|sono/ho/ha|Вчера я ходил на море.', 'Loro hanno ___ la torta.|mangiato|mangiato/mangiano/mangiare|Они съели торт.'],
+    ['Ieri ho giocato a calcio.|Вчера я играл в футбол.', 'Ho scritto una lettera.|Я написал письмо.', 'Abbiamo mangiato il gelato.|Мы съели мороженое.']),
+  LR(621, '🪵', 'Pinocchio', 'Знаменитая итальянская сказка о деревянном мальчике.',
+    ['Geppetto è un falegname.|Джеппетто — плотник.', 'Costruisce un burattino di legno.|Он делает деревянную куклу.', 'Il burattino si chiama Pinocchio.|Куклу зовут Пиноккио.', 'Pinocchio parla e cammina!|Пиноккио говорит и ходит!',
+     'Quando dice una bugia, il naso cresce.|Когда он лжёт, нос растёт.', 'Pinocchio dice la verità.|Пиноккио говорит правду.', 'Diventa un bambino vero.|Он становится настоящим мальчиком.'],
+    ['Chi è Geppetto?|Кто такой Джеппетто?|Un falegname|Un cuoco|Un medico', 'Di che cosa è fatto Pinocchio?|Из чего сделан Пиноккио?|Di legno|Di ferro|Di carta', 'Che cosa succede quando Pinocchio dice una bugia?|Что происходит, когда Пиноккио лжёт?|Il naso cresce|Il naso sparisce|Le orecchie crescono', 'Alla fine Pinocchio è…|В конце Пиноккио…|un bambino vero|ancora di legno|un gatto'],
+    [0, 1, 4, 6], ['Pinocchio è di legno.|Пиноккио деревянный.', 'Il naso cresce.|Нос растёт.', 'Pinocchio dice la verità.|Пиноккио говорит правду.']),
+  LR(622, '🐷', 'I tre porcellini', 'Кто построил самый прочный дом?',
+    ['Tre porcellini vivono nel bosco.|Три поросёнка живут в лесу.', 'Il primo fa una casa di paglia.|Первый строит дом из соломы.', 'Il secondo fa una casa di legno.|Второй строит дом из дерева.', 'Il terzo fa una casa di mattoni.|Третий строит дом из кирпичей.',
+     'Arriva il lupo e soffia sulla casa di paglia.|Приходит волк и дует на соломенный дом.', 'La casa vola via!|Дом разлетается!', 'Il lupo non può rompere la casa di mattoni.|Волк не может разрушить кирпичный дом.', 'I tre porcellini sono salvi.|Все три поросёнка спасены.'],
+    ['Quanti porcellini ci sono?|Сколько поросят?|Tre|Due|Quattro', 'Di che cosa è la casa del terzo?|Из чего дом третьего?|Di mattoni|Di paglia|Di legno', 'Chi soffia sulle case?|Кто дует на дома?|Il lupo|Il gatto|Il cane', 'Quale casa è più forte?|Какой дом самый прочный?|Quella di mattoni|Quella di paglia|Quella di legno'],
+    [1, 2, 3, 6], ['Il lupo soffia.|Волк дует.', 'La casa di mattoni è forte.|Кирпичный дом прочный.', 'I porcellini sono salvi.|Поросята спасены.']),
+  LR(623, '🐱', 'Il gatto con gli stivali', 'Умный кот в сапогах помогает своему хозяину.',
+    ['Un mugnaio ha un gatto.|У мельника есть кот.', 'Il gatto ha un paio di stivali.|У кота есть сапоги.', 'Il gatto porta una lepre al re.|Кот приносит королю зайца.', '«Il mio padrone è il marchese!» dice.|«Мой хозяин — маркиз!» — говорит он.',
+     'Il re è contento.|Король доволен.', 'Il gatto diventa ricco e famoso.|Кот становится богатым и знаменитым.'],
+    ['Che cosa porta il gatto al re?|Что кот приносит королю?|Una lepre|Un pesce|Una torta', 'Che cosa ha il gatto?|Что есть у кота?|Gli stivali|Un cappello|Una borsa', 'Il re è…|Король…|contento|triste|arrabbiato', 'Chi ha un gatto?|У кого есть кот?|Il mugnaio|Il re|Il lupo'],
+    [0, 1, 2, 5], ['Il gatto ha gli stivali.|У кота есть сапоги.', 'Il re è contento.|Король доволен.', 'Il gatto è famoso.|Кот знаменит.']),
+  LR(624, '🛶', 'Venezia', 'Город на воде, где вместо улиц — каналы.',
+    ['Venezia è una città sull’acqua.|Венеция — город на воде.', 'In città non ci sono strade, ci sono canali.|В городе нет улиц, есть каналы.', 'Le persone viaggiano in barca.|Люди ездят на лодках.', 'La gondola è una barca speciale.|Гондола — особая лодка.',
+     'Il gondoliere canta una canzone.|Гондольер поёт песню.', 'A Venezia ci sono molti ponti.|В Венеции много мостов.'],
+    ['Dov’è Venezia?|Где Венеция?|Sull’acqua|Sulla montagna|Nel deserto', 'Che cosa ci sono al posto delle strade?|Что вместо улиц?|I canali|Le piste|I prati', 'Che cos’è una gondola?|Что такое гондола?|Una barca|Un treno|Una casa', 'Chi canta?|Кто поёт?|Il gondoliere|Il cuoco|Il medico'],
+    [0, 1, 3, 4], ['A Venezia ci sono i canali.|В Венеции есть каналы.', 'La gondola è una barca.|Гондола — лодка.', 'Il gondoliere canta.|Гондольер поёт.']),
+  LR(625, '🏛️', 'Una giornata a Roma', 'Анна и мама гуляют по Риму.',
+    ['Anna è a Roma con la mamma.|Анна в Риме с мамой.', 'La mattina vedono il Colosseo.|Утром они видят Колизей.', 'A pranzo mangiano la pizza.|На обед они едят пиццу.', 'Il pomeriggio visitano una fontana.|После обеда они осматривают фонтан.',
+     'Anna lancia una moneta e fa un desiderio.|Анна бросает монетку и загадывает желание.', 'La sera mangiano il gelato.|Вечером они едят мороженое.'],
+    ['Con chi è Anna a Roma?|С кем Анна в Риме?|Con la mamma|Con il nonno|Da sola', 'Che cosa vedono la mattina?|Что они видят утром?|Il Colosseo|Il mare|La neve', 'Che cosa mangiano a pranzo?|Что едят на обед?|La pizza|La pasta|Il pesce', 'Che cosa fa Anna alla fontana?|Что делает Анна у фонтана?|Lancia una moneta|Beve acqua|Dorme'],
+    [1, 2, 4, 5], ['Anna vede il Colosseo.|Анна видит Колизей.', 'Mangiano la pizza.|Они едят пиццу.', 'La sera mangiano il gelato.|Вечером они едят мороженое.']),
+  LR(626, '🧺', 'Cappuccetto Rosso', 'Помнишь сказку про волка и бабушку?',
+    ['Cappuccetto Rosso va dalla nonna.|Красная Шапочка идёт к бабушке.', 'Porta una cesta con torta e miele.|Несёт корзинку с пирогом и мёдом.', 'Nel bosco incontra il lupo.|В лесу она встречает волка.', 'Il lupo corre dalla nonna.|Волк бежит к бабушке.',
+     'Cappuccetto arriva e dice: «Che occhi grandi hai!»|Шапочка приходит и говорит: «Какие у тебя большие глаза!»', 'Arriva il cacciatore e salva tutti.|Приходит охотник и спасает всех.'],
+    ['Dove va Cappuccetto?|Куда идёт Шапочка?|Dalla nonna|A scuola|Al mare', 'Che cosa porta nella cesta?|Что несёт в корзинке?|Una torta|Un libro|Un pesce', 'Chi incontra nel bosco?|Кого встречает в лесу?|Il lupo|L’orso|La volpe', 'Chi salva tutti?|Кто всех спасает?|Il cacciatore|Il nonno|Il gatto'],
+    [0, 2, 3, 5], ['Cappuccetto va dalla nonna.|Шапочка идёт к бабушке.', 'Il lupo corre.|Волк бежит.', 'Il cacciatore salva tutti.|Охотник спасает всех.']),
+  LR(627, '🦢', 'Il brutto anatroccolo', 'Грустная и красивая сказка о том, как важно не сдаваться.',
+    ['Una mamma anatra ha cinque uova.|У мамы-утки пять яиц.', 'Quattro anatroccoli sono gialli.|Четверо утят жёлтые.', 'Uno è grigio e grande.|Один серый и большой.', 'Gli altri dicono: «Sei brutto!»|Остальные говорят: «Ты некрасивый!»',
+     'L’anatroccolo è triste e va via.|Утёнок грустит и уходит.', 'In primavera vede il lago: è un bel cigno!|Весной он видит озеро: он красивый лебедь!'],
+    ['Quante uova ha la mamma anatra?|Сколько яиц у мамы-утки?|Cinque|Tre|Dieci', 'Di che colore è l’anatroccolo brutto?|Какого цвета «некрасивый» утёнок?|Grigio|Giallo|Rosso', 'Che cosa dicono gli altri?|Что говорят остальные?|«Sei brutto!»|«Sei bravo!»|«Ciao!»', 'Alla fine l’anatroccolo è…|В конце утёнок…|un cigno|un cane|un gatto'],
+    [0, 3, 4, 5], ['L’anatroccolo è grigio.|Утёнок серый.', 'È triste.|Ему грустно.', 'Alla fine è un cigno.|В конце он лебедь.']),
+  LR(628, '🍪', 'Il biscotto che scappa', 'Старая сказка о печенье, которое убегало от всех.',
+    ['Una nonna fa un biscotto grande.|Бабушка печёт большое печенье.', 'Il biscotto salta dalla finestra e scappa.|Печенье выпрыгивает в окно и убегает.', 'Incontra un coniglio: «Ti mangio!»|Встречает кролика: «Съем тебя!»', '«Sono scappato dalla nonna e scappo da te!»|«Я убежал от бабушки и от тебя убегу!»',
+     'Poi incontra un lupo e un orso.|Потом встречает волка и медведя.', 'Alla fine incontra una volpe furba.|В конце встречает хитрую лису.', 'La volpe mangia il biscotto.|Лиса съедает печенье.'],
+    ['Chi fa il biscotto?|Кто печёт печенье?|La nonna|Il nonno|La volpe', 'Da dove scappa il biscotto?|Откуда убегает печенье?|Dalla finestra|Dalla porta|Dal tetto', 'Chi incontra per primo?|Кого встречает первым?|Un coniglio|Un lupo|Un orso', 'Chi mangia il biscotto?|Кто съедает печенье?|La volpe|Il lupo|L’orso'],
+    [0, 1, 2, 6], ['La nonna fa un biscotto.|Бабушка печёт печенье.', 'Il biscotto scappa.|Печенье убегает.', 'La volpe è furba.|Лиса хитрая.']),
+  LR(631, '🍇', 'La volpe e l’uva', 'Старая басня о хитрой лисе и высоком винограде.',
+    ['Una volpe ha molta fame.|У лисы сильный голод.', 'Vede dell’uva in alto, su un albero.|Она видит виноград высоко на дереве.', 'La volpe salta, ma non arriva all’uva.|Лиса прыгает, но не достаёт до винограда.', 'Prova ancora e ancora.|Она пробует снова и снова.',
+     'Alla fine dice: «Questa uva è acerba!»|В конце говорит: «Этот виноград зелёный!»', 'E se ne va.|И уходит.'],
+    ['Che cosa vede la volpe?|Что видит лиса?|L’uva|Il pane|Un coniglio', 'Dov’è l’uva?|Где виноград?|Su un albero|In un cesto|A terra', 'La volpe arriva all’uva?|Лиса достаёт до винограда?|No, non arriva|Sì, arriva|Non salta', 'Che cosa dice alla fine?|Что говорит в конце?|«Questa uva è acerba!»|«Che buona!»|«Ciao, uva!»'],
+    [0, 1, 2, 4], ['La volpe ha fame.|У лисы голод.', 'L’uva è in alto.|Виноград высоко.', 'La volpe salta.|Лиса прыгает.']),
+  LW(629, '🔁', 'Ripasso del viaggio', 'Вспомним слова из путешествия по Италии!',
+    ['Roma', 'mare', 'pizza', 'biglietto', 'valigia', 'gelato', 'euro', 'mappa', 'piazza', 'treno'],
+    ['Vado a Roma in treno.|Я еду в Рим на поезде.', 'Ho un biglietto per Venezia.|У меня есть билет в Венецию.', 'Mangio un gelato in piazza.|Я ем мороженое на площади.']),
+  LG(630, '🧠', 'Ripasso grammatica', 'Последняя проверка перед боссом: глаголы, артикли, множественное число.',
+    'Повторение', '<ul><li><b>essere</b>: io sono, tu sei, lui è</li><li><b>avere</b>: io ho, tu hai, lui ha</li><li><b>артикли</b>: il, lo, la, l’</li><li><b>множественное</b>: -o→-i, -a→-e</li><li><b>прошедшее</b>: ho + -ato</li></ul>',
+    ['Io sono italiano.|Я итальянец.', 'Lei ha fame.|Она голодна.', 'Ho mangiato la pasta.|Я съел пасту.'],
+    ['Io ___ italiano.|sono|sono/sei/è|Я итальянец.', 'Lei ___ fame.|ha|ho/ha/hai|Она голодна.', '___ gatto è nero.|Il|Il/Lo/La|Кот чёрный.', 'Ho due cas___.|e|i/e/o|У меня два дома.',
+     'Noi ___ al mare.|andiamo|andiamo/andate/vanno|Мы идём на море.', 'Mi ___ i gelati.|piacciono|piace/piacciono/piaci|Мне нравится мороженое.', 'Quanto ___ la pizza?|costa|costa/costano/costo|Сколько стоит пицца?', 'Ieri ho ___ la pasta.|mangiato|mangiato/mangio/mangiare|Вчера я ел пасту.'],
+    ['Il mio gatto è nero.|Мой кот чёрный.', 'Vado a scuola ogni giorno.|Я хожу в школу каждый день.', 'Mi piacciono i gelati.|Мне нравится мороженое.'])
+];
+const IT_BOSS3 = { id: 592, title: 'Cittadella dell’Oblio', icon: '🏰', bossIcon: '🧙' };
+const IT_WORLDS = [
+  { name: 'Мир 1 · Primi passi', lessons: IT_L1, boss: IT_BOSS1 },
+  { name: 'Мир 2 · La mia vita', lessons: IT_L2, boss: IT_BOSS2 },
+  { name: 'Мир 3 · Viaggio in Italia', lessons: IT_L3, boss: IT_BOSS3 }
+];
+
+</script>
+<script>
+/* Итальянский: диалоги и песенки-рифмовки. Диалог открывается после урока req, песенка тоже. */
+// реплика: «итальянский|перевод|верный ответ|вариант|вариант»
+const DI = (id, world, req, icon, title, npc, e, turns) => ({ id, world, req, icon, title, npc: { name: npc, e }, turns: turns.map(t => { const [en, ru, ans, o2, o3] = t.split('|'); return { en, ru, ans, opts: [ans, o2, o3] }; }) });
+// строка песенки: «текст|перевод|слово в конце|вариант|вариант» (слово-пропуск — последнее слово строки)
+const SO = (id, world, req, icon, title, lines) => ({ id, world, req, icon, title, lines: lines.map(l => { const [en, ru, gap, o2, o3] = l.split('|'); return { en, ru, gap, opts: [gap, o2, o3] }; }) });
+
+const IT_DIALOGS = [
+  DI('id1', 0, 501, '👋', 'Знакомство', 'Paolo', '🧑‍🌾', ['Ciao!|Привет!|Ciao!|Arrivederci!|No.', 'Come ti chiami?|Как тебя зовут?|Mi chiamo Bolt.|Ho nove anni.|Sì, grazie.', 'Come stai?|Как дела?|Sto bene, grazie.|Mi chiamo Bolt.|Arrivederci.', 'Arrivederci!|До свидания!|Arrivederci!|Buongiorno!|Sì, grazie.']),
+  DI('id2', 0, 509, '👨‍👩‍👧', 'Моя семья', 'Sofia', '👧', ['Chi è lui?|Кто он?|È mio fratello.|È il mio gatto.|Sono io.', 'Hai una sorella?|У тебя есть сестра?|Sì, ho una sorella.|No, ho un gatto.|Mi chiamo Anna.', 'Quanti anni ha?|Сколько ей лет?|Ha sette anni.|Ho sette anni.|Sono sette.', 'Che bella famiglia!|Какая красивая семья!|Grazie!|Prego!|Scusa!']),
+  DI('id3', 0, 510, '🧸', 'Магазин игрушек', 'Venditore', '🧑‍💼', ['Buongiorno! Posso aiutarti?|Добрый день! Могу помочь?|Sì, vorrei un robot.|Sì, sono un robot.|No, arrivederci.', 'Di che colore?|Какого цвета?|Blu, per favore.|È un robot.|Ho sei anni.', 'Ecco a te.|Вот, держи.|Grazie!|Scusa!|Ciao, mamma.', 'Arrivederci!|До свидания!|Arrivederci!|Buonanotte!|Sì, grazie.']),
+  DI('id4', 0, 518, '☀️', 'Какая погода?', 'Amico', '🧒', ['Ciao! Che tempo fa?|Привет! Какая погода?|C’è il sole.|È lunedì.|Sono felice.', 'Fa caldo?|Жарко?|Sì, fa caldo.|Sì, sono io.|No, grazie.', 'Andiamo a giocare fuori?|Пойдём играть на улицу?|Sì, andiamo!|No, non sono.|Mi chiamo Luca.', 'Corriamo!|Побежали!|Via!|Scusa.|Prego.']),
+  DI('id5', 0, 524, '🎒', 'В школе', 'Compagno', '🧑‍🎓', ['Hai una penna?|У тебя есть ручка?|Sì, ecco la penna.|No, ho fame.|Sì, mi chiamo Anna.', 'Che materia hai oggi?|Какой сегодня предмет?|Ho matematica.|Ho dieci anni.|Ho una penna.', 'Ti piace la matematica?|Тебе нравится математика?|Sì, mi piace molto.|Sì, ho una matita.|No, sono otto.', 'A domani!|До завтра!|A domani!|Buonanotte, grazie.|Come stai?']),
+  DI('id6', 0, 513, '🥖', 'В пекарне', 'Panettiere', '🧑‍🍳', ['Buongiorno! Cosa desideri?|Добрый день! Что желаешь?|Un pane, per favore.|Mi chiamo pane.|Sono un panino.', 'Altro?|Что-нибудь ещё?|Un succo, per favore.|Sì, sono io.|No, ho sette anni.', 'Sono due euro.|С вас два евро.|Ecco i soldi.|Ecco la luna.|Sono felice.', 'Grazie, arrivederci!|Спасибо, до свидания!|Arrivederci!|Buonanotte!|No, grazie.']),
+  DI('id7', 0, 516, '🎂', 'День рождения', 'Giulia', '👧', ['Buon compleanno!|С днём рождения!|Grazie!|Prego!|Scusa!', 'Quanti anni hai?|Сколько тебе лет?|Ho otto anni.|Mi chiamo Giulia.|Sto bene.', 'Ecco un regalo per te.|Вот подарок для тебя.|Grazie mille!|Prego!|Arrivederci!', 'Vuoi la torta?|Хочешь торт?|Sì, grazie!|Sì, sono io.|No, buonanotte.']),
+  DI('id8', 0, 519, '🏃', 'Что любишь делать?', 'Marco', '🧒', ['Cosa ti piace fare?|Что ты любишь делать?|Mi piace giocare a calcio.|Mi piace il rosso.|Ho dieci anni.', 'Sai nuotare?|Ты умеешь плавать?|Sì, so nuotare.|Sì, sono blu.|No, grazie.', 'Giochiamo insieme?|Поиграем вместе?|Sì, volentieri!|No, sono due.|Prego.', 'Che bello!|Как здорово!|Sì, è bello!|Sì, mi chiamo Max.|No, non ho.']),
+  DI('id9', 1, 532, '🏙️', 'Как пройти?', 'Passante', '🧑', ['Scusa, dov’è la stazione?|Извините, где вокзал?|È vicino al parco.|Mi chiamo Luca.|Sono le tre.', 'È lontana?|Это далеко?|No, è vicina.|Sì, è rossa.|No, ho fame.', 'Grazie mille!|Большое спасибо!|Prego!|Scusa!|Arrivederci, mamma.', 'Buona giornata!|Хорошего дня!|Anche a te!|Sì, grazie.|Sto male.']),
+  DI('id10', 1, 537, '🍕', 'В пиццерии', 'Cameriere', '🤵', ['Buonasera! Cosa prendi?|Добрый вечер! Что будешь?|Una pizza, per favore.|Un grande sole.|Sono felice.', 'E da bere?|А пить?|Acqua, grazie.|Pizza, grazie.|Sì, è rosso.', 'Ecco la pizza.|Вот пицца.|Grazie, buon appetito!|Grazie, buonanotte!|No, grazie, ho sonno.', 'Vuoi altro?|Хочешь ещё что-нибудь?|No, il conto, per favore.|No, il gatto, per favore.|Sì, ho sei anni.']),
+  DI('id11', 1, 540, '🐄', 'На ферме', 'Contadino', '🧑‍🌾', ['Cosa fa la mucca?|Что делает корова?|Dà il latte.|Dà il pane.|Vola.', 'E la gallina?|А курица?|Fa le uova.|Fa il latte.|Nuota.', 'Ti piacciono gli animali?|Тебе нравятся животные?|Sì, mi piacciono molto.|Sì, mi piace la pizza.|No, sono alto.', 'Anche a me!|И мне тоже!|Che bello!|Che brutto, grazie.|Prego.']),
+  DI('id12', 1, 542, '🚆', 'На вокзале', 'Controllore', '🧑‍✈️', ['Dove vai?|Куда ты едешь?|Vado a Roma.|Vado il pane.|Mi chiamo Roma.', 'Come vai?|Как ты едешь?|In treno.|In pane.|In mamma.', 'Hai il biglietto?|У тебя есть билет?|Sì, eccolo!|Sì, è giallo?|No, sono piccolo.', 'Buon viaggio!|Счастливого пути!|Grazie, ciao!|Prego, buonanotte.|Scusa, sono stanco.']),
+  DI('id13', 1, 547, '🌅', 'Мой день', 'Amica', '👧', ['Che cosa fai la mattina?|Что ты делаешь утром?|Faccio colazione.|Faccio la luna.|Faccio sera.', 'Che cosa mangi a pranzo?|Что ты ешь на обед?|Mangio la pasta.|Mangio la scuola.|Mangio il cielo.', 'E la sera?|А вечером?|Guardo un film.|Guardo la mattina.|Ho cento anni.', 'Buonanotte!|Спокойной ночи!|Buonanotte!|Buongiorno!|Buon pranzo!']),
+  DI('id14', 1, 553, '🍦', 'Мороженое', 'Gelataio', '🧑‍🍳', ['Ti piace il gelato?|Тебе нравится мороженое?|Sì, mi piace tanto.|Sì, sono io.|No, ho sei anni.', 'Quale gusto?|Какой вкус?|Cioccolato, per favore.|Cioccolato, buongiorno.|Sono le sette.', 'Anche a me piace il cioccolato!|Мне тоже нравится шоколад!|Che bello!|Che sera!|Mi chiamo gatto.', 'Andiamo al bar?|Пойдём в бар?|Sì, andiamo!|No, sono sei.|Ciao, mamma.']),
+  DI('id15', 1, 556, '🤝', 'Новый друг', 'Nuovo amico', '🧒', ['Dove abiti?|Где ты живёшь?|Abito a Roma.|Ho Roma.|Sono Roma.', 'Quanti anni hai?|Сколько тебе лет?|Ho dieci anni.|Sono dieci.|Ho dieci.', 'Hai fratelli?|У тебя есть братья?|Sì, ho un fratello.|Sì, ho un tavolo.|Sì, sono io.', 'Che bello! Siamo amici?|Здорово! Мы друзья?|Sì, siamo amici!|No, siamo case.|Prego!']),
+  DI('id16', 2, 605, '🍽️', 'В ресторане', 'Cameriere', '🤵', ['Buonasera! Un tavolo per due?|Добрый вечер! Столик на двоих?|Sì, grazie.|Sì, sono due.|No, buongiorno.', 'Ecco il menù.|Вот меню.|Grazie!|Prego!|Scusa!', 'Cosa desiderate?|Что желаете?|Gli spaghetti, per favore.|Gli spaghetti sono io.|Il tavolo è rosso.', 'Ecco il conto.|Вот счёт.|Grazie, arrivederci!|Grazie, buonanotte!|Scusa, ciao.']),
+  DI('id17', 2, 606, '🛍️', 'В магазине', 'Commessa', '👩‍💼', ['Buongiorno! Posso aiutarti?|Добрый день! Могу помочь?|Quanto costa la borsa?|Quanti anni hai?|Che ore sono?', 'Costa venti euro.|Стоит двадцать евро.|Va bene, la prendo.|Va bene, sono io.|Ho venti anni.', 'Vuoi un sacchetto?|Хочешь пакет?|Sì, grazie.|Sì, è rosso.|No, sono otto.', 'Ecco il resto.|Вот сдача.|Grazie, arrivederci!|Grazie, buonanotte!|Scusa, prego.']),
+  DI('id18', 2, 607, '🏨', 'В гостинице', 'Receptionist', '🧑‍💼', ['Buonasera! Ha una prenotazione?|Добрый вечер! У вас есть бронь?|Sì, mi chiamo Rossi.|Sì, sono le due.|No, ho fame.', 'Ecco la chiave.|Вот ключ.|Grazie mille!|Prego!|Scusa!', 'La camera è al terzo piano.|Комната на третьем этаже.|Va bene, grazie.|Va bene, sono io.|Mi chiamo Luca.', 'Buonanotte!|Спокойной ночи!|Buonanotte!|Buongiorno!|Arrivederci, scusa.']),
+  DI('id19', 2, 608, '🎭', 'Карнавал', 'Amico in maschera', '🎭', ['Che bella maschera!|Какая красивая маска!|Grazie, sono un pirata.|Grazie, ho sei anni.|Prego, buonanotte.', 'Giochiamo con i coriandoli?|Поиграем с конфетти?|Sì, che bello!|No, grazie, è pane.|Sì, sono lunedì.', 'Hai fame?|Ты голоден?|Sì, vorrei un dolce.|Sì, sono una maschera.|No, ho otto anni.', 'Buon Carnevale!|С Карнавалом!|Buon Carnevale!|Buonanotte!|Arrivederci, Natale.']),
+  DI('id20', 2, 617, '🕒', 'Который час?', 'Passante', '🧑', ['Scusa, che ore sono?|Извини, который час?|Sono le tre.|Sono tre anni.|Sono Anna.', 'Siamo in ritardo?|Мы опаздываем?|No, il film inizia alle quattro.|No, il film è blu.|Sì, sono io.', 'Allora andiamo!|Тогда идём!|Sì, andiamo!|Sì, sono le tre.|No, ho fame.', 'A dopo!|Увидимся!|A dopo!|Buonanotte!|Quanti anni hai?'])
+];
+
+const IT_SONGS = [
+  SO('is1', 0, 506, '🔢', 'Считалка', ['Uno, due, tre, ecco il re!|Раз, два, три, вот король!|re|pane|luna', 'Quattro, cinque, sei, io e voi!|Четыре, пять, шесть, я и вы!|voi|gatto|sole', 'Sette, otto, nove, piove, piove!|Семь, восемь, девять, дождь идёт!|piove|casa|mela', 'Dieci! Ora contiamo ancora!|Десять! Теперь считаем ещё раз!|ancora|pizza|palla']),
+  SO('is2', 0, 508, '🌈', 'Цвета', ['Rosso, rosso, il mio cuore!|Красный, красный — моё сердце!|cuore|gatto|pane', 'Giallo, giallo, come il sole!|Жёлтый, как солнце!|sole|cane|mare', 'Blu, blu, il mare e il cielo!|Синий — море и небо!|cielo|cane|pane', 'Verde, verde, un bel prato!|Зелёный — красивый луг!|prato|scarpa|luna']),
+  SO('is3', 0, 509, '👨‍👩‍👧', 'Семья', ['Mamma, mamma, ti voglio bene!|Мама, мама, я тебя люблю!|bene|pane|mare', 'Papà, papà, vieni qui!|Папа, папа, иди сюда!|qui|su|giù', 'Nonna, nonna, una torta!|Бабушка, бабушка, торт!|torta|porta|scarpa', 'Nonno, nonno, una storia!|Дедушка, дедушка, сказка!|storia|palla|rana']),
+  SO('is4', 0, 511, '🐾', 'Голоса животных', ['Il gatto fa miao, miao!|Кот мяукает!|miao|bau|muu', 'Il cane fa bau, bau!|Собака лает!|bau|miao|cip', 'La mucca fa muu, muu!|Корова мычит!|muu|bau|miao', 'L’uccello fa cip, cip!|Птичка чирикает!|cip|bau|muu']),
+  SO('is5', 0, 512, '🧍', 'Моё тело', ['Ho due occhi per guardare,|У меня два глаза, чтобы смотреть,|guardare|mangiare|dormire', 'due orecchie per ascoltare,|два уха, чтобы слушать,|ascoltare|cantare|ballare', 'una bocca per cantare,|рот, чтобы петь,|cantare|parlare|ballare', 'e due piedi per ballare!|и две ноги, чтобы танцевать!|ballare|dormire|mangiare']),
+  SO('is6', 0, 513, '🍕', 'Вкусная песенка', ['Pane e latte, che bontà!|Хлеб и молоко, как вкусно!|bontà|città|pizza', 'Pizza calda, pizza buona!|Горячая пицца, вкусная пицца!|buona|luna|rosa', 'Banana e mela, che bontà!|Банан и яблоко, как вкусно!|mela|gatto|pane', 'Succo fresco, che bontà!|Свежий сок, как вкусно!|fresco|caldo|blu']),
+  SO('is7', 0, 517, '📅', 'Дни недели', ['Lunedì, martedì, mercoledì,|Понедельник, вторник, среда,|mercoledì|giovedì|sabato', 'giovedì, venerdì, sabato e poi…|четверг, пятница, суббота, и потом…|poi|noi|voi', 'La domenica si riposa!|В воскресенье отдыхают!|riposa|rosa|cosa', 'Che bella settimana!|Какая красивая неделя!|settimana|mattina|campana']),
+  SO('is8', 0, 518, '⛅', 'Погода', ['Il sole splende, che bel giorno!|Солнце светит, какой чудесный день!|giorno|forno|torno', 'La pioggia cade, plin, plin, plin!|Дождь капает, плин-плин-плин!|plin|din|don', 'Il vento soffia, fa freddo!|Ветер дует, холодно!|freddo|caldo|pioggia', 'La neve è bianca e soffice!|Снег белый и мягкий!|soffice|pesante|rossa']),
+  SO('is9', 0, 519, '🏃', 'Двигайся!', ['Corro, corro, corro forte!|Бегу, бегу, бегу быстро!|forte|piano|lento', 'Salto, salto, salto in alto!|Прыгаю, прыгаю высоко!|alto|basso|piccolo', 'Nuoto, nuoto nel mare blu!|Плаваю, плаваю в синем море!|blu|rosso|verde', 'Ballo, ballo, che bella festa!|Танцую, танцую, какой чудесный праздник!|festa|testa|finestra']),
+  SO('is10', 0, 520, '🌙', 'Колыбельная', ['Buonanotte, buonanotte, la luna è qui!|Спокойной ночи, луна здесь!|qui|lì|su', 'Le stelle brillano nel blu!|Звёзды сияют в синеве!|blu|su|più', 'Chiudi gli occhi, fai la nanna!|Закрой глаза, спи!|nanna|mamma|canna', 'Sogni d’oro, dolce nanna!|Золотых снов, сладкий сон!|nanna|mamma|canna']),
+  SO('is11', 1, 532, '🏙️', 'Мой город', ['In città c’è un grande parco,|В городе есть большой парк,|parco|barco|banco', 'e una piazza con la fontana,|и площадь с фонтаном,|fontana|montagna|lana', 'Il bar vende il gelato,|В баре продают мороженое,|gelato|mercato|prato', 'e la scuola è sempre qui!|а школа всегда здесь!|qui|lì|su']),
+  SO('is12', 1, 534, '🌤️', 'Времена года', ['Primavera, fiori e sole,|Весна, цветы и солнце,|sole|mare|luna', 'Estate, mare e gelato,|Лето, море и мороженое,|gelato|prato|mercato', 'Autunno, foglie gialle,|Осень, жёлтые листья,|gialle|rosse|belle', 'Inverno, neve e freddo!|Зима, снег и холод!|freddo|caldo|vento'])
+];
+
+</script>
+<script>
+/* Итальянский: рассказы для аудирования. 12 тем × 10 вариантов = 120 рассказов. В каждом свои имена, животные, цвета, дни, числа и места,
+   поэтому рассказы не повторяются. Формат как у английского: {id, world, req, grp, icon, title, intro, text, qs, pick}. */
+const IT_AUDIOS = [];
+(function () {
+  const L = (en, ru) => ({ en, ru });
+  const opts3 = (ans, pool, k) => { const rest = pool.filter(x => x !== ans), a = rest[k % rest.length], b = rest[(k + 3) % rest.length]; return [ans, a, b === a ? rest[(k + 1) % rest.length] : b]; };
+  const Q = (en, ru, ans, pool, k) => ({ en, ru, ans, opts: opts3(ans, pool, k) });
+  const pick = (say, pool, k) => ({ say, opts: opts3(say, pool, k) });
+  const years = n => (n % 10 === 1 && n !== 11 ? 'год' : (n % 10 >= 2 && n % 10 <= 4 && (n < 10 || n > 20) ? 'года' : 'лет'));
+  const NM = [['Marco', 'Марко', 'Марко', 'm'], ['Anna', 'Анна', 'Анны', 'f'], ['Luca', 'Лука', 'Луки', 'm'], ['Sofia', 'София', 'Софии', 'f'], ['Paolo', 'Паоло', 'Паоло', 'm'], ['Giulia', 'Джулия', 'Джулии', 'f'],
+    ['Matteo', 'Маттео', 'Маттео', 'm'], ['Chiara', 'Кьяра', 'Кьяры', 'f'], ['Davide', 'Давиде', 'Давиде', 'm'], ['Elena', 'Елена', 'Елены', 'f'], ['Franco', 'Франко', 'Франко', 'm'], ['Sara', 'Сара', 'Сары', 'f']]
+    .map(([it, ru, gen, g]) => ({ it, ru, gen, g }));
+  const NUMW = { 6: 'sei', 7: 'sette', 8: 'otto', 9: 'nove', 10: 'dieci', 11: 'undici', 12: 'dodici' };
+  const DAYS = [['lunedì', 'понедельник'], ['martedì', 'вторник'], ['mercoledì', 'среда'], ['giovedì', 'четверг'], ['venerdì', 'пятница'], ['sabato', 'суббота'], ['domenica', 'воскресенье']].map(([it, ru]) => ({ it, ru }));
+  const NAMES = NM.map(n => n.it);
+  const out = [];
+
+  /* ======== МИР 1 ======== */
+  // 1. Знакомство
+  for (let i = 0; i < 10; i++) {
+    const n = NM[i], age = 6 + (i % 7), sib = i % 2 ? ['una sorella', 'сестра'] : ['un fratello', 'брат'], pool = [6, 7, 8, 9, 10, 11, 12].map(x => NUMW[x]);
+    out.push({
+      id: 'iA' + i, world: 0, req: 509, grp: 'Знакомство', icon: '👋', title: `Знакомься, это ${n.ru}`, intro: 'Новый друг хочет познакомиться. Послушай, что он расскажет!',
+      text: [L(`Ciao! Mi chiamo ${n.it}.`, `Привет! Меня зовут ${n.ru}.`), L(`Ho ${NUMW[age]} anni.`, `Мне ${age} ${years(age)}.`), L('Questa è la mia mamma.', 'Это моя мама.'), L('Questo è il mio papà.', 'Это мой папа.'), L(`Ho ${sib[0]}.`, `У меня есть ${sib[1]}.`)],
+      qs: [Q('Come si chiama?', 'Как его зовут?', n.it, NAMES, i), Q('Quanti anni ha?', 'Сколько ему лет?', NUMW[age], pool, i), Q('Chi ha?', 'Кто у него есть?', sib[0].replace(/^un[ao]? /, m => m) === sib[0] ? sib[0] : sib[0], ['un fratello', 'una sorella', 'un cane'], i)],
+      pick: [pick(`Ho ${NUMW[age]} anni.`, pool.map(x => `Ho ${x} anni.`), i), pick(`Mi chiamo ${n.it}.`, NAMES.map(x => `Mi chiamo ${x}.`), i + 1), pick(`Ho ${sib[0]}.`, ['Ho un fratello.', 'Ho una sorella.', 'Ho un cane.'], i)]
+    });
+  }
+  // 2. Питомцы
+  const PETS = [['gatto', 'кот', 'm'], ['cane', 'собака', 'm'], ['coniglio', 'кролик', 'm'], ['uccello', 'птица', 'm'], ['cavallo', 'лошадь', 'm'], ['pesce', 'рыбка', 'm'], ['rana', 'лягушка', 'f'], ['topo', 'мышь', 'm'], ['gatto', 'кот', 'm'], ['cane', 'собака', 'm']];
+  const CLRS = [['nero', 'nera', 'чёрный', 'чёрная'], ['bianco', 'bianca', 'белый', 'белая'], ['rosso', 'rossa', 'красный', 'красная'], ['giallo', 'gialla', 'жёлтый', 'жёлтая'], ['grigio', 'grigia', 'серый', 'серая'], ['marrone', 'marrone', 'коричневый', 'коричневая']];
+  const DOES = [['salta', 'прыгает'], ['corre', 'бегает'], ['nuota', 'плавает'], ['vola', 'летает'], ['dorme', 'спит'], ['mangia', 'ест']];
+  for (let i = 0; i < 10; i++) {
+    const p = PETS[i], n = NM[(i * 5) % 12], c = CLRS[i % 6], d = DOES[(i * 2) % 6], f = p[2] === 'f';
+    out.push({
+      id: 'iB' + i, world: 0, req: 511, grp: 'Мой питомец', icon: '🐾', title: `Питомец №${i + 1}`, intro: 'Ребёнок рассказывает о своём питомце. Какой он? Что умеет?',
+      text: [L(`Ho ${f ? 'una' : 'un'} ${p[0]}.`, `У меня есть ${p[1]}.`), L(`Si chiama ${n.it}.`, `${f ? 'Её' : 'Его'} зовут ${n.ru}.`), L(`È ${f ? c[1] : c[0]}.`, `${f ? 'Она' : 'Он'} ${f ? c[3] : c[2]}.`), L(`${f ? 'La' : 'Il'} ${p[0]} ${d[0]}.`, `${p[1][0].toUpperCase() + p[1].slice(1)} ${d[1]}.`), L('Mi piace molto!', f ? 'Она мне очень нравится!' : 'Он мне очень нравится!')],
+      qs: [Q('Che animale ha?', 'Какое животное у него есть?', p[0], PETS.map(x => x[0]).filter((x, k, a) => a.indexOf(x) === k), i), Q('Come si chiama?', 'Как его зовут?', n.it, NAMES, i), Q('Che cosa fa?', 'Что он делает?', d[0], DOES.map(x => x[0]), i)],
+      pick: [pick(`Ho ${f ? 'una' : 'un'} ${p[0]}.`, ['Ho un gatto.', 'Ho un cane.', 'Ho un coniglio.', `Ho ${f ? 'una' : 'un'} ${p[0]}.`].filter((x, k, a) => a.indexOf(x) === k), i), pick(`Si chiama ${n.it}.`, NAMES.map(x => `Si chiama ${x}.`), i), pick(`${f ? 'La' : 'Il'} ${p[0]} ${d[0]}.`, DOES.map(x => `${f ? 'La' : 'Il'} ${p[0]} ${x[0]}.`), i)]
+    });
+  }
+  // 3. День рождения
+  const GIFT = [['un robot', 'робот'], ['una bambola', 'кукла'], ['una palla', 'мяч'], ['un libro', 'книга'], ['una bicicletta', 'велосипед'], ['un orsacchiotto', 'плюшевый мишка']];
+  const GUS = [['al cioccolato', 'шоколадный'], ['alla fragola', 'клубничный'], ['al limone', 'лимонный'], ['alla vaniglia', 'ванильный']];
+  for (let i = 0; i < 10; i++) {
+    const n = NM[i], age = 6 + (i % 7), g = GIFT[i % 6], gu = GUS[i % 4], balls = 3 + (i % 6);
+    out.push({
+      id: 'iC' + i, world: 0, req: 516, grp: 'День рождения', icon: '🎂', title: `День рождения №${i + 1}`, intro: 'Сегодня праздник! Послушай, как проходит вечеринка.',
+      text: [L(`Oggi è il compleanno di ${n.it}.`, `Сегодня день рождения ${n.gen}.`), L(`${n.it} ha ${NUMW[age]} anni.`, `${n.g === 'm' ? 'Ему' : 'Ей'} ${age} ${years(age)}.`), L(`Ci sono ${balls} palloncini.`, `Есть ${balls} воздушных ${balls < 5 ? 'шарика' : 'шариков'}.`), L(`La torta è ${gu[0]}.`, `Торт ${gu[1]}.`), L(`Il regalo è ${g[0]}.`, `Подарок — ${g[1]}.`)],
+      qs: [Q('Di chi è il compleanno?', 'У кого день рождения?', n.it, NAMES, i), Q('Quanti anni ha?', 'Сколько ему лет?', NUMW[age], [6, 7, 8, 9, 10, 11, 12].map(x => NUMW[x]), i), Q('Qual è il regalo?', 'Какой подарок?', g[0], GIFT.map(x => x[0]), i), Q('Com’è la torta?', 'Какой торт?', gu[0], GUS.map(x => x[0]), i)],
+      pick: [pick(`Oggi è il compleanno di ${n.it}.`, NAMES.map(x => `Oggi è il compleanno di ${x}.`), i), pick(`Il regalo è ${g[0]}.`, GIFT.map(x => `Il regalo è ${x[0]}.`), i), pick(`La torta è ${gu[0]}.`, GUS.map(x => `La torta è ${x[0]}.`), i)]
+    });
+  }
+  // 4. Погода
+  const WE = [['c’è il sole', 'светит солнце', 'gli occhiali da sole', 'солнечные очки'], ['piove', 'идёт дождь', 'l’ombrello', 'зонтик'], ['nevica', 'идёт снег', 'la sciarpa e i guanti', 'шарф и перчатки'], ['tira vento', 'дует ветер', 'la giacca', 'куртку'], ['ci sono le nuvole', 'облачно', 'il maglione', 'свитер']];
+  for (let i = 0; i < 10; i++) {
+    const w = WE[i % 5], d = DAYS[i % 7], cold = i % 5 === 2 || i % 5 === 4;
+    out.push({
+      id: 'iD' + i, world: 0, req: 518, grp: 'Погода', icon: '⛅', title: `Погода №${i + 1}`, intro: 'Какая сегодня погода? Что надеть?',
+      text: [L(`Oggi è ${d.it}.`, `Сегодня ${d.ru}.`), L(`Fuori ${w[0]}.`, `На улице ${w[1]}.`), L(cold ? 'Fa freddo.' : 'Non fa freddo.', cold ? 'Холодно.' : 'Не холодно.'), L(`Metto ${w[2]}.`, `Я надеваю ${w[3]}.`)],
+      qs: [Q('Che giorno è oggi?', 'Какой сегодня день?', d.it, DAYS.map(x => x.it), i), Q('Che tempo fa?', 'Какая погода?', w[0], WE.map(x => x[0]), i), Q('Che cosa mette?', 'Что он надевает?', w[2], WE.map(x => x[2]), i)],
+      pick: [pick(`Oggi è ${d.it}.`, DAYS.map(x => `Oggi è ${x.it}.`), i), pick(`Fuori ${w[0]}.`, WE.map(x => `Fuori ${x[0]}.`), i), pick(`Metto ${w[2]}.`, WE.map(x => `Metto ${x[2]}.`), i)]
+    });
+  }
+
+  /* ======== МИР 2 ======== */
+  // 5. Школьный день
+  const SUBJ = [['la matematica', 'математика', 'matematica'], ['l’arte', 'рисование', 'arte'], ['la musica', 'музыка', 'musica'], ['la ginnastica', 'физкультура', 'ginnastica'], ['l’italiano', 'итальянский язык', 'italiano'], ['la storia', 'история', 'storia'], ['la geografia', 'география', 'geografia']];
+  const AFTER = [['gioco a calcio', 'играю в футбол'], ['vado al parco', 'иду в парк'], ['leggo un libro', 'читаю книгу'], ['guardo un film', 'смотрю фильм'], ['faccio i compiti', 'делаю уроки'], ['disegno', 'рисую']];
+  for (let i = 0; i < 10; i++) {
+    const d = DAYS[i % 5], a = SUBJ[i % 7], b = SUBJ[(i + 3) % 7], like = SUBJ[(i + (i % 2 ? 3 : 0)) % 7], af = AFTER[i % 6];
+    out.push({
+      id: 'iE' + i, world: 1, req: 535, grp: 'Школьный день', icon: '🏫', title: `Школьный день №${i + 1}`, intro: 'Ребёнок рассказывает о школе. Какие уроки? Что он делает после школы?',
+      text: [L(`Oggi è ${d.it}.`, `Сегодня ${d.ru}.`), L('Vado a scuola.', 'Я иду в школу.'), L(`Ho ${a[2]} e ${b[2]}.`, `У меня ${a[1]} и ${b[1]}.`), L(`Mi piace ${like[0]}.`, `Мне нравится ${like[1]}.`), L(`Dopo la scuola ${af[0]}.`, `После школы я ${af[1]}.`)],
+      qs: [Q('Che giorno è?', 'Какой сегодня день?', d.it, DAYS.map(x => x.it), i), Q('Quali materie ha?', 'Какие у него уроки?', `${a[2]} e ${b[2]}`, SUBJ.map((x, k) => `${x[2]} e ${SUBJ[(k + 2) % 7][2]}`), i), Q('Che cosa fa dopo la scuola?', 'Что он делает после школы?', af[0], AFTER.map(x => x[0]), i)],
+      pick: [pick(`Oggi è ${d.it}.`, DAYS.map(x => `Oggi è ${x.it}.`), i), pick(`Ho ${a[2]} e ${b[2]}.`, SUBJ.map((x, k) => `Ho ${x[2]} e ${SUBJ[(k + 2) % 7][2]}.`), i), pick(`Dopo la scuola ${af[0]}.`, AFTER.map(x => `Dopo la scuola ${x[0]}.`), i)]
+    });
+  }
+  // 6. В кафе
+  const FOOD = [['un panino', 'бутерброд'], ['una pizza', 'пиццу'], ['un gelato', 'мороженое'], ['una torta', 'торт'], ['un biscotto', 'печенье'], ['una banana', 'банан']];
+  const DRINK = [['il succo', 'сок'], ['l’acqua', 'воду'], ['il latte', 'молоко'], ['il tè', 'чай'], ['la cioccolata', 'горячий шоколад']];
+  for (let i = 0; i < 10; i++) {
+    const f = FOOD[i % 6], dr = DRINK[i % 5], n = NM[(i * 7) % 12], price = 3 + (i % 8);
+    out.push({
+      id: 'iF' + i, world: 1, req: 537, grp: 'В кафе', icon: '☕', title: `В кафе №${i + 1}`, intro: 'Ребёнок пришёл в кафе. Что он закажет?',
+      text: [L(`${n.it} è al bar.`, `${n.ru} в кафе.`), L(`Vuole ${f[0]}.`, `${n.g === 'm' ? 'Он' : 'Она'} хочет ${f[1]}.`), L(`Beve ${dr[0]}.`, `${n.g === 'm' ? 'Он' : 'Она'} пьёт ${dr[1]}.`), L(`Costa ${NUMW[Math.min(Math.max(price, 6), 12)] || 'otto'} euro.`, `Это стоит ${Math.min(Math.max(price, 6), 12)} евро.`)],
+      qs: [Q('Dov’è?', 'Где он(а)?', 'Al bar', ['Al bar', 'A scuola', 'Al parco'], i), Q('Che cosa vuole?', 'Что он(а) хочет?', f[0], FOOD.map(x => x[0]), i), Q('Che cosa beve?', 'Что он(а) пьёт?', dr[0], DRINK.map(x => x[0]), i)],
+      pick: [pick(`Vuole ${f[0]}.`, FOOD.map(x => `Vuole ${x[0]}.`), i), pick(`Beve ${dr[0]}.`, DRINK.map(x => `Beve ${x[0]}.`), i), pick(`${n.it} è al bar.`, NAMES.map(x => `${x} è al bar.`), i)]
+    });
+  }
+  // 7. Моя комната
+  const ROOMS = [['la camera', 'комната'], ['la cucina', 'кухня'], ['il bagno', 'ванная'], ['il giardino', 'сад']];
+  const THINGS = [['un letto', 'кровать'], ['una lampada', 'лампа'], ['una sedia', 'стул'], ['un divano', 'диван'], ['una finestra', 'окно'], ['un tavolo', 'стол']];
+  const TOYS = [['un robot', 'робот'], ['una palla', 'мяч'], ['un libro', 'книга'], ['un orsacchiotto', 'плюшевый мишка'], ['una bambola', 'кукла']];
+  for (let i = 0; i < 10; i++) {
+    const r = ROOMS[i % 4], t = THINGS[i % 6], t2 = THINGS[(i + 2) % 6], toy = TOYS[i % 5];
+    out.push({
+      id: 'iG' + i, world: 1, req: 543, grp: 'Моя комната', icon: '🏠', title: `Моя комната №${i + 1}`, intro: 'Ребёнок показывает свой дом. Что где стоит?',
+      text: [L(`${/^il /.test(r[0]) ? 'Questo' : 'Questa'} è ${r[0]}.`, `Это ${r[1]}.`), L(`C’è ${t[0]}.`, `Тут есть ${t[1]}.`), L(`Vicino c’è ${t2[0]}.`, `Рядом есть ${t2[1]}.`), L(`Sopra c’è ${toy[0]}.`, `Сверху лежит ${toy[1]}.`), L('Mi piace la mia casa!', 'Мне нравится мой дом!')],
+      qs: [Q('Che stanza è?', 'Что это за комната?', r[0], ROOMS.map(x => x[0]), i), Q('Che cosa c’è?', 'Что там есть?', t[0], THINGS.map(x => x[0]), i), Q('Che cosa c’è sopra?', 'Что лежит сверху?', toy[0], TOYS.map(x => x[0]), i)],
+      pick: [pick(`${/^il /.test(r[0]) ? 'Questo' : 'Questa'} è ${r[0]}.`, ROOMS.map(x => `${/^il /.test(x[0]) ? 'Questo' : 'Questa'} è ${x[0]}.`), i), pick(`C’è ${t[0]}.`, THINGS.map(x => `C’è ${x[0]}.`), i), pick(`Sopra c’è ${toy[0]}.`, TOYS.map(x => `Sopra c’è ${x[0]}.`), i)]
+    });
+  }
+  // 8. Спорт
+  const SPORT = [['il calcio', 'футбол', 'gioca a calcio', 'играет в футбол'], ['il tennis', 'теннис', 'gioca a tennis', 'играет в теннис'], ['il nuoto', 'плавание', 'nuota', 'плавает'], ['la pallavolo', 'волейбол', 'gioca a pallavolo', 'играет в волейбол'], ['lo sci', 'лыжи', 'scia', 'катается на лыжах'], ['il ciclismo', 'велоспорт', 'va in bicicletta', 'ездит на велосипеде']];
+  for (let i = 0; i < 10; i++) {
+    const n = NM[(i * 3) % 12], s = SPORT[i % 6], d = DAYS[(i + 1) % 7];
+    out.push({
+      id: 'iH' + i, world: 1, req: 536, grp: 'Спорт', icon: '⚽', title: `Любимый спорт №${i + 1}`, intro: 'Ребёнок рассказывает о любимом спорте.',
+      text: [L(`Mi chiamo ${n.it}.`, `Меня зовут ${n.ru}.`), L(`Mi piace ${s[0]}.`, `Мне нравится ${s[1]}.`), L(`${d.it === 'domenica' ? 'La' : 'Il'} ${d.it} ${s[2].replace(/^(gioca|nuota|scia|va)/, m => ({ gioca: 'gioco', nuota: 'nuoto', scia: 'scio', va: 'vado' }[m]))}.`, `В ${d.ru.replace(/а$/, 'у').replace(/я$/, 'ю')} я ${s[3].replace(/^играет/, 'играю').replace(/^плавает/, 'плаваю').replace(/^катается/, 'катаюсь').replace(/^ездит/, 'езжу')}.`), L('Che bello lo sport!', 'Как здорово заниматься спортом!')],
+      qs: [Q('Come si chiama?', 'Как его зовут?', n.it, NAMES, i), Q('Che sport piace?', 'Какой спорт ему нравится?', s[0], SPORT.map(x => x[0]), i), Q('Quando fa sport?', 'Когда он занимается?', d.it, DAYS.map(x => x.it), i)],
+      pick: [pick(`Mi chiamo ${n.it}.`, NAMES.map(x => `Mi chiamo ${x}.`), i), pick(`Mi piace ${s[0]}.`, SPORT.map(x => `Mi piace ${x[0]}.`), i), pick('Che bello lo sport!', ['Che bello lo sport!', 'Che brutto il cane!', 'Che bella la luna!'], i)]
+    });
+  }
+
+  /* ======== МИР 3 ======== */
+  // 9. Город Италии
+  const CITY = [['Roma', 'Рим', 'il Colosseo', 'Колизей', 'la pasta', 'пасту'], ['Venezia', 'Венецию', 'la gondola', 'гондолу', 'il gelato', 'мороженое'], ['Firenze', 'Флоренцию', 'il duomo', 'собор', 'la pizza', 'пиццу'], ['Napoli', 'Неаполь', 'il Vesuvio', 'Везувий', 'la pizza', 'пиццу'],
+    ['Milano', 'Милан', 'il duomo', 'собор', 'il risotto', 'ризотто'], ['Torino', 'Турин', 'la montagna', 'горы', 'il cioccolato', 'шоколад']];
+  for (let i = 0; i < 10; i++) {
+    const c = CITY[i % 6], n = NM[(i * 5 + 1) % 12];
+    out.push({
+      id: 'iI' + i, world: 2, req: 601, grp: 'Город Италии', icon: '🇮🇹', title: `Путешествие №${i + 1}`, intro: 'Турист рассказывает о своей поездке по Италии.',
+      text: [L(`Mi chiamo ${n.it}.`, `Меня зовут ${n.ru}.`), L(`Oggi sono a ${c[0]}.`, `Сегодня я в городе: ${c[1].replace(/ю$/, 'я')}.`), L(`Vedo ${c[2]}.`, `Я вижу ${c[3]}.`), L(`Mangio ${c[4]}.`, `Я ем ${c[5]}.`), L('Mi piace molto l’Italia!', 'Мне очень нравится Италия!')],
+      qs: [Q('Dov’è oggi?', 'Где он сегодня?', c[0], CITY.map(x => x[0]), i), Q('Che cosa vede?', 'Что он видит?', c[2], CITY.map(x => x[2]).filter((x, k, a) => a.indexOf(x) === k), i), Q('Che cosa mangia?', 'Что он ест?', c[4], ['la pasta', 'il gelato', 'la pizza', 'il risotto', 'il cioccolato'], i)],
+      pick: [pick(`Oggi sono a ${c[0]}.`, CITY.map(x => `Oggi sono a ${x[0]}.`), i), pick(`Vedo ${c[2]}.`, CITY.map(x => `Vedo ${x[2]}.`).filter((x, k, a) => a.indexOf(x) === k), i), pick(`Mangio ${c[4]}.`, ['la pasta', 'il gelato', 'la pizza', 'il risotto', 'il cioccolato'].map(x => `Mangio ${x}.`), i)]
+    });
+  }
+  // 10. В магазине
+  const ITEMS = [['una borsa', 'сумку'], ['un cappello', 'шляпу'], ['una palla', 'мяч'], ['un libro', 'книгу'], ['una maglia', 'кофту'], ['un orsacchiotto', 'плюшевого мишку']];
+  for (let i = 0; i < 10; i++) {
+    const it = ITEMS[i % 6], price = 6 + (i % 7), have = i % 2 ? Math.min(12, price + 2) : Math.max(6, price - 1), can = have >= price;
+    out.push({
+      id: 'iJ' + i, world: 2, req: 606, grp: 'В магазине', icon: '🛍️', title: `В магазине №${i + 1}`, intro: 'Ребёнок хочет купить вещь. Хватит ли ему денег?',
+      text: [L('Sono nel negozio.', 'Я в магазине.'), L(`Vorrei ${it[0]}.`, `Я бы хотел ${it[1]}.`), L(`Costa ${NUMW[price]} euro.`, `Это стоит ${price} евро.`), L(`Ho ${NUMW[have]} euro.`, `У меня ${have} евро.`)],
+      qs: [Q('Che cosa vuole?', 'Что он хочет?', it[0], ITEMS.map(x => x[0]), i), Q('Quanto costa?', 'Сколько это стоит?', NUMW[price], [6, 7, 8, 9, 10, 11, 12].map(x => NUMW[x]), i), Q('Ha abbastanza soldi?', 'Хватает ли ему денег?', can ? 'Sì' : 'No', ['Sì', 'No', 'Non lo so'], i)],
+      pick: [pick('Sono nel negozio.', ['Sono nel negozio.', 'Sono nel parco.', 'Sono nella scuola.'], i), pick(`Vorrei ${it[0]}.`, ITEMS.map(x => `Vorrei ${x[0]}.`), i), pick(`Costa ${NUMW[price]} euro.`, [6, 7, 8, 9, 10, 11, 12].map(x => `Costa ${NUMW[x]} euro.`), i)]
+    });
+    out[out.length - 1].qs[2].ans = can ? 'Sì' : 'No';
+  }
+  // 11. Поездка
+  const VEH = [['in treno', 'на поезде'], ['in aereo', 'на самолёте'], ['in autobus', 'на автобусе'], ['in macchina', 'на машине'], ['in nave', 'на корабле']];
+  for (let i = 0; i < 10; i++) {
+    const c = CITY[i % 6], v = VEH[i % 5], h = 2 + (i % 5), n = NM[(i * 7 + 2) % 12];
+    out.push({
+      id: 'iK' + i, world: 2, req: 607, grp: 'В дороге', icon: '🧳', title: `Поездка №${i + 1}`, intro: 'Семья отправляется в путешествие. Куда и как они едут?',
+      text: [L(`Siamo in viaggio, io e ${n.it}.`, `Мы в пути: я и ${n.ru}.`), L(`Andiamo a ${c[0]} ${v[0]}.`, `Мы едем в город ${c[0]} ${v[1]}.`), L(`Il viaggio dura ${['', '', 'due', 'tre', 'quattro', 'cinque', 'sei'][h]} ore.`, `Дорога занимает ${h} ${h < 5 ? 'часа' : 'часов'}.`), L('Ho il biglietto e la valigia.', 'У меня есть билет и чемодан.')],
+      qs: [Q('Dove vanno?', 'Куда они едут?', c[0], CITY.map(x => x[0]), i), Q('Come viaggiano?', 'Как они едут?', v[0], VEH.map(x => x[0]), i), Q('Che cosa hanno?', 'Что у них есть?', 'Il biglietto e la valigia', ['Il biglietto e la valigia', 'Il gelato e la palla', 'Il gatto e il cane'], i)],
+      pick: [pick(`Andiamo a ${c[0]} ${v[0]}.`, VEH.map(x => `Andiamo a ${c[0]} ${x[0]}.`), i), pick(`Siamo in viaggio, io e ${n.it}.`, NAMES.map(x => `Siamo in viaggio, io e ${x}.`), i), pick('Ho il biglietto e la valigia.', ['Ho il biglietto e la valigia.', 'Ho il gelato e la palla.', 'Ho il gatto e il cane.'], i)]
+    });
+  }
+  // 12. Ресторан
+  const DISH = [['gli spaghetti', 'спагетти'], ['la lasagna', 'лазанью'], ['il risotto', 'ризотто'], ['la pizza', 'пиццу'], ['il tiramisù', 'тирамису']];
+  for (let i = 0; i < 10; i++) {
+    const dsh = DISH[i % 5], dr = DRINK[(i + 1) % 5], price = 10 + 2 * (i % 6), n = NM[(i * 5 + 3) % 12];
+    out.push({
+      id: 'iL' + i, world: 2, req: 605, grp: 'В ресторане', icon: '🍽️', title: `В ресторане №${i + 1}`, intro: 'Вечером семья ужинает в итальянском ресторане.',
+      text: [L('Siamo al ristorante.', 'Мы в ресторане.'), L('Il cameriere porta il menù.', 'Официант приносит меню.'), L(`${n.it} mangia ${dsh[0]}.`, `${n.ru} ест ${dsh[1]}.`), L(`Beve ${dr[0]}.`, `${n.g === 'm' ? 'Он' : 'Она'} пьёт ${dr[1]}.`), L(`Il conto è ${price} euro.`, `Счёт — ${price} евро.`)],
+      qs: [Q('Dove sono?', 'Где они?', 'Al ristorante', ['Al ristorante', 'A scuola', 'In piscina'], i), Q('Che cosa mangia?', 'Что он(а) ест?', dsh[0], DISH.map(x => x[0]), i), Q('Che cosa beve?', 'Что он(а) пьёт?', dr[0], DRINK.map(x => x[0]), i), Q('Quanto è il conto?', 'Сколько составляет счёт?', `${price} euro`, [10, 12, 14, 16, 18, 20].map(x => `${x} euro`), i)],
+      pick: [pick('Il cameriere porta il menù.', ['Il cameriere porta il menù.', 'Il cuoco porta il gatto.', 'Il medico porta il libro.'], i), pick(`${n.it} mangia ${dsh[0]}.`, DISH.map(x => `${n.it} mangia ${x[0]}.`), i), pick(`Il conto è ${price} euro.`, [10, 12, 14, 16, 18, 20].map(x => `Il conto è ${x} euro.`), i)]
+    });
+  }
+  out.forEach(o => IT_AUDIOS.push(o));
+})();
+
+</script>
+<script>
+/* Языки изучения. Английский и итальянский работают на одном движке: слова, уроки, диалоги, песенки и аудирование
+   лежат в наборах (пакетах), а игра на лету подменяет глобальные данные на нужный язык (функция langUse в game.js).
+   Данные итальянского — файлы it_*.js (подключаются до этого файла). Пакет английского снимается здесь «снимком» из уже загруженных данных. */
+const LANGINFO = {
+  en: { tts: 'en-US', re: /^en/i, adj: 'английский', gen: 'английского', adv: 'по-английски', chrome: 'Google US English', win: 'English (United States)', short: 'English' },
+  it: { tts: 'it-IT', re: /^it/i, adj: 'итальянский', gen: 'итальянского', adv: 'по-итальянски', chrome: 'Google italiano', win: 'Italiano (Italia)', short: 'Italiano' }
+};
+const EN_PACK = { WORDS: Object.assign({}, WORDS), WORLDS: WORLDS.slice(), DIALOGS: DIALOGS.slice(), SONGS: SONGS.slice(), AUDIOS: AUDIOS.slice(), TALES: TALES.slice() };
+const IT_PACK = {
+  WORDS: typeof IT_WORDS !== 'undefined' ? IT_WORDS : {}, WORLDS: typeof IT_WORLDS !== 'undefined' ? IT_WORLDS : [], DIALOGS: typeof IT_DIALOGS !== 'undefined' ? IT_DIALOGS : [],
+  SONGS: typeof IT_SONGS !== 'undefined' ? IT_SONGS : [], AUDIOS: typeof IT_AUDIOS !== 'undefined' ? IT_AUDIOS : [], TALES: []
+};
+
+</script>
+<script>
 /* Адаптация игры под успеваемость: читает данные дневника (оценки, задания, замечания) и подсказывает игре,
    какому предмету и каким темам уделить внимание. Чистая логика без DOM: легко проверить тестами (tests/adapt.test.js). */
 const ADAPT = (() => {
@@ -3960,14 +4596,14 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, izoDay: '', strict: false, itworld: 0, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
-const skind = () => S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
+const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'math' ? 'math' : 'eng';
 const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo'; // предметы с генерируемыми заданиями
 const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widx = () => S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.world;
+const widx = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
 const worldOpen = k => S.unlockAll || k === 0 || isGen() || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
@@ -4020,11 +4656,13 @@ function unlockAudio() {
    sfxUntil — до какого момента звучит звуковой сигнал (речь стартует после него, чтобы они не мешали друг другу). */
 const SPK = { seq: 0, until: 0, ended: true, sfxUntil: 0 };
 const speechOn = () => 'speechSynthesis' in window;
-let enVoice = null;
+let enVoice = null; // голос изучаемого языка (английского или итальянского)
+let LNOW = LANGINFO.en; // сведения о текущем языке изучения
+const LN = () => LNOW;
 function pickVoice() {
   try {
-    const vs = speechSynthesis.getVoices();
-    enVoice = vs.find(v => /^en[-_]US/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null;
+    const vs = speechSynthesis.getVoices(), base = LNOW.tts.replace('-', '[-_]');
+    enVoice = vs.find(v => new RegExp('^' + base, 'i').test(v.lang)) || vs.find(v => LNOW.re.test(v.lang)) || null;
   } catch (e) {}
   return enVoice;
 }
@@ -4061,7 +4699,7 @@ function say(t, rate, delay, done) {
     if (my !== SPK.seq) return finish(); // за это время запросили другую фразу или остановили речь
     let started = false, retrying = false;
     try {
-      const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = rate || .8;
+      const u = new SpeechSynthesisUtterance(t); u.lang = LNOW.tts; u.rate = rate || .8;
       try { const v = enVoice || pickVoice(); if (v) u.voice = v; } catch (e) { enVoice = null; } // сбой голоса не должен заглушать речь
       u.onstart = () => { started = true; };
       u.onend = u.onerror = () => { if (retrying) return; started = true; if (my === SPK.seq) SPK.ended = true; finish(); };
@@ -4200,9 +4838,25 @@ function srs(id, ok) {
 /* учёт ошибок в грамматике и чтении (пропуски и вопросы по тексту) */
 const gkey = g => g.en + '|' + g.ans;
 const GAPIDX = {};
-WORLDS.forEach(wd => wd.lessons.forEach(l => (l.gaps || []).forEach(g => { GAPIDX[gkey(g)] = g; }))); // вопросы по тексту без самого текста в «Тренировку» не берём
-DIALOGS.forEach(d => d.turns.forEach(t => { GAPIDX[gkey(t)] = t; })); // реплики диалогов тоже попадают в «Тренировку»
-SONGS.forEach(s => s.lines.forEach(l => { const g = songGap(l); if (g) GAPIDX[gkey(g)] = g; })); // и рифмы из песенок
+function buildGapIdx() {
+  Object.keys(GAPIDX).forEach(k => delete GAPIDX[k]);
+  WORLDS.forEach(wd => wd.lessons.forEach(l => (l.gaps || []).forEach(g => { GAPIDX[gkey(g)] = g; }))); // вопросы по тексту без самого текста в «Тренировку» не берём
+  DIALOGS.forEach(d => d.turns.forEach(t => { GAPIDX[gkey(t)] = t; })); // реплики диалогов тоже попадают в «Тренировку»
+  SONGS.forEach(s => s.lines.forEach(l => { const g = songGap(l); if (g) GAPIDX[gkey(g)] = g; })); // и рифмы из песенок
+}
+buildGapIdx();
+// смена языка изучения: подменяем данные на месте (слова, миры, диалоги, песенки, аудирование)
+let curLang = 'en';
+function langUse(code) {
+  if (code === curLang) return;
+  const pack = code === 'it' ? IT_PACK : EN_PACK;
+  Object.keys(WORDS).forEach(k => delete WORDS[k]); Object.assign(WORDS, pack.WORDS);
+  [[WORLDS, pack.WORLDS], [DIALOGS, pack.DIALOGS], [SONGS, pack.SONGS], [AUDIOS, pack.AUDIOS], [TALES, pack.TALES]].forEach(([arr, src]) => { arr.length = 0; src.forEach(x => arr.push(x)); });
+  curLang = code; LNOW = LANGINFO[code]; enVoice = null;
+  EXAMPLES = null; ENG_IDX = null; audWorld = -1; try { vf.world = -1; } catch (e) {}
+  buildGapIdx(); if (speechOn()) pickVoice();
+}
+const syncLang = () => langUse(S.subj === 'it' ? 'it' : 'en');
 function grSrs(g, ok) {
   logQ(ok);
   const r = S.gr[gkey(g)] || (S.gr[gkey(g)] = { box: 0, miss: 0, due: today() });
@@ -4274,17 +4928,18 @@ function runSteps(ctx, final) {
 
 /* если на устройстве нет английского голоса, слова читаются русским голосом и ничего не понятно — предупреждаем родителей */
 let voiceDismissed = false; // «Понятно» нажато — до перезапуска больше не напоминаем
-const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => /^en/i.test(v.lang)); } catch (e) { return false; } };
+const hasEnVoice = () => { try { return speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)); } catch (e) { return false; } };
 const voiceCount = () => { try { return speechSynthesis.getVoices().length; } catch (e) { return 0; } };
 function voiceCheck() {
   const box = $('vw');
   if (isGen() || voiceDismissed || !box || !speechOn()) return;
-  if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или английский есть
-  box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет английского голоса.</b> Английские слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
-    <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «Google US English».</li>
-    <li><b>Windows:</b> Параметры → Время и язык → Язык и регион → Добавить язык → English (United States) → после установки включите «Преобразование текста в речь», затем перезапустите браузер.</li>
-    <li><b>Android:</b> Настройки → Язык и ввод → Синтез речи → Google → Установить голосовые данные → English.</li>
-    <li><b>iPad:</b> Настройки → Универсальный доступ → Устный контент → Голоса → English.</li></ul>
+  if (!voiceCount() || hasEnVoice()) return; // голоса ещё не загрузились или нужный язык есть
+  const lg = LN();
+  box.innerHTML = `<div class="card" style="background:#ffe3e0"><b>🔇 На этом устройстве нет голоса для языка: ${lg.adj}.</b> Слова читаются русским голосом, поэтому звучат непонятно, «обрываются» или «пропадают».
+    <ul><li><b>Проще всего:</b> откройте игру в <b>Google Chrome</b> при подключённом интернете, там появляется голос «${lg.chrome}».</li>
+    <li><b>Windows:</b> Параметры → Время и язык → Язык и регион → Добавить язык → ${lg.win} → после установки включите «Преобразование текста в речь», затем перезапустите браузер.</li>
+    <li><b>Android:</b> Настройки → Язык и ввод → Синтез речи → Google → Установить голосовые данные → ${lg.short}.</li>
+    <li><b>iPad:</b> Настройки → Универсальный доступ → Устный контент → Голоса → ${lg.short}.</li></ul>
     <button class="btn small sec" id="vwx">Понятно</button></div>`;
   $('vwx').onclick = () => { voiceDismissed = true; box.innerHTML = ''; };
 }
@@ -4575,6 +5230,7 @@ function engIndex() {
   return ENG_IDX;
 }
 function engDiaryLessons() {
+  if (S.subj !== 'eng') return []; // дневник сопоставляется только с уроками английского
   const f = focusOf('eng'), texts = f.topics.concat(f.exams.map(e => e.text));
   if (!texts.length) return [];
   const score = {};
@@ -4630,7 +5286,7 @@ function missionCard() {
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
   if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
-  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', eng: 'английскому' }[sj];
+  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', eng: 'английскому', it: 'итальянскому' }[sj];
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
@@ -4665,14 +5321,14 @@ function nextIdx() {
 // Два уровня, чтобы ребёнок не путался: сначала главный экран (крупно: играть, предметы, магазин, награды),
 // и только внутри предмета — карта уроков, тренировка и задание дня.
 let homeView = true;
-const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS] };
+const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS] };
 const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
 function mapTail() {
   syncSoon(); writeSummary();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
 }
 function home() {
-  epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
+  syncLang(); epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
   const st = petStage(), nxt = PET_STAGES[st + 1];
   const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
   const cur = skind(), meta = SUBJ_META[cur];
@@ -4701,6 +5357,7 @@ function home() {
 }
 function map() {
   if (homeView) return home();
+  syncLang();
   epoch++; newScreen();
   applyTheme();
   const WL = W().lessons, BS = W().boss;
@@ -4723,7 +5380,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name}</button>`).join('') : '';
-  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${!S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
+  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -4750,7 +5407,7 @@ function map() {
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
-    if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else S.world = k;
+    if (S.subj === 'it') S.itworld = k; else if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else S.world = k;
     save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
@@ -4971,7 +5628,7 @@ function quiz(o, done) {
       ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
       : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
     const prompt = mode === 'see'
-      ? `<div class="bigemoji">${w.e}</div><p>Как это по-английски?</p>`
+      ? `<div class="bigemoji">${w.e}</div><p>Как это ${LN().adv}?</p>`
       : `<button class="speak" id="sp">🔊</button><p>${mode === 'mine' ? 'Найди блок с этим словом и копай!' : 'Послушай и найди картинку'}</p>`;
     const optHTML = opts.map(id => {
       const x = WORDS[id];
@@ -5675,7 +6332,7 @@ const BK = {
     });
   }
 };
-const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['eng', 'Английский'], ['other', 'Другое']];
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['eng', 'Английский'], ['it', 'Итальянский'], ['other', 'Другое']];
 function booksHtml() {
   const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
   return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
@@ -5711,7 +6368,7 @@ function booksInit() {
   draw();
 }
 function parent() {
-  const rows = WORLDS.concat(MWORLDS, RWORLDS, OWORLDS, IWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
+  const rows = EN_PACK.WORLDS.concat(IT_PACK.WORLDS, MWORLDS, RWORLDS, OWORLDS, IWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
     const r = S.lessons[l.id] || {};
     return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
   }).join('')).join('');
@@ -5765,8 +6422,8 @@ function parent() {
   const vstat = () => {
     let list = ''; try { list = speechSynthesis.getVoices().map(v => v.name + ' (' + v.lang + ')').join('; '); } catch (e) {}
     $('vm').innerHTML = hasEnVoice()
-      ? '✅ Английский голос найден: ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
-      : '❌ Английский голос не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
+      ? '✅ Голос найден (' + LN().adj + '): ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
+      : '❌ Голос для языка «' + LN().adj + '» не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
   };
   vstat();
   $('vc').onclick = () => { speak('Hello! I am a robot.'); vstat(); };
@@ -5780,7 +6437,7 @@ function parent() {
 }
 
 /* ---------- награды и ачивки ---------- */
-const allLessons = () => [].concat(...WORLDS.map(w => w.lessons));
+const allLessons = () => [].concat(...EN_PACK.WORLDS.concat(IT_PACK.WORLDS).map(w => w.lessons)); // достижения считаем по иностранным языкам (английский + итальянский)
 const doneLessons = () => allLessons().filter(l => (S.lessons[l.id] || {}).done);
 const cntDone = obj => Object.values(obj || {}).filter(x => x.done).length;
 const A = (cat, id, i, t, d, goal, r, val) => ({ cat, id, i, t, d, goal, r, val });
@@ -5799,9 +6456,9 @@ const ACH = [
   A('Звёзды', 's100', '🌟', 'Звёздный путь', 'Собери 100 звёзд за локации', 100, 25, () => doneLessons().reduce((s, l) => s + (S.lessons[l.id].stars || 0), 0)),
   A('Звёзды', 't10', '🎖️', 'Отличник', 'Получи 3 звезды в 10 локациях', 10, 15, () => doneLessons().filter(l => S.lessons[l.id].stars === 3).length),
   A('Звёзды', 't30', '👑', 'Супер-отличник', 'Получи 3 звезды в 30 локациях', 30, 30, () => doneLessons().filter(l => S.lessons[l.id].stars === 3).length),
-  A('Миры', 'b1', '👾', 'Победитель Забывака', 'Победи босса мира 1', 1, 15, () => ((S.lessons[WORLDS[0].boss.id] || {}).done ? 1 : 0)),
-  A('Миры', 'b2', '👹', 'Укротитель путаницы', 'Победи босса мира 2', 1, 20, () => ((S.lessons[WORLDS[1].boss.id] || {}).done ? 1 : 0)),
-  A('Миры', 'b3', '🧙', 'Победитель цитадели', 'Победи босса мира 3', 1, 25, () => ((S.lessons[WORLDS[2].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b1', '👾', 'Победитель Забывака', 'Победи босса мира 1', 1, 15, () => ((S.lessons[EN_PACK.WORLDS[0].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b2', '👹', 'Укротитель путаницы', 'Победи босса мира 2', 1, 20, () => ((S.lessons[EN_PACK.WORLDS[1].boss.id] || {}).done ? 1 : 0)),
+  A('Миры', 'b3', '🧙', 'Победитель цитадели', 'Победи босса мира 3', 1, 25, () => ((S.lessons[EN_PACK.WORLDS[2].boss.id] || {}).done ? 1 : 0)),
   A('Миры', 'all', '🏝️', 'Покоритель острова', 'Победи всех трёх боссов', 3, 50, () => WORLDS.filter(w => (S.lessons[w.boss.id] || {}).done).length),
   A('Слова', 'w25', '📖', 'Первая коллекция', 'Собери 25 слов в словарик', 25, 5, () => collectedSet().size),
   A('Слова', 'w100', '🗣️', 'Полиглот', 'Собери 100 слов', 100, 15, () => collectedSet().size),
@@ -5911,7 +6568,7 @@ function exampleOf(id) {
     WORLDS.forEach(wd => wd.lessons.forEach(l => (l.sents || []).forEach(s => {
       Object.keys(WORDS).forEach(k => {
         if (EXAMPLES[k]) return;
-        const re = new RegExp('(^|[^A-Za-z])' + WORDS[k].en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Za-z]|$)', 'i');
+        const re = new RegExp('(^|[^A-Za-zÀ-ÿ])' + WORDS[k].en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^A-Za-zÀ-ÿ]|$)', 'i');
         if (re.test(s.en)) EXAMPLES[k] = s;
       });
     })));
@@ -5949,7 +6606,7 @@ function vocab() {
     <div class="card"><p>Собрано слов: <b>${mine}</b> из ${total} · 🥇 знаю отлично: <b>${gold}</b></p>
       <div class="bar"><i style="width:${Math.round(mine / total * 100)}%"></i></div>
       <p>${chips} <button class="btn small ${vf.weak ? 'red' : 'sec'}" id="vk">❗ Только слабые (${weak.size})</button></p>
-      <input type="text" id="vq" placeholder="🔎 Найти слово (по-английски или по-русски)" value="${vf.q.replace(/"/g, '&quot;')}">
+      <input type="text" id="vq" placeholder="🔎 Найти слово (${LN().adv} или по-русски)" value="${vf.q.replace(/"/g, '&quot;')}">
       <p><small>🥉 учу · 🥈 знаю хорошо · 🥇 знаю отлично. Нажми на карточку — послушаешь слово и увидишь пример.</small></p>
       ${sections || '<p>Здесь пока ничего нет. Проходи локации — и слова появятся в словарике!</p>'}</div>`;
   $('bk').onclick = map; $('fc').onclick = flashcards;
@@ -5989,7 +6646,7 @@ function flashcards() {
     const w = WORDS[deck[i]]; let flipped = false;
     app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Словарик</button><div class="stepname">Карточка ${i + 1} из ${deck.length}</div></div>
       <div class="card center"><div class="prog">${deck.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
-      <div class="flash" id="fl"><div class="ve" style="font-size:min(30vw,8rem)">${w.e}</div><p id="fh">Вспомни слово по-английски и скажи вслух. Потом нажми на карточку!</p></div>
+      <div class="flash" id="fl"><div class="ve" style="font-size:min(30vw,8rem)">${w.e}</div><p id="fh">Вспомни слово ${LN().adv} и скажи вслух. Потом нажми на карточку!</p></div>
       <div id="fb"></div></div>`;
     $('exit').onclick = vocab;
     $('fl').onclick = () => {
@@ -6029,7 +6686,7 @@ function familyReport() {
   const t0 = today(), days = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 6)), prev = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 13));
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   const agg = (st, ds) => { const r = { sec: 0, q: 0, ok: 0, act: 0 }; ds.forEach(d => { const x = (st.log || {})[d]; if (x && (x.sec || x.q)) { r.act++; r.sec += x.sec || 0; r.q += x.q || 0; r.ok += x.ok || 0; } }); return r; };
-  const subj = [['eng', '🇬🇧 Английский', WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS]];
+  const subj = [['eng', '🇬🇧 Английский', EN_PACK.WORLDS], ['it', '🇮🇹 Итальянский', IT_PACK.WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS]];
   const weakOf = st => Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; })
     .map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 5);
   const kids = PR.list.map(pl => {
@@ -6144,7 +6801,7 @@ const audioOpen = a => S.unlockAll || (S.lessons[a.req] || {}).done;
 let audWorld = -1;
 function listening() {
   hardStop();
-  if (audWorld < 0) audWorld = Math.min(S.world, WORLDS.length - 1);
+  if (audWorld < 0) audWorld = Math.min(widx(), WORLDS.length - 1);
   const list = AUDIOS.filter(a => a.world === audWorld);
   const doneN = list.filter(a => (S.audio[a.id] || {}).done).length, openN = list.filter(audioOpen).length;
   const groups = [];
@@ -6344,7 +7001,7 @@ function dialogs() {
     }).join('') + '</div>';
   }).join('');
   app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>💬 Диалоги</h2></div></div>
-    <div class="card"><p>Поговори с жителями острова по-английски! Выбирай подходящие ответы. Диалоги открываются, когда пройдена нужная тема.</p>${cards}</div>`;
+    <div class="card"><p>Поговори с жителями ${LN().adv === 'по-итальянски' ? 'Италии' : 'острова'} ${LN().adv}! Выбирай подходящие ответы. Диалоги открываются, когда пройдена нужная тема.</p>${cards}</div>`;
   $('bk').onclick = map;
   app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => playDialog(DIALOGS.find(d => d.id === b.dataset.d)));
 }
@@ -6475,7 +7132,7 @@ function diag() {
     let prompt, optHTML, ans, sayOk;
     if (q.kind === 'word') {
       const w = WORDS[q.id]; ans = q.id; sayOk = w.en;
-      prompt = `<div class="bigemoji">${w.e}</div><p>Как это по-английски?</p>`;
+      prompt = `<div class="bigemoji">${w.e}</div><p>Как это ${LN().adv}?</p>`;
       optHTML = q.opts.map(id => `<button class="opt see" data-v="${id}"><span class="ot">${WORDS[id].en}</span></button>`).join('');
     } else {
       const g = q.g, hasGap = g.en.includes('___'); ans = g.ans; sayOk = g.en.replace('___', g.ans);
