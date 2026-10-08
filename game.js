@@ -1790,6 +1790,30 @@ function tmChip() {
   const left = Math.max(0, tmLimit() - TM.used), m = Math.ceil(left / 60);
   el.style.display = ''; el.textContent = '⏰ ' + (left > 0 ? m + ' мин' : 'время вышло'); el.classList.toggle('low', left <= 300);
 }
+/* ---------- полноэкранный режим (убирает вкладки и адресную строку браузера) ---------- */
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+const fsCan = () => { const e = document.documentElement; return !!(e.requestFullscreen || e.webkitRequestFullscreen); };
+const fsWish = v => { try { if (v === undefined) return localStorage.getItem('engAdventure_fs') === '1'; localStorage.setItem('engAdventure_fs', v ? '1' : '0'); } catch (e) {} };
+function fsEnter() {
+  const e = document.documentElement;
+  try { const r = (e.requestFullscreen || e.webkitRequestFullscreen).call(e); if (r && r.catch) r.catch(() => {}); } catch (x) {}
+}
+function fsExit() { try { const r = (document.exitFullscreen || document.webkitExitFullscreen).call(document); if (r && r.catch) r.catch(() => {}); } catch (x) {} }
+function fsButton() {
+  const b = document.createElement('button'); b.id = 'fsbtn'; b.className = 'fsbtn'; b.type = 'button';
+  const upd = () => { b.textContent = fsEl() ? '🗗' : '⛶'; b.title = fsEl() ? 'Выйти из полного экрана' : 'Во весь экран'; };
+  upd();
+  b.onclick = () => {
+    if (!fsCan()) { toast('Здесь полный экран из кнопки не работает. Откройте меню браузера → «Добавить на главный экран» и запускайте игру оттуда'); return; }
+    if (fsEl()) { fsWish(false); fsExit(); } else { fsWish(true); fsEnter(); }
+  };
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, upd));
+  document.body.appendChild(b);
+  // если полный экран был включён раньше, при первом касании включаем снова (браузер разрешает только после касания)
+  const again = () => { if (fsWish() && fsCan() && !fsEl()) fsEnter(); document.removeEventListener('pointerup', again, true); };
+  document.addEventListener('pointerup', again, true);
+}
+fsButton();
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { tmAct = Date.now(); }, true));
 setInterval(() => {
   const now = Date.now(), dt = Math.min(5, (now - tmLast) / 1000); tmLast = now;
