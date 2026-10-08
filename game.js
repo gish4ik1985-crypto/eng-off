@@ -263,6 +263,7 @@ function sayOnline(t, rate, delay, done) {
 }
 const useOnlineTts = () => { try { return !!S.onlineTts && navigator.onLine && (!speechOn() || (speechSynthesis.getVoices().length > 0 && !speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)))); } catch (e) { return false; } };
 function say(t, rate, delay, done) {
+  if (tmLocked) { if (done) done(); return; }
   if (useOnlineTts()) return sayOnline(t, rate, delay, done);
   if (!speechOn()) { if (done) setTimeout(done, t.length * 90 + 800); return; }
   const my = ++SPK.seq;
@@ -310,7 +311,7 @@ function hardStop() {
 function stopAll() { epoch++; newScreen(); }
 // «номер экрана»: отложенная озвучка срабатывает, только если экран за это время не сменился
 let screenId = 0;
-function newScreen() { screenId++; hardStop(); }
+function newScreen() { screenId++; hardStop(); tmFree = false; }
 function speakLater(text, ms) {
   const id = screenId;
   setTimeout(() => { if (id === screenId) speak(text); }, ms);
@@ -543,6 +544,7 @@ function cancelNewPlayer() {
   newPlayerFrom = null; savePR(); applyTheme(); players();
 }
 function players() {
+  if (tmGate()) return; tmInLesson = false;
   homeView = true;
   const cards = PR.list.map(p => {
     const st = loadState(p.key), done = Object.values(st.lessons || {}).filter(x => x.done).length;
@@ -825,6 +827,7 @@ function writeSummary() {
   } catch (e) {}
 }
 function playNext() {
+  if (tmGate()) return;
   const WL = W().lessons, i = nextIdx();
   if (i >= 0) return startLesson(i);
   if (!(S.lessons[W().boss.id] || {}).done) return startBoss();
@@ -906,6 +909,7 @@ function mapTail() {
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
 }
 function home() {
+  if (tmGate()) return; tmInLesson = false;
   syncLang(); epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
   const st = petStage(), nxt = PET_STAGES[st + 1];
   const petPct = nxt ? Math.round((S.petXp - PET_STAGES[st][0]) / (nxt[0] - PET_STAGES[st][0]) * 100) : 100;
@@ -934,6 +938,7 @@ function home() {
   mapTail();
 }
 function map() {
+  if (tmGate()) return; tmInLesson = false;
   if (homeView) return home();
   syncLang();
   epoch++; newScreen();
@@ -1005,6 +1010,7 @@ const GAMES = {
   build: ['Собери слово', build]
 };
 function startLesson(i) {
+  if (tmGate()) return; tmInLesson = true;
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
   if (L.type === 'math') {
@@ -1412,7 +1418,7 @@ function mathRule(ctx, cb) {
   $('go').onclick = cb;
 }
 let mathKeyFn = null;
-document.addEventListener('keydown', e => { if (mathKeyFn) mathKeyFn(e); });
+document.addEventListener('keydown', e => { if (mathKeyFn && !tmLocked) mathKeyFn(e); });
 function mathQuiz(o, done) {
   const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
@@ -1570,6 +1576,7 @@ function rareCard(it, pic, key, on, onLabel, offLabel, extra = '') {
 const owns = (key, p) => p === 0 || S.owned.includes(key);
 
 function shop() {
+  if (tmGate()) return; tmInLesson = false;
   const tab = SHOP_TABS.find(t => t.k === shopTab) || SHOP_TABS[0];
   const btn = (own, on, key, p, onLabel, offLabel) => own
     ? `<button class="btn small ${on ? 'gold' : 'sec'}" data-eq="${key}">${on ? onLabel : offLabel}</button>`
@@ -1664,6 +1671,7 @@ function shop() {
 /* ---------- родителям ---------- */
 /* ---------- «Ещё» и PIN для родителей ---------- */
 function more() {
+  if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
     <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button></div></div>`;
@@ -1675,7 +1683,12 @@ function pinReset() {
   epoch++; newScreen();
   const a = 37 + Math.floor(Math.random() * 40), b = 23 + Math.floor(Math.random() * 40);
   const viaCloud = cloudOn();
-  app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>Сброс PIN-кода</h2>
+  if (TM.on && !viaCloud) { // с таймером решение примера ребёнок мог бы найти на калькуляторе
+    app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>Сброс пароля</h2>
+      <p>Пока включён таймер, пароль без облака сбросить нельзя — иначе ребёнок смог бы сам снять ограничение. Включите облако (семейный код) на другом устройстве или очистите данные сайта в браузере (прогресс на этом устройстве пропадёт — сначала сохраните копию).</p></div>`;
+    $('bk').onclick = parentGate; return;
+  }
+  app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>Сброс пароля</h2>
     <p>${viaCloud ? 'Введите семейный код (он показан в облаке на любом другом устройстве):' : 'Для родителей: сколько будет ' + a + ' × ' + b + '?'}</p>
     <input type="text" id="pa" maxlength="12" ${viaCloud ? 'style="text-transform:uppercase"' : 'inputmode="numeric"'}>
     <p><button class="btn gold" id="ok">Сбросить</button></p><p class="pmsg" id="pm">&nbsp;</p></div>`;
@@ -1697,33 +1710,109 @@ function diaryHref() {
     return 'school/index.html' + (c ? '#/child/' + c.id + '/diary' : '');
   } catch (e) { return 'school/index.html'; }
 }
-function parentGate() {
-  epoch++; newScreen();
-  const have = getPin();
-  let step = have ? 'enter' : 'new', first = '', cur = '';
-  const draw = (msg) => {
-    const title = step === 'enter' ? 'Введите PIN-код' : step === 'new' ? 'Придумайте PIN-код (4 цифры)' : 'Повторите PIN-код';
-    app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🔒 Для родителей</h2>
-      <p>${title}</p><div class="dots">${[0, 1, 2, 3].map(i => `<i class="${i < cur.length ? 'on' : ''}"></i>`).join('')}</div>
-      <p class="pmsg">${msg || '&nbsp;'}</p>
-      <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, ''].map(k => k === '' ? '<span></span>' : `<button class="btn" data-k="${k}">${k}</button>`).join('')}</div>
-      ${step === 'enter' ? '<p><button class="btn small sec" id="fg">Забыли код?</button></p>' : ''}</div>`;
-    if ($('fg')) $('fg').onclick = pinReset;
-    $('bk').onclick = map;
-    app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
-      const k = b.dataset.k;
-      if (k === '⌫') cur = cur.slice(0, -1); else if (cur.length < 4) cur += k;
-      if (cur.length < 4) return draw();
-      if (step === 'enter') {
-        if (cur === have) return parent();
-        cur = ''; return draw('Неверный код, попробуйте ещё раз');
-      }
-      if (step === 'new') { first = cur; cur = ''; step = 'again'; return draw(); }
-      if (cur === first) { try { localStorage.setItem(PIN_KEY, cur); } catch (e) {} cloudPin(); return parent(); }
-      cur = ''; first = ''; step = 'new'; draw('Коды не совпали, начните заново');
-    });
+
+/* ---------- таймер: сколько времени в день можно играть ---------- */
+// хранится на устройстве (общий для всех игроков), чтобы смена игрока не обнуляла время
+const TM_KEY = 'engAdventure_timer';
+const TM = (() => { const t = { on: false, min: 30, day: '', used: 0, extra: 0 }; try { Object.assign(t, JSON.parse(localStorage.getItem(TM_KEY)) || {}); } catch (e) {} return t; })();
+const tmSave = () => { try { localStorage.setItem(TM_KEY, JSON.stringify(TM)); } catch (e) {} };
+let tmLocked = false, tmInLesson = false, tmFree = false, tmAct = Date.now(), tmLast = Date.now(), tmTick = 0, tmNoted = false, tmWarn = false;
+const tmRoll = () => { if (TM.day !== today()) { TM.day = today(); TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); } };
+const tmLimit = () => (TM.min + (TM.extra || 0)) * 60;
+const tmUp = () => { tmRoll(); return !!TM.on && !!getPin() && TM.used >= tmLimit(); };
+// вызывается в начале экранов: если время вышло — закрываем программу (экран под замком не меняется)
+function tmGate() { if (!tmUp()) return false; tmShowLock(); return true; }
+function pinEntry(box, ok) {
+  const have = getPin(), num = /^\d{4}$/.test(have); let cur = '';
+  const draw = msg => {
+    if (num) {
+      box.innerHTML = `<p>Введите PIN-код</p><div class="dots">${[0, 1, 2, 3].map(i => `<i class="${i < cur.length ? 'on' : ''}"></i>`).join('')}</div><p class="pmsg">${msg || '&nbsp;'}</p>
+        <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, ''].map(k => k === '' ? '<span></span>' : `<button class="btn" data-k="${k}">${k}</button>`).join('')}</div>`;
+      box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+        const k = b.dataset.k;
+        if (k === '⌫') cur = cur.slice(0, -1); else if (cur.length < 4) cur += k;
+        if (cur.length < 4) return draw();
+        if (cur === have) return ok();
+        cur = ''; draw('Неверный код, попробуйте ещё раз');
+      });
+    } else {
+      box.innerHTML = `<p>Введите пароль</p><p><input type="password" class="pwi" id="pwi" autocomplete="off" maxlength="40"></p><p class="pmsg">${msg || '&nbsp;'}</p><p><button class="btn gold" id="pwo">Войти</button></p>`;
+      const go = () => { if ($('pwi').value === have) return ok(); draw('Неверный пароль, попробуйте ещё раз'); };
+      $('pwo').onclick = go; $('pwi').onkeydown = e => { if (e.key === 'Enter') go(); };
+    }
   };
   draw();
+}
+// задать (или сменить) пароль: любые 4–20 знаков, цифры или буквы — родитель придумывает сам
+function pinForm(box, done) {
+  box.innerHTML = `<p>Придумайте пароль для родителей: от 4 до 20 знаков, цифры или буквы. Запомните его — ребёнок его знать не должен.</p>
+    <p><input type="password" class="pwi" id="np1" placeholder="Новый пароль" maxlength="20" autocomplete="off"></p>
+    <p><input type="password" class="pwi" id="np2" placeholder="Повторите пароль" maxlength="20" autocomplete="off"></p>
+    <p><label><input type="checkbox" id="shw"> показать пароль</label></p>
+    <p class="pmsg" id="pfm">&nbsp;</p><p><button class="btn gold" id="npo">Сохранить</button></p>`;
+  $('shw').onchange = () => { $('np1').type = $('np2').type = $('shw').checked ? 'text' : 'password'; };
+  const go = () => {
+    const a = $('np1').value, b = $('np2').value;
+    if (a.length < 4) { $('pfm').textContent = 'Слишком короткий: нужно хотя бы 4 знака'; return; }
+    if (a !== b) { $('pfm').textContent = 'Пароли не совпали'; return; }
+    try { localStorage.setItem(PIN_KEY, a); } catch (e) {}
+    cloudPin(); done();
+  };
+  $('npo').onclick = go; $('np2').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+function tmShowLock() {
+  if (tmLocked) return;
+  tmLocked = true; hardStop();
+  const ov = document.createElement('div'); ov.id = 'tmlock'; ov.className = 'tmlock'; document.body.appendChild(ov);
+  const chip = $('tmchip'); if (chip) chip.style.display = 'none';
+  const unlock = () => { tmLocked = false; tmInLesson = false; ov.remove(); };
+  const pinStage = () => {
+    ov.innerHTML = `<div class="card pinbox tmcard"><div class="bigem">😴</div><h2>Время на сегодня вышло</h2>
+      <p>Роботу пора отдыхать. Сходи погуляй, порисуй на бумаге, поиграй в настоящий Minecraft из кубиков! Завтра продолжим.</p>
+      <hr><p><b>Для родителей:</b></p><div id="lkbox"></div></div>`;
+    pinEntry($('lkbox'), okStage);
+  };
+  const okStage = () => {
+    ov.innerHTML = `<div class="card pinbox tmcard"><h2>🔓 Родитель</h2><p>Сегодня использовано: <b>${Math.round(TM.used / 60)}</b> мин из ${TM.min + (TM.extra || 0)}.</p>
+      <p>Добавить ребёнку время:</p><div class="bigrow">${[5, 10, 15, 30].map(n => `<button class="btn gold" data-add="${n}">+${n} мин</button>`).join('')}</div>
+      <p><button class="btn sec" id="lkp">⚙️ Настройки родителя</button></p></div>`;
+    ov.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { TM.extra = (TM.extra || 0) + (+b.dataset.add); tmWarn = false; tmNoted = false; tmSave(); unlock(); home(); });
+    $('lkp').onclick = () => { unlock(); tmFree = true; parent(); };
+  };
+  pinStage();
+}
+function tmChip() {
+  let el = $('tmchip');
+  if (!TM.on || !getPin() || tmLocked || tmFree) { if (el) el.style.display = 'none'; return; }
+  if (!el) { el = document.createElement('div'); el.id = 'tmchip'; document.body.appendChild(el); }
+  const left = Math.max(0, tmLimit() - TM.used), m = Math.ceil(left / 60);
+  el.style.display = ''; el.textContent = '⏰ ' + (left > 0 ? m + ' мин' : 'время вышло'); el.classList.toggle('low', left <= 300);
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { tmAct = Date.now(); }, true));
+setInterval(() => {
+  const now = Date.now(), dt = Math.min(5, (now - tmLast) / 1000); tmLast = now;
+  tmRoll();
+  if (!TM.on || !getPin()) { tmChip(); return; }
+  if (tmFree || tmLocked) { tmChip(); return; }
+  // считаем только живое время: вкладка открыта и ребёнок что-то нажимал последние 1,5 минуты
+  if (document.visibilityState === 'visible' && now - tmAct < 90000) { TM.used += dt; if (++tmTick % 5 === 0) tmSave(); }
+  const left = tmLimit() - TM.used;
+  if (left <= 0) {
+    if (!tmInLesson) { tmSave(); tmShowLock(); }
+    else if (!tmNoted) { tmNoted = true; tmSave(); toast('⏰ Время вышло! Доделай это упражнение — потом отдых'); }
+  } else if (left <= 120 && !tmWarn) { tmWarn = true; toast('⏰ Осталось 2 минуты'); }
+  tmChip();
+}, 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tmLast = Date.now(); if (!tmInLesson && tmUp()) tmShowLock(); } });
+
+function parentGate() {
+  epoch++; newScreen(); tmFree = true; // в настройках родителей время не считается
+  const have = getPin();
+  app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🔒 Для родителей</h2><div id="pbox"></div>
+    ${have ? '<p><button class="btn small sec" id="fg">Забыли пароль?</button></p>' : ''}</div>`;
+  $('bk').onclick = map;
+  if ($('fg')) $('fg').onclick = pinReset;
+  if (have) pinEntry($('pbox'), parent); else pinForm($('pbox'), parent);
 }
 
 function diaryLinkHtml() {
@@ -1821,6 +1910,7 @@ function drawLesson(ctx, spec, done) {
 const IZ_IDEAS = ['Космический корабль', 'Мой любимый зверь', 'Замок на горе', 'Робот-помощник', 'Домик в лесу', 'Подводный мир', 'Радуга после дождя', 'Дракон', 'Мой дом', 'Зимний вечер', 'Лето на море', 'Город будущего', 'Весёлый цветок', 'Корабль в шторм', 'Волшебная птица', 'Моя семья', 'Пещера с сокровищами', 'Ночное небо', 'Осенний лес', 'Машина мечты', 'Сказочный остров', 'Динозавр', 'Мой друг', 'Праздничный салют'];
 const IZ_PAL2 = IZ_PAL.concat(['#ffffff', '#9e9e9e', '#b5e48c', '#7e57c2']);
 function izoFree(rec) {
+  if (tmGate()) return; tmInLesson = true;
   epoch++; newScreen();
   app.innerHTML = `<div class="card center"><button class="btn small sec" id="bk">⬅ Карта</button><h3>🖌️ ${rec ? 'Дорисовываем: ' + esc(rec.title) : 'Свободное рисование'}</h3>
     <p class="dtxt" ${rec ? 'hidden' : ''}>💡 Идея: <b id="idea">${IZ_IDEAS[Math.floor(Math.random() * IZ_IDEAS.length)]}</b> <button class="btn small sec" id="dice">🎲 Другая</button></p>
@@ -1920,6 +2010,7 @@ function dictLesson(ctx, spec, done) {
   next();
 }
 function izoGallery() {
+  if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🖼️ Моя галерея</h2><div id="gl" class="bkl"><small>Загрузка…</small></div><p id="gm"></p></div>`;
   $('bk').onclick = map;
@@ -2028,6 +2119,14 @@ function parent() {
       <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
     <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>
+    <div class="card"><h3>⏰ Таймер игры</h3>
+      <p>Ограничивает время в день на этом устройстве. Когда время выйдет, ребёнок доделает текущее упражнение, а при выходе из него программа закроется и откроется только по вашему паролю.</p>
+      <button class="btn small ${TM.on ? 'red' : 'gold'}" id="tmon">${TM.on ? '⏰ Таймер: ВКЛ (нажмите, чтобы выключить)' : 'Включить таймер'}</button>
+      <p>Времени в день: <select id="tmmin" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${[10, 15, 20, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${TM.min === n ? 'selected' : ''}>${n} мин</option>`).join('')}</select></p>
+      <p>Сегодня использовано: <b>${Math.round(TM.used / 60)}</b> мин из ${TM.min + (TM.extra || 0)}. <button class="btn small sec" id="tmrs">Обнулить сегодня</button></p>
+      <p><small>Считается только время, пока ребёнок что-то нажимает; когда вкладка закрыта или он отошёл, время стоит. Настройки таймера хранятся на этом устройстве.</small></p>
+      <hr><h3>🔑 Пароль родителей</h3><p>Сейчас: ${/^\d{4}$/.test(getPin()) ? 'PIN-код из 4 цифр' : 'пароль'}. Можно задать любой свой — от 4 до 20 знаков.</p>
+      <button class="btn small" id="chpin">Сменить пароль</button></div>
     <div class="card"><h3>Настройки</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
@@ -2049,6 +2148,13 @@ function parent() {
   if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
   $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
   $('otts').onclick = () => { S.onlineTts = !S.onlineTts; save(); parent(); };
+  $('tmon').onclick = () => { TM.on = !TM.on; tmRoll(); tmNoted = false; tmWarn = false; tmSave(); parent(); };
+  $('tmmin').onchange = e => { TM.min = +e.target.value; tmNoted = false; tmWarn = false; tmSave(); parent(); };
+  $('tmrs').onclick = () => { TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); parent(); };
+  $('chpin').onclick = () => {
+    app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>🔑 Новый пароль</h2><div id="pbox"></div></div>`;
+    $('bk').onclick = parent; pinForm($('pbox'), () => { toast('Пароль сохранён ✅'); parent(); });
+  };
   $('clp').onclick = () => cloudScreen(parent);
   booksInit();
   $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
@@ -2149,6 +2255,7 @@ function checkAch() {
 }
 
 function awards() {
+  if (tmGate()) return; tmInLesson = false;
   const have = ACH.filter(a => S.ach[a.id]).length;
   const secs = ACH_CATS.map(c => {
     const list = ACH.filter(a => a.cat === c);
@@ -2212,6 +2319,7 @@ function exampleOf(id) {
 const vf = { world: -1, weak: false, q: '' };
 
 function vocab() {
+  if (tmGate()) return; tmInLesson = false;
   newScreen();
   const topics = vocabTopics(), col = collectedSet(), weak = new Set(weakItems().words);
   // награда за полностью собранную тему (один раз)
@@ -2434,6 +2542,7 @@ const audioOpen = a => S.unlockAll || (S.lessons[a.req] || {}).done;
 
 let audWorld = -1;
 function listening() {
+  if (tmGate()) return; tmInLesson = true;
   hardStop();
   if (audWorld < 0) audWorld = Math.min(widx(), WORLDS.length - 1);
   const list = AUDIOS.filter(a => a.world === audWorld);
@@ -2550,6 +2659,7 @@ function speakP(t, rate) { return new Promise(res => say(t, rate || .7, 0, res))
 const songOpen = s => S.unlockAll || (S.lessons[s.req] || {}).done;
 
 function songs() {
+  if (tmGate()) return; tmInLesson = true;
   hardStop();
   const cards = WORLDS.map((wd, wi) => `<h3>${wd.name}</h3><div class="shop">` + SONGS.filter(s => s.world === wi).map(s => {
     const rec = S.songs[s.id] || {}, ok = songOpen(s);
@@ -2624,6 +2734,7 @@ function lessonTitle(id) {
 const dlgOpen = d => S.unlockAll || (S.lessons[d.req] || {}).done;
 
 function dialogs() {
+  if (tmGate()) return; tmInLesson = true;
   hardStop();
   const cards = WORLDS.map((wd, wi) => {
     const list = DIALOGS.filter(d => d.world === wi);
@@ -2691,6 +2802,7 @@ function playDialog(d) {
 
 /* ---------- тренировка слабых мест ---------- */
 function training() {
+  if (tmGate()) return; tmInLesson = true;
   const wk0 = weakItems(), dl = engDiaryLessons();
   const dW = [].concat(...dl.map(l => l.words || [])), dG = [].concat(...dl.map(l => l.gaps || [])).map(gkey).filter(k => GAPIDX[k]);
   const wk = { words: [...new Set(dW.slice(0, 6).concat(wk0.words))], gaps: [...new Set(dG.slice(0, 4).concat(wk0.gaps))] };
