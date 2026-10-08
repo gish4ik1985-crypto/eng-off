@@ -725,8 +725,8 @@ function cloudScreen(back) {
 function welcome() {
   let hue = S.hue;
   app.innerHTML = `<div class="card center">
-    <h1>⛏️ Остров английских слов 🤖</h1>
-    <p>Злой Забывака украл английские слова! Только ты можешь их вернуть.</p>
+    <h1>🎒 Школьный ассистент 🤖</h1>
+    <p>Вместе с роботом учим английский и итальянский, считаем, пишем, изучаем мир и рисуем. Злой Забывака украл знания, и только ты можешь их вернуть!</p>
     <p>Как тебя зовут?</p><input type="text" id="nm" maxlength="14" placeholder="Твоё имя" value="${esc(S.name)}">
     <p>Выбери своего робота:</p><div id="heroes"></div>
     <p><button class="btn gold" id="go">Начать приключение ➜</button></p>

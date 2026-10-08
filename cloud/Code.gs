@@ -1,4 +1,4 @@
-/* Остров английских слов: облачное хранилище прогресса (Google Apps Script).
+/* Школьный ассистент: облачное хранилище прогресса (Google Apps Script).
    Вставьте этот код в Google-таблицу: Расширения -> Apps Script. Подробности: cloud/НАСТРОЙКА.md */
 
 var CHUNK = 40000; // в одну ячейку помещается не больше 50 000 знаков
@@ -29,7 +29,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return ContentService.createTextOutput('Остров английских слов: облако работает');
+  return ContentService.createTextOutput('Школьный ассистент: облако работает');
 }
 
 function handle_(r) {
