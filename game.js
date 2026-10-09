@@ -153,7 +153,7 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, pworld: 0, lworld: 0, gworld: 0, off: {}, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, pworld: 0, lworld: 0, gworld: 0, off: {}, focus: false, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
 const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'pdd' ? 'pdd' : S.subj === 'lit' ? 'lit' : S.subj === 'logic' ? 'logic' : S.subj === 'math' ? 'math' : 'eng';
@@ -233,7 +233,7 @@ function tones(freqs, kind) {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     freqs.forEach((f, k) => {
       const o = ac.createOscillator(), g = ac.createGain();
-      o.type = 'square'; o.frequency.value = f; g.gain.value = .05;
+      o.type = S.focus ? 'sine' : 'square'; o.frequency.value = f; g.gain.value = S.focus ? .025 : .05;
       o.connect(g); g.connect(ac.destination);
       const t = ac.currentTime + k * .12; o.start(t); o.stop(t + .11);
     });
@@ -486,21 +486,37 @@ function applyTheme() {
   const t = THEMES[S.theme] || THEMES.theme0;
   document.body.style.background = S.theme === 'theme0' ? '' : t.bg;
   document.body.style.backgroundAttachment = 'fixed';
+  document.body.classList.toggle('calm', !!S.focus);
 }
 
 /* ---------- каркас экранов ---------- */
 function frame(ctx, inner) {
   newScreen(); // новый экран: то, что говорилось на предыдущем, больше не звучит
   const dots = ctx.steps.map((s, k) => `<i class="${k < ctx.cur ? 'd' : k === ctx.cur ? 'c' : ''}"></i>`).join('');
-  app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div>${combo >= 3 ? `<span class="chip cmb">🔥 ×${combo}</span>` : ''}<div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${inner}`;
+  app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div>${combo >= 3 && !S.focus ? `<span class="chip cmb">🔥 ×${combo}</span>` : ''}<div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${S.focus ? `<div class="calmbar" title="Шаг ${ctx.cur + 1} из ${ctx.steps.length}"><i style="width:${Math.round(ctx.cur / ctx.steps.length * 100)}%"></i></div>` : ''}${inner}`;
   $('exit').onclick = () => { stopAll(); map(); };
   window.scrollTo(0, 0);
 }
+const CALM_BREAKS = [['🙆', 'Встань и потянись вверх, как большое дерево. Задержись на 5 вдохов.'], ['🦘', 'Сделай 10 прыжков на месте.'], ['🌬️', 'Вдохни носом на 4 счёта, выдохни ртом на 6. Повтори 3 раза.'], ['👀', 'Найди глазами 5 предметов синего цвета в комнате.'],
+  ['🐶', 'Потряси руками и ногами, как мокрая собачка, 10 секунд.'], ['💧', 'Сделай несколько глотков воды.'], ['🧍', 'Встань спиной к стене и посчитай вслух до 10.'], ['👏', 'Похлопай в ладоши в ритме: 3 быстрых и 1 медленный. Повтори 5 раз.']];
+let calmBrk = 0;
+// короткая пауза на движение между блоками (режим «Спокойный фокус»)
+function calmBreak(ctx, cb) {
+  const [e, txt] = CALM_BREAKS[calmBrk++ % CALM_BREAKS.length], left = ctx.steps.length - ctx.cur;
+  frame(ctx, `<div class="card center"><div class="bigem">${e}</div><h3>Минутка отдыха</h3><p class="dtxt">${txt}</p><p><small>Блок готов! Осталось шагов: ${left}.</small></p>
+    <p id="cbt" class="pmsg">Отдых: 20 с</p><p><button class="btn gold big" id="cbg">Готов продолжить ➜</button></p></div>`);
+  const my = screenId; let n = 20;
+  const iv = setInterval(() => { if (screenId !== my) return clearInterval(iv); n--; const el = $('cbt'); if (!el) return clearInterval(iv); el.textContent = n > 0 ? 'Отдых: ' + n + ' с' : 'Можно продолжать 🙂'; if (n <= 0) clearInterval(iv); }, 1000);
+  $('cbg').onclick = () => { clearInterval(iv); cb(); };
+}
 function runSteps(ctx, final) {
-  ctx.cur = 0; combo = 0; maxCombo = 0; lvlNote = '';
+  ctx.cur = 0; combo = 0; maxCombo = 0; lvlNote = ''; ctx.lastBreak = Date.now();
   const go = () => {
     if (ctx.cur >= ctx.steps.length) return final();
-    ctx.steps[ctx.cur][1](() => { ctx.cur++; go(); });
+    ctx.steps[ctx.cur][1](() => {
+      ctx.cur++;
+      if (S.focus && ctx.cur < ctx.steps.length && !/^(Правило|Новые слова|Читаем|Замок)/.test(ctx.steps[ctx.cur - 1][0]) && Date.now() - ctx.lastBreak > 90000) { ctx.lastBreak = Date.now(); calmBreak(ctx, go); } else go();
+    });
   };
   go();
 }
@@ -1186,6 +1202,7 @@ function storyOrder(ctx, cb) {
 
 /* Грамматика: вставь пропущенное слово */
 function gapQuiz(o, done) {
+  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length; let i = 0;
   const next = () => (i >= total ? done() : ask(o.items[i]));
   function ask(g) {
@@ -1286,6 +1303,7 @@ function distract(id, n, ctx) {
 
 /* Игра-вопросы: listen (слушай→картинка), see (картинка→слово), mine (слушай→блок со словом) */
 function quiz(o, done) {
+  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length; let i = 0;
   const next = () => (i >= total ? done() : ask(WORDS[o.items[i]]));
   function ask(w) {
@@ -1502,6 +1520,7 @@ function mathRule(ctx, cb) {
 let mathKeyFn = null;
 document.addEventListener('keydown', e => { if (mathKeyFn && !tmLocked) mathKeyFn(e); });
 function mathQuiz(o, done) {
+  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
   function askWord(sp, q) {
@@ -1869,6 +1888,7 @@ function tmChip() {
   if (!el) { el = document.createElement('div'); el.id = 'tmchip'; document.body.appendChild(el); }
   const left = Math.max(0, tmLimit() - TM.used), m = Math.ceil(left / 60);
   el.style.display = ''; el.textContent = '⏰ ' + (left > 0 ? m + ' мин' : 'время вышло'); el.classList.toggle('low', left <= 300);
+  { const pc = S.focus ? Math.max(0, Math.min(100, Math.round(left / tmLimit() * 100))) : 0; el.style.background = S.focus ? `linear-gradient(90deg, ${left <= 300 ? '#ffb3a7' : '#c8f0d0'} ${pc}%, #fff ${pc}%)` : ''; }
 }
 /* ---------- полноэкранный режим (убирает вкладки и адресную строку браузера) ---------- */
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
@@ -1895,6 +1915,13 @@ function fsButton() {
 }
 fsButton();
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { tmAct = Date.now(); }, true));
+let nudgeScr = -1, nudge2 = -1;
+setInterval(() => { // «Спокойный фокус»: если ребёнок завис над заданием, мягко возвращаем внимание
+  if (!S.focus || !tmInLesson || tmLocked || tmFree || document.visibilityState !== 'visible' || !$('msg')) return;
+  const idle = Date.now() - tmAct;
+  if (idle > 25000 && nudgeScr !== screenId) { nudgeScr = screenId; toast('🤔 Подумай спокойно. Нужна подсказка? Нажми 💡'); const h = $('hintb'); if (h) h.classList.add('nudge'); }
+  else if (idle > 70000 && nudge2 !== screenId) { nudge2 = screenId; toast('Я рядом! Давай вернёмся к заданию 🙂'); }
+}, 2000);
 setInterval(() => {
   const now = Date.now(), dt = Math.min(5, (now - tmLast) / 1000); tmLast = now;
   tmRoll();
@@ -2229,6 +2256,10 @@ function parent() {
       <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется — их можно включить обратно.</p>
       ${Object.keys(SUBJ_META).map(k => `<label class="subjopt"><input type="checkbox" data-so="${k}" ${subjOn(k) ? 'checked' : ''}> ${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</label>`).join('')}
       <p id="som"></p></div>
+    <div class="card"><h3>🧘 Спокойный фокус для «${esc(S.name)}»</h3>
+      <p>Режим для детей, которым трудно удерживать внимание (например, при СДВГ). Включается отдельно для каждого ученика.</p>
+      <button class="btn small ${S.focus ? 'red' : 'gold'}" id="focus">${S.focus ? '🧘 Спокойный фокус: ВКЛ (нажмите, чтобы выключить)' : 'Включить спокойный фокус'}</button>
+      <p><small>Что меняется: задания идут короткими блоками (не больше 5 подряд); каждые 1,5–2 минуты — минутка движения; без мигающих анимаций и серий «🔥»; звуки тише; вверху крупная полоска «где я в уроке»; полоса оставшегося времени (если включён таймер); если ребёнок надолго замер над заданием, игра мягко напоминает про подсказку. Это игровая помощь в учёбе, а не лечение: основное — рекомендации вашего врача и психолога.</small></p></div>
     <div class="card"><h3>⏰ Таймер игры</h3>
       <p>Ограничивает время в день на этом устройстве. Когда время выйдет, ребёнок доделает текущее упражнение, а при выходе из него программа закроется и откроется только по вашему паролю.</p>
       <button class="btn small ${TM.on ? 'red' : 'gold'}" id="tmon">${TM.on ? '⏰ Таймер: ВКЛ (нажмите, чтобы выключить)' : 'Включить таймер'}</button>
@@ -2264,6 +2295,7 @@ function parent() {
     if (!subjOn(S.subj)) S.subj = Object.keys(SUBJ_META).find(subjOn);
     save(); $('som').textContent = 'Сохранено ✅';
   });
+  $('focus').onclick = () => { S.focus = !S.focus; save(); applyTheme(); parent(); };
   $('tmon').onclick = () => { TM.on = !TM.on; tmRoll(); tmNoted = false; tmWarn = false; tmSave(); parent(); };
   $('tmmin').onchange = e => { TM.min = +e.target.value; tmNoted = false; tmWarn = false; tmSave(); parent(); };
   $('tmrs').onclick = () => { TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); parent(); };
