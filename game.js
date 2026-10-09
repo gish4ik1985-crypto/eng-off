@@ -565,7 +565,7 @@ function players() {
       if (!confirm('Будут удалены пустые копии (ничего не пройдено, 0 изумрудов): ' + dupes.map(d => d.name).join(', ') + '. Игроки с прогрессом останутся. Продолжить?')) return;
       dupes.forEach(d => {
         try { localStorage.removeItem(d.key); } catch (e) {}
-        if (d.cid) CL.skip = (CL.skip || []).concat(d.cid);
+        cloudDeactivate(d.cid);
         PR.list = PR.list.filter(x => x !== d);
         if (PR.cur === d.id) { const keep = PR.list.find(x => String(x.name).trim().toLowerCase() === String(d.name).trim().toLowerCase()) || PR.list[0]; PR.cur = keep.id; KEYNOW = keep.key; S = loadState(KEYNOW); }
       });
@@ -588,7 +588,7 @@ function players() {
     const p = PR.list.find(x => x.id === b.dataset.del);
     if (!confirm(`Удалить игрока «${p.name}» и весь его прогресс? Это нельзя отменить.`)) return;
     try { localStorage.removeItem(p.key); } catch (e) {}
-    if (p.cid) { CL.skip = (CL.skip || []).concat(p.cid); saveCL(); }
+    cloudDeactivate(p.cid);
     PR.list = PR.list.filter(x => x.id !== p.id);
     if (PR.cur === p.id) {
       if (PR.list.length) { PR.cur = PR.list[0].id; KEYNOW = PR.list[0].key; S = loadState(KEYNOW); } else { PR.cur = null; KEYNOW = KEY; S = defState(); }
@@ -677,6 +677,19 @@ async function cloudSync(pull) {
   } catch (e) { CL.err = String(e.message || e).slice(0, 40); saveCL(); }
   syncBusy = false;
 }
+// удалённого на устройстве игрока помечаем в таблице как неактивного (столбец activate = false); если нет связи — повторим позже
+function cloudDeactivate(cid) {
+  if (!cid) return;
+  CL.skip = (CL.skip || []).concat(cid); CL.del = (CL.del || []).concat(cid); saveCL();
+  if (cloudOn()) flushDel();
+}
+let delBusy = false;
+async function flushDel() {
+  if (!cloudOn() || delBusy || !(CL.del || []).length) return;
+  delBusy = true;
+  try { for (const cid of CL.del.slice()) { await api('setactive', { id: cid, active: false }); CL.del = CL.del.filter(x => x !== cid); saveCL(); } } catch (e) {}
+  delBusy = false;
+}
 async function cloudPin() {
   if (!cloudOn() || !getPin()) return;
   try { await api('setpin', { pin: getPin() }); } catch (e) {}
@@ -694,6 +707,7 @@ function cloudAuto() {
 }
 async function cloudAutoRun() {
   let changed = false; autoOk = false;
+  flushDel();
   try {
     const list = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
     const nm = x => String(x || '').trim().toLowerCase(), skip = CL.skip || [];

@@ -2,6 +2,8 @@
    Вставьте этот код в Google-таблицу: Расширения -> Apps Script. Подробности: cloud/НАСТРОЙКА.md */
 
 var CHUNK = 40000; // в одну ячейку помещается не больше 50 000 знаков
+var HEAD = ['key', 'ts', 'part', 'chunk', 'name', 'activate']; // activate: true — игрок активен, false — удалён на каком-либо устройстве (пусто = активен)
+var isOff_ = function (x) { return String(x).toLowerCase() === 'false'; };
 
 function sheet_(name, head) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -50,18 +52,23 @@ function handle_(r) {
   if (r.op === 'setpin') { fam.getRange(fr, 2).setValue(String(r.pin || '')); return { ok: true }; }
 
   var key = code + '|' + String(r.id || '');
-  var data = sheet_('data', ['key', 'ts', 'part', 'chunk', 'name']);
+  var data = sheet_('data', HEAD);
   if (r.op === 'pull') {
     var v = data.getDataRange().getValues(), parts = [], ts = 0, name = '';
     for (var j = 1; j < v.length; j++) if (String(v[j][0]) === key) { parts[Number(v[j][2])] = String(v[j][3]); ts = Number(v[j][1]); name = String(v[j][4]); }
     if (!parts.length) return { ok: true, state: null };
     return { ok: true, state: parts.join(''), ts: ts, name: name };
   }
+  if (r.op === 'setactive') { // пометить игрока (и его строку со сводкой) как активного или неактивного
+    var vv = data.getDataRange().getValues(), sumKey = code + '|__sum_' + String(r.id || ''), val = r.active === false ? 'false' : 'true';
+    for (var q = 1; q < vv.length; q++) { var kk = String(vv[q][0]); if (kk === key || kk === sumKey) data.getRange(q + 1, 6).setValue(val); }
+    return { ok: true };
+  }
   if (r.op === 'push') {
-    var all = data.getDataRange().getValues();
-    for (var k = all.length - 1; k >= 1; k--) if (String(all[k][0]) === key) data.deleteRow(k + 1);
+    var all = data.getDataRange().getValues(), act = 'true';
+    for (var k = all.length - 1; k >= 1; k--) if (String(all[k][0]) === key) { if (String(all[k][5] || '') !== '') act = String(all[k][5]); data.deleteRow(k + 1); } // признак активности сохраняем
     var st = String(r.state || ''), n = 0;
-    for (var p = 0; p < st.length || n === 0; p += CHUNK, n++) data.appendRow([key, String(r.ts || 0), String(n), st.substr(p, CHUNK), String(r.name || '')]);
+    for (var p = 0; p < st.length || n === 0; p += CHUNK, n++) data.appendRow([key, String(r.ts || 0), String(n), st.substr(p, CHUNK), String(r.name || ''), act]);
     report_(key, String(r.name || ''), st);
     return { ok: true };
   }
@@ -69,11 +76,11 @@ function handle_(r) {
 }
 
 function players_(code) {
-  var data = sheet_('data', ['key', 'ts', 'part', 'chunk', 'name']);
+  var data = sheet_('data', HEAD);
   var v = data.getDataRange().getValues(), out = [];
   for (var i = 1; i < v.length; i++) {
     var k = String(v[i][0]);
-    if (k.indexOf(code + '|') === 0 && Number(v[i][2]) === 0) out.push({ id: k.substr(code.length + 1), name: String(v[i][4]), ts: Number(v[i][1]) });
+    if (k.indexOf(code + '|') === 0 && Number(v[i][2]) === 0 && !isOff_(v[i][5])) out.push({ id: k.substr(code.length + 1), name: String(v[i][4]), ts: Number(v[i][1]) });
   }
   return out;
 }
