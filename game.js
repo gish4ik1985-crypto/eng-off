@@ -1790,14 +1790,14 @@ function shop() {
 function attGame(ctx, L, cb) {
   const lv = L.lv || 1;
   const fin = (asked, ok) => { ctx.asked += asked; ctx.ok += ok; logQn(asked, ok); save(); cb(); };
-  ({ gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs })[L.game](lv, ctx, fin);
+  ({ gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs, rhythm: attRhythm })[L.game](lv, ctx, fin);
 }
 function attBoss() {
   const BS = W().boss, ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
   ctx.steps = [['Башня', cb => {
-    frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Четыре испытания подряд. Ошибки не страшны!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
+    frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Пять испытаний подряд. Ошибки не страшны!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
     $('fi').onclick = cb;
-  }]].concat([['Жми или стой', 'gonogo'], ['Цепочка', 'simon'], ['Лишний', 'odd'], ['Пары', 'pairs']].map(([nm, gm]) => [nm, cb => attGame(ctx, { game: gm, lv: 3 }, cb)]));
+  }]].concat([['Жми или стой', 'gonogo'], ['Цепочка', 'simon'], ['Лишний', 'odd'], ['Пары', 'pairs'], ['Ритм', 'rhythm']].map(([nm, gm]) => [nm, cb => attGame(ctx, { game: gm, lv: 3 }, cb)]));
   runSteps(ctx, () => reward(ctx));
 }
 function attGoNoGo(lv, ctx, fin) {
@@ -1843,6 +1843,35 @@ function attSimon(lv, ctx, fin) {
         if (++pos === len) { ok++; sfx('ok'); $('msg').textContent = 'Верно! ⭐'; off(); r++; setTimeout(() => { if (screenId === my) round(); }, 900); }
       });
     }, 800 + len * 750 + 300);
+  };
+  round();
+}
+function attRhythm(lv, ctx, fin) {
+  const sets = [[[600, 600], [800, 800], [500, 500]], [[450, 450, 900], [900, 450, 450], [450, 900, 450]], [[450, 450, 900, 450, 450], [900, 450, 450, 900, 450], [450, 900, 450, 450, 900]]][lv - 1], order = RS(sets);
+  let r = 0, ok = 0;
+  const round = () => {
+    if (r >= order.length) return fin(order.length, ok);
+    const pat = order[r], beats = pat.length + 1;
+    frame(ctx, `<div class="card center"><div class="prog">${order.map((_, k) => `<i class="${k < r ? 'd' : ''}"></i>`).join('')}</div><h3 id="rh">Слушай и смотри 👀</h3><div class="att-stim"><span id="rdot" class="rdot"></span></div>
+      <p><button class="btn gold huge" id="rtap" disabled>ТАП!</button></p><p><button class="btn small sec" id="rrep" disabled>🔁 Послушать ещё раз</button></p><div id="msg" class="msg">&nbsp;</div></div>`);
+    const my = screenId, dot = $('rdot'), beat = (f, ms) => { dot.classList.add('on'); tones([f], 'beat'); setTimeout(() => { if (dot) dot.classList.remove('on'); }, ms); };
+    let taps = [], listening = false;
+    const play = after => {
+      const times = [0]; pat.forEach(p => times.push(times[times.length - 1] + p));
+      times.forEach(tm => setTimeout(() => { if (screenId === my) beat(660, 200); }, 700 + tm));
+      setTimeout(() => { if (screenId === my) after(); }, 700 + times[times.length - 1] + 500);
+    };
+    const ask = () => { $('rh').textContent = 'Теперь ты! Нажимай в том же ритме 👆'; $('rtap').disabled = false; $('rrep').disabled = false; taps = []; listening = true; };
+    play(ask);
+    $('rrep').onclick = () => { if (!listening) return; listening = false; taps = []; $('rtap').disabled = true; $('rrep').disabled = true; $('rh').textContent = 'Слушай ещё раз 👀'; play(ask); };
+    $('rtap').onpointerdown = () => {
+      if (!listening) return; taps.push(performance.now()); beat(440, 150);
+      if (taps.length < beats) return;
+      listening = false; $('rtap').disabled = true; $('rrep').disabled = true;
+      const good = pat.every((p, i) => Math.abs((taps[i + 1] - taps[i]) - p) <= Math.max(220, p * .4));
+      if (good) { ok++; sfx('ok'); $('msg').textContent = 'Точно в ритм! ⭐'; } else $('msg').textContent = 'Почти! В следующий раз получится 🙂';
+      r++; setTimeout(() => { if (screenId === my) round(); }, 1400);
+    };
   };
   round();
 }
@@ -2359,6 +2388,22 @@ function booksInit() {
   draw();
 }
 
+
+// недельный график: минуты и точность за последние 8 недель
+function weekHtml() {
+  const log = S.log || {}, t0 = today(), wd = d => (new Date(d + 'T00:00:00').getDay() + 6) % 7, mon = addDays(t0, -wd(t0));
+  const weeks = Array.from({ length: 8 }, (_, k) => { const st = addDays(mon, -7 * (7 - k)); let sec = 0, q = 0, ok = 0, act = 0; for (let i = 0; i < 7; i++) { const x = log[addDays(st, i)]; if (x && (x.sec || x.q)) { act++; sec += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } } return { st, min: Math.round(sec / 60), q, pct: q ? Math.round(100 * ok / q) : null, act }; });
+  if (!weeks.some(w => w.q)) return '<p>Пока нет данных: график появится после первых занятий.</p>';
+  const W = 330, H = 120, bw = 28, gap = 12, maxM = Math.max(10, ...weeks.map(w => w.min));
+  const lab = w => w.st.slice(8) + '.' + w.st.slice(5, 7);
+  const bars = weeks.map((w, k) => { const h = Math.round(w.min / maxM * 80), x = 10 + k * (bw + gap); return `<rect x="${x}" y="${100 - h}" width="${bw}" height="${h}" rx="4" fill="#64b5f6"/><text x="${x + bw / 2}" y="${95 - h}" text-anchor="middle" font-size="11" fill="#333">${w.min}</text><text x="${x + bw / 2}" y="114" text-anchor="middle" font-size="9" fill="#666">${lab(w)}</text>`; }).join('');
+  const pts = weeks.map((w, k) => w.pct === null ? null : [10 + k * (bw + gap) + bw / 2, 100 - Math.round(w.pct * .8)]);
+  const line = pts.filter(Boolean).map((p, i, a) => i ? `<line x1="${a[i - 1][0]}" y1="${a[i - 1][1]}" x2="${p[0]}" y2="${p[1]}" stroke="#e8472b" stroke-width="3"/>` : '').join('') + pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#e8472b"/>`).join('');
+  const cur = weeks[7], prev = weeks[6], d = cur.pct !== null && prev.pct !== null ? cur.pct - prev.pct : null;
+  const txt = `Эта неделя: <b>${cur.min}</b> мин, <b>${cur.act}</b> дн. занятий${cur.pct !== null ? `, верно <b>${cur.pct}%</b>` : ''}.` + (d !== null ? ` По сравнению с прошлой неделей точность ${d > 0 ? 'выросла на ' + d : d < 0 ? 'снизилась на ' + (-d) : 'не изменилась'} п. п.` : '') + (cur.act >= 4 ? ' 👏 Отличная регулярность!' : cur.act <= 1 && prev.act >= 3 ? ' Занятий стало меньше: попробуйте вернуть короткие ежедневные подходы.' : '');
+  return `<svg viewBox="0 0 ${W + 20} ${H + 10}" style="width:100%;max-width:440px;background:#f6f1e3;border-radius:10px"><line x1="8" y1="100" x2="${W + 8}" y2="100" stroke="#999"/>${bars}${line}</svg>
+    <p><small><span style="color:#64b5f6">■</span> минуты занятий за неделю &nbsp; <span style="color:#e8472b">●</span> % верных с первой попытки (по неделям, начало недели — понедельник)</small></p><p>${txt}</p>`;
+}
 // график концентрации: когда ребёнок отвечает лучше всего (данные копятся с момента обновления)
 function concHtml() {
   const hrs = S.hrs || {}, wds = S.wds || {}, tot = Object.values(hrs).reduce((s, x) => s + (x.q || 0), 0);
@@ -2413,6 +2458,7 @@ function parent() {
     <div class="card"><h3>🎯 Что подтянуть: «${esc(S.name)}»</h3>
       <p>Впишите темы, которые советуют подтянуть учитель, врач или психолог (по одной-двум фразам на предмет). Игра добавит эти темы в «Тренировку» и в задания дня. Пример: «таблица умножения», «безударные гласные», «времена года».</p>
       ${[['math', 'Математика'], ['ru', 'Русский язык'], ['eng', 'Английский'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО']].map(([k, n]) => `<p>${n}: <input type="text" data-wi="${k}" maxlength="120" placeholder="например: ${k === 'math' ? 'умножение, задачи на время' : k === 'ru' ? 'безударные гласные, словарные слова' : k === 'eng' ? 'цвета, числа, to be' : k === 'ow' ? 'времена года, части растения' : 'цветовой круг'}" value="${esc(((S.wish || []).find(x => x.subj === k) || {}).text || '')}"></p>`).join('')}</div>
+    <div class="card"><h3>📊 Недели «${esc(S.name)}»: время и точность</h3>${weekHtml()}</div>
     <div class="card"><h3>📈 Когда «${esc(S.name)}» занимается лучше всего</h3>${concHtml()}</div>
     <div class="card"><h3>📅 «Мой день» для «${esc(S.name)}»</h3>
       <p>Утренний и вечерний план в картинках: ребёнок отмечает сделанное, за весь план — 5 💎. Снимите галочки с лишних пунктов или добавьте свои.</p>
