@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Школьный ассистент</title>
-<link rel="stylesheet" href="style.css?v=20261008160351">
+<link rel="stylesheet" href="style.css?v=20261009071503">
 </head>
 <body>
 <div id="app"></div>
@@ -5517,6 +5517,7 @@ function players() {
       <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button></p>
       <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. ${cloudOn() ? 'Прогресс синхронизируется с облаком.' : 'Данные хранятся на этом устройстве.'}</small></p></div>`;
   if ($('bk')) $('bk').onclick = map;
+  { const my = screenId; cloudAuto().then(ch => { if (ch && screenId === my) players(); }); }
   $('cl').onclick = () => cloudScreen(players);
   $('np').onclick = addPlayer;
   app.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => useProfile(b.dataset.pl));
@@ -5532,6 +5533,7 @@ function players() {
     const p = PR.list.find(x => x.id === b.dataset.del);
     if (!confirm(`Удалить игрока «${p.name}» и весь его прогресс? Это нельзя отменить.`)) return;
     try { localStorage.removeItem(p.key); } catch (e) {}
+    if (p.cid) { CL.skip = (CL.skip || []).concat(p.cid); saveCL(); }
     PR.list = PR.list.filter(x => x.id !== p.id);
     if (PR.cur === p.id) {
       if (PR.list.length) { PR.cur = PR.list[0].id; KEYNOW = PR.list[0].key; S = loadState(KEYNOW); } else { PR.cur = null; KEYNOW = KEY; S = defState(); }
@@ -5595,7 +5597,10 @@ async function cloudSync(pull) {
   const p = curPlayer(); if (!p || !S.name) return;
   syncBusy = true;
   try {
-    if (!p.cid) { p.cid = newCid(); savePR(); }
+    if (!p.cid) { // сначала сверяемся с облаком: возможно, такой игрок там уже есть (тогда сольём, а не создадим двойника)
+      await cloudAuto();
+      if (!p.cid) { if (!autoOk) throw new Error('нет связи'); p.cid = newCid(); savePR(); }
+    }
     const cid = p.cid, key = KEYNOW;
     let changed = false;
     if (pull) {
@@ -5620,6 +5625,48 @@ async function cloudSync(pull) {
 async function cloudPin() {
   if (!cloudOn() || !getPin()) return;
   try { await api('setpin', { pin: getPin() }); } catch (e) {}
+}
+
+// автоматически: игроки из облака появляются на этом устройстве, а игроки только с этого устройства уходят в облако.
+// Если локальный игрок без привязки к облаку совпадает по имени с игроком в облаке — прогресс сливается (ничего не теряется), перед этим делается копия
+let autoP = null, autoOk = false;
+function cloudAuto() {
+  if (!cloudOn()) return Promise.resolve(false);
+  if (!autoP) autoP = cloudAutoRun().then(r => { autoP = null; return r; });
+  return autoP;
+}
+async function cloudAutoRun() {
+  let changed = false; autoOk = false;
+  try {
+    const list = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
+    const nm = x => String(x || '').trim().toLowerCase(), skip = CL.skip || [];
+    for (const c of list) {
+      if (PR.list.some(x => x.cid === c.id) || skip.includes(c.id)) continue;
+      const r = await api('pull', { id: c.id }); if (!r.state) continue;
+      const loc = PR.list.find(x => !x.cid && nm(x.name) === nm(c.name));
+      if (loc) {
+        const cur = loc.id === PR.cur, mine = cur ? S : loadState(loc.key);
+        try { localStorage.setItem(loc.key + '_backup_' + today(), JSON.stringify(mine)); } catch (e) {}
+        const merged = mergeState(mine, JSON.parse(r.state));
+        if (cur) { Object.keys(S).forEach(k => delete S[k]); Object.assign(S, merged); lastSnap[loc.key] = snapOf(S); }
+        try { localStorage.setItem(loc.key, JSON.stringify(merged)); } catch (e) {}
+        loc.cid = c.id; savePR(); cloudDirty();
+      } else {
+        const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        PR.list.push({ id, name: r.name || c.name || 'Игрок', key: KEY + '_' + id, cid: c.id });
+        try { localStorage.setItem(KEY + '_' + id, r.state); } catch (e) {}
+        savePR();
+      }
+      changed = true;
+    }
+    for (const p of PR.list.filter(x => !x.cid && x.id !== PR.cur)) { // игроки только с этого устройства — отправляем в облако
+      const st = loadState(p.key); if (!st.name) continue;
+      p.cid = newCid(); savePR();
+      await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
+    }
+    autoOk = true;
+  } catch (e) {}
+  return changed;
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && needPush) cloudSync(false); });
 window.addEventListener('online', () => { if (needPush) cloudSync(false); });
@@ -5654,6 +5701,7 @@ function cloudScreen(back) {
       if (create && !r.created) { CL.code = ''; throw new Error('код занят, попробуйте ещё раз'); }
       CL.err = ''; saveCL(); cloudPlayers = r.players.filter(x => !String(x.id).startsWith('__'));
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
+      await cloudAuto();
     };
     if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false); });
     if ($('cn')) $('cn').onclick = () => run(() => login(genCode(), true));
@@ -7934,6 +7982,7 @@ function diag() {
 /* ---------- старт ---------- */
 applyTheme();
 syncSoon(true);
+cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
 if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается
 else S.name ? map() : welcome();
 })();
