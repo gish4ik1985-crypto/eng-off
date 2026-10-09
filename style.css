@@ -241,3 +241,12 @@ body.calm *{animation:none!important;transition:none!important}
 body.calm .cmb,body.calm .stars span{animation:none!important}
 .calmbar{height:16px;background:#e6e6e6;border:3px solid #1b1b1b;border-radius:10px;margin:8px 0;overflow:hidden}.calmbar i{display:block;height:100%;background:#43a047}
 .btn.nudge{outline:4px solid #e5a800;outline-offset:2px}
+/* внимание, мой день */
+.att-stim{height:120px;display:flex;align-items:center;justify-content:center;font-size:96px}
+.btn.huge{font-size:2rem;padding:.7em 2em}
+.simon{display:grid;grid-template-columns:repeat(2,120px);gap:12px;justify-content:center;margin:12px 0}
+.sbtn{height:120px;border:4px solid #1b1b1b;border-radius:16px;opacity:.5;cursor:pointer}.sbtn.lit{opacity:1;filter:brightness(1.35);box-shadow:0 0 0 5px #fff,0 0 0 8px #1b1b1b}
+.oddgrid{display:grid;gap:8px;justify-content:center;margin:10px auto;max-width:420px}
+.oddb{font-size:2rem;min-width:56px;height:60px;border:3px solid #1b1b1b;border-radius:10px;background:#fff;cursor:pointer}.oddb.back{background:#cfd8ff}.oddb.done{background:#c8f0d0;opacity:.8}.oddb:disabled{opacity:.45}
+.planlist{display:grid;gap:10px;margin:8px 0 14px}
+.plan{display:flex;align-items:center;gap:14px;font:inherit;font-size:1.25rem;padding:12px 14px;border:3px solid #1b1b1b;border-radius:12px;background:#fff;cursor:pointer;text-align:left}.plan.on{background:#c8f0d0}.plan .pe{font-size:2rem}.plan .pt{flex:1}.plan .pk{font-size:1.7rem}
