@@ -234,3 +234,4 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 #tmchip.low{background:#ffcdd2}
 .subjopt{display:block;font-size:1.15rem;padding:6px 0}.subjopt input{width:22px;height:22px;vertical-align:middle;margin-right:6px}
 .fsbtn{position:fixed;right:8px;bottom:8px;z-index:60;width:46px;height:46px;font-size:1.6rem;line-height:1;background:#fff;border:3px solid #1b1b1b;border-radius:10px;opacity:.85;cursor:pointer;padding:0}.fsbtn:active{opacity:1}
+.rtext{background:#fffbe6;border:3px solid #1b1b1b;border-radius:12px;padding:12px 16px;margin:8px auto;max-width:640px;font-size:1.15rem;line-height:1.5;text-align:left}
