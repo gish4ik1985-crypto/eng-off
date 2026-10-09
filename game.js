@@ -557,6 +557,21 @@ function players() {
       <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button></p>
       <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. ${cloudOn() ? 'Прогресс синхронизируется с облаком.' : 'Данные хранятся на этом устройстве.'}</small></p></div>`;
   if ($('bk')) $('bk').onclick = map;
+  const dupes = PR.list.filter(p => { const st = p.id === PR.cur ? S : loadState(p.key); return emptySt(st) && PR.list.some(q => q !== p && String(q.name).trim().toLowerCase() === String(p.name).trim().toLowerCase() && !emptySt(q.id === PR.cur ? S : loadState(q.key))); });
+  if (dupes.length) {
+    const b = document.createElement('p'); b.innerHTML = `<button class="btn small red" id="dd">🧹 Убрать пустые дубли (${dupes.length})</button> <small>удаляются только игроки с тем же именем, у которых ничего не пройдено и 0 изумрудов</small>`;
+    $('cl').parentNode.before(b);
+    $('dd').onclick = () => {
+      if (!confirm('Будут удалены пустые копии (ничего не пройдено, 0 изумрудов): ' + dupes.map(d => d.name).join(', ') + '. Игроки с прогрессом останутся. Продолжить?')) return;
+      dupes.forEach(d => {
+        try { localStorage.removeItem(d.key); } catch (e) {}
+        if (d.cid) CL.skip = (CL.skip || []).concat(d.cid);
+        PR.list = PR.list.filter(x => x !== d);
+        if (PR.cur === d.id) { const keep = PR.list.find(x => String(x.name).trim().toLowerCase() === String(d.name).trim().toLowerCase()) || PR.list[0]; PR.cur = keep.id; KEYNOW = keep.key; S = loadState(KEYNOW); }
+      });
+      saveCL(); savePR(); applyTheme(); players();
+    };
+  }
   { const my = screenId; cloudAuto().then(ch => { if (ch && screenId === my) players(); }); }
   $('cl').onclick = () => cloudScreen(players);
   $('np').onclick = addPlayer;
@@ -669,6 +684,8 @@ async function cloudPin() {
 
 // автоматически: игроки из облака появляются на этом устройстве, а игроки только с этого устройства уходят в облако.
 // Если локальный игрок без привязки к облаку совпадает по имени с игроком в облаке — прогресс сливается (ничего не теряется), перед этим делается копия
+// «пустой» игрок: ничего не пройдено, нет изумрудов и опыта (обычно двойник, созданный по ошибке)
+const emptySt = st => !Object.values(st.lessons || {}).some(x => x && x.done) && !(st.emeralds > 0) && !(st.xp > 0) && !Object.keys(st.words || {}).length;
 let autoP = null, autoOk = false;
 function cloudAuto() {
   if (!cloudOn()) return Promise.resolve(false);
@@ -683,6 +700,7 @@ async function cloudAutoRun() {
     for (const c of list) {
       if (PR.list.some(x => x.cid === c.id) || skip.includes(c.id)) continue;
       const r = await api('pull', { id: c.id }); if (!r.state) continue;
+      if (PR.list.some(x => nm(x.name) === nm(c.name)) && emptySt(JSON.parse(r.state))) { CL.skip = (CL.skip || []).concat(c.id); saveCL(); continue; } // пустой двойник не создаём
       const loc = PR.list.find(x => !x.cid && nm(x.name) === nm(c.name));
       if (loc) {
         const cur = loc.id === PR.cur, mine = cur ? S : loadState(loc.key);
