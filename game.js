@@ -700,7 +700,8 @@ const CK = 'engAdventure_cloud';
 let CL = { url: '', code: '', last: 0, err: '' };
 try { const r = JSON.parse(localStorage.getItem(CK)); if (r) CL = Object.assign(CL, r); } catch (e) {}
 const saveCL = () => { try { localStorage.setItem(CK, JSON.stringify(CL)); } catch (e) {} };
-if (CL.code && CL.code.length !== 6) { CL.code = ''; CL.err = ''; saveCL(); } // ошибочно введённый код (семейный код всегда из 6 знаков) — сбрасываем, чтобы можно было ввести правильный
+const codeOk = c => /^[A-Z0-9]{6,12}$/.test(c);
+if (CL.code && !codeOk(CL.code)) { CL.code = ''; CL.err = ''; saveCL(); } // испорченный код — сбрасываем, чтобы можно было ввести правильный
 const cloudUrl = () => CL.url || (typeof CLOUD_URL === 'string' ? CLOUD_URL : '');
 const cloudOn = () => !!(cloudUrl() && CL.code);
 const cloudStatus = () => CL.err ? 'Нет связи с облаком (' + CL.err + '). Данные сохранены на устройстве и отправятся позже.' : CL.last ? 'Последняя синхронизация: ' + new Date(CL.last).toLocaleString('ru-RU') + '.' : 'Ещё не синхронизировалось.';
@@ -797,6 +798,27 @@ async function cloudPin() {
 // Если локальный игрок без привязки к облаку совпадает по имени с игроком в облаке — прогресс сливается (ничего не теряется), перед этим делается копия
 // «пустой» игрок: ничего не пройдено, нет изумрудов и опыта (обычно двойник, созданный по ошибке)
 const emptySt = st => !Object.values(st.lessons || {}).some(x => x && x.done) && !(st.emeralds > 0) && !(st.xp > 0) && !Object.keys(st.words || {}).length;
+// смена семейного кода: копируем все записи семьи (игроки, сводки, дневник) под новый код,
+// в старой семье оставляем запись «__moved» — остальные устройства сами перейдут на новый код
+async function cloudRename(newCode) {
+  const old = CL.code;
+  if (!codeOk(newCode)) throw new Error('код — от 6 до 12 латинских букв или цифр');
+  if (newCode === old) throw new Error('это и есть текущий код');
+  syncBusy = true;
+  try {
+    const all = (await api('join', {})).players.filter(x => x.id !== '__moved');
+    CL.code = newCode;
+    const r = await api('init', {});
+    if (!r.created && r.players.some(x => !String(x.id).startsWith('__') && !all.some(a => a.id === x.id))) throw new Error('код ' + newCode + ' уже занят другой семьёй — выберите другой');
+    for (const c of all) {
+      CL.code = old; const d = await api('pull', { id: c.id });
+      if (!d.state) continue;
+      CL.code = newCode; await api('push', { id: c.id, name: d.name || c.name, ts: d.ts || c.ts || 0, state: d.state });
+    }
+    CL.code = old; await api('push', { id: '__moved', name: '__moved', ts: Date.now(), state: JSON.stringify({ to: newCode }) });
+    CL.code = newCode; CL.err = ''; saveCL(); await cloudPin();
+  } catch (e) { CL.code = old; saveCL(); throw e; } finally { syncBusy = false; }
+}
 // скачать одного игрока из облака на это устройство (если его ещё нет)
 async function cloudImportOne(c) {
   let p = PR.list.find(x => x.cid === c.id); if (p) return p;
@@ -818,7 +840,12 @@ async function cloudAutoRun() {
   let changed = false; autoOk = false;
   flushDel();
   try {
-    const list = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
+    let raw = (await api('join', {})).players;
+    if (raw.some(x => x.id === '__moved')) { // семья сменила код на другом устройстве — переходим следом
+      const mv = await api('pull', { id: '__moved' }); const to = mv.state ? JSON.parse(mv.state).to : '';
+      if (to && codeOk(to) && to !== CL.code) { CL.code = to; saveCL(); toast('☁️ Семейный код изменён на ' + to); raw = (await api('join', {})).players; }
+    }
+    const list = raw.filter(x => !String(x.id).startsWith('__'));
     const nm = x => String(x || '').trim().toLowerCase(), skip = CL.skip || [];
     const errs = [];
     for (const c of list) try {
@@ -862,7 +889,7 @@ function cloudScreen(back, autoCode) {
     const urlBlock = cloudUrl() ? '' : '<p>1) Вставьте ссылку на облако (её выдаёт тот, кто настраивал, см. cloud/НАСТРОЙКА.md):</p><input type="text" id="cu" placeholder="https://script.google.com/macros/s/.../exec">';
     let body;
     if (!cloudOn()) {
-      body = `${urlBlock}<p>${cloudUrl() ? '' : '2) '}Семейный код (6 знаков):</p><input type="text" id="cc" maxlength="12" placeholder="ABC234" style="text-transform:uppercase">
+      body = `${urlBlock}<p>${cloudUrl() ? '' : '2) '}Семейный код (6 знаков):</p><input type="text" id="cc" maxlength="12" placeholder="например ABC234" style="text-transform:uppercase" autocapitalize="characters" autocomplete="off">
         <p><button class="btn gold" id="cj">Войти по коду</button> <button class="btn small sec" id="cn">Создать новый семейный код</button></p>
         <p><small>Новый код создаёт родитель один раз на первом устройстве. Остальные устройства входят по этому же коду, потом выбирают игрока.</small></p>`;
     } else {
@@ -874,6 +901,8 @@ function cloudScreen(back, autoCode) {
       const none = cloudPlayers && !cloudPlayers.length ? `<p class="story"><b>Для кода ${esc(CL.code)} в облаке нет игроков.</b> Проверьте код на старом устройстве: «🔒 Родителям» → «☁️ Связь». Если код другой — нажмите «Выйти с этого устройства» и введите правильный.</p>` : '';
       body = `<p>Семейный код: <b style="font-size:1.6rem;letter-spacing:3px">${esc(CL.code)}</b></p><p><small>${esc(cloudStatus())}</small></p>
         ${none}${dlAll}<h3>Игроки в облаке</h3>${remote}${up ? '<h3>Только на этом устройстве</h3>' + up : ''}
+        <h3>✏️ Свой семейный код</h3><p>Можно заменить код на свой, который легко запомнить: от 6 до 12 латинских букв или цифр. Все игроки и дневник перенесутся, другие устройства перейдут на новый код сами.</p>
+        <p><input type="text" id="ncode" maxlength="12" placeholder="новый код" style="text-transform:uppercase;max-width:220px" autocapitalize="characters" autocomplete="off"> <button class="btn small" id="crn">Сменить код</button></p>
         <h3>📲 Подключить новое устройство</h3><p>Откройте эту ссылку на новом планшете или в другом браузере — вход по семейному коду произойдёт сам, игроки появятся.</p>
         <p><input type="text" id="clink" readonly value="${esc(location.href.split('#')[0].split('?')[0] + '#family=' + CL.code)}"> <button class="btn small gold" id="clk">📋 Скопировать</button></p>
         <p><small>Или на новом устройстве на первом экране нажмите «☁️ Войти по семейному коду» и введите код.</small></p>
@@ -908,9 +937,15 @@ function cloudScreen(back, autoCode) {
       if (PR.list.length && cloudOn()) { gone = true; toast('☁️ Игроки загружены из облака'); players(); }
     };
     if ($('cdla')) $('cdla').onclick = () => run(afterJoin);
+    if ($('crn')) $('crn').onclick = () => {
+      const nc = $('ncode').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!codeOk(nc)) { msg = 'Код — от 6 до 12 латинских букв или цифр.'; return draw(); }
+      if (!confirm('Сменить семейный код на ' + nc + '? Все игроки и дневник перенесутся под новый код.')) return;
+      run(async () => { await cloudRename(nc); cloudPlayers = null; cloudPlayers = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__')); toast('✅ Новый семейный код: ' + nc); });
+    };
     if ($('cj')) $('cj').onclick = () => run(() => {
       const c = $('cc').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (c.length !== 6) throw new Error(`семейный код — ровно 6 знаков (латинские буквы и цифры, например K7MP3Q), а введено ${c.length}. Возможно, это пароль родителя, а не код. Код показан на старом устройстве: «🔒 Родителям» → «☁️ Связь» → облако.`);
+      if (!codeOk(c)) throw new Error(`семейный код — от 6 до 12 латинских букв или цифр, а введено знаков: ${c.length}. Код показан на старом устройстве: «🔒 Родителям» → «☁️ Связь» → облако.`);
       return login(c, false).then(afterJoin);
     });
     if ($('cc') && autoCode) { $('cc').value = autoCode; const c = autoCode; autoCode = ''; run(() => login(c, false).then(afterJoin)); return; }
