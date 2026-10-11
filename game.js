@@ -123,7 +123,12 @@ const TITLES = {
   t_r1: { e: '👾', n: 'Победитель Забывака', p: 999, a: 'b1' }, t_r2: { e: '🌍', n: 'Мастер всех миров', p: 999, a: 'all' },
   t_r3: { e: '📚', n: 'Король словаря', p: 999, a: 'w200' }, t_r4: { e: '🔥', n: 'Железная воля', p: 999, a: 'st30' },
   t_r5: { e: '📜', n: 'Сказочный герой', p: 999, a: 'tale' }, t_r6: { e: '🎧', n: 'Мастер слуха', p: 999, a: 'aud60' },
-  t_r7: { e: '🏆', n: 'Мастер острова', p: 999, a: 'l60' }
+  t_r7: { e: '🏆', n: 'Мастер острова', p: 999, a: 'l60' },
+  t_s_math: { e: '🧮', n: 'Великий математик', p: 999, a: 'math_l3' }, t_s_ru: { e: '✒️', n: 'Мастер русского', p: 999, a: 'ru_l3' },
+  t_s_ow: { e: '🔭', n: 'Учёный-натуралист', p: 999, a: 'ow_l3' }, t_s_izo: { e: '🖌️', n: 'Художник-мастер', p: 999, a: 'izo_l3' },
+  t_s_pdd: { e: '🚦', n: 'Инспектор дорог', p: 999, a: 'pdd_l3' }, t_s_lit: { e: '📖', n: 'Книжный мудрец', p: 999, a: 'lit_l3' },
+  t_s_logic: { e: '♟️', n: 'Гроссмейстер', p: 999, a: 'logic_l3' }, t_s_att: { e: '🎯', n: 'Снайпер внимания', p: 999, a: 'att_l3' },
+  t_s_all: { e: '🦉', n: 'Энциклопедист', p: 999, a: 'multi5' }, t_s_boss: { e: '🗡️', n: 'Охотник на боссов', p: 999, a: 'multiB' }
 };
 // редкие питомцы и фоны
 Object.assign(PET_LINES, {
@@ -1035,7 +1040,7 @@ function home() {
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
-    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
+    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
   app.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => { S.subj = b.dataset.sj; homeView = false; save(); map(); });
@@ -2624,7 +2629,22 @@ const allLessons = () => [].concat(...EN_PACK.WORLDS.concat(IT_PACK.WORLDS).map(
 const doneLessons = () => allLessons().filter(l => (S.lessons[l.id] || {}).done);
 const cntDone = obj => Object.values(obj || {}).filter(x => x.done).length;
 const A = (cat, id, i, t, d, goal, r, val) => ({ cat, id, i, t, d, goal, r, val });
-const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Прогресс', 'Разнообразие', 'Питомец', 'Богатство'];
+// награды по остальным предметам: [ключ, первый урок, N уроков, много уроков, босс, отличник]
+const SUBJ_ACH = {
+  math: ['Первый пример', 'Счетовод', 'Математик', 'Гроза задач', 'Точный расчёт'],
+  ru: ['Первое правило', 'Знаток букв', 'Знаток русского', 'Победитель Ошибок', 'Без единой ошибки'],
+  ow: ['Юный натуралист', 'Исследователь', 'Знаток природы', 'Покоритель мира', 'Эрудит'],
+  izo: ['Первый мазок', 'Художник', 'Мастер кисти', 'Победитель Серости', 'Зоркий глаз'],
+  pdd: ['Пешеход', 'Знаток знаков', 'Безопасный герой', 'Хранитель дороги', 'Осторожный'],
+  lit: ['Первая страница', 'Читатель', 'Книголюб', 'Хранитель сказок', 'Внимательный читатель'],
+  logic: ['Первая загадка', 'Смекалистый', 'Логик', 'Шахматный боец', 'Стратег'],
+  att: ['Внимательный', 'Зоркий', 'Сосредоточенный', 'Победитель Рассеянности', 'Мастер внимания']
+};
+const subjLessons = k => [].concat(...SUBJ_META[k][2]().map(w => w.lessons));
+const subjDone = k => subjLessons(k).filter(l => (S.lessons[l.id] || {}).done);
+const subjBoss = k => SUBJ_META[k][2]().filter(w => (S.lessons[w.boss.id] || {}).done).length;
+const subjStarted = () => Object.keys(SUBJ_META).filter(k => subjDone(k).length).length;
+const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Прогресс', 'Разнообразие', 'Питомец', 'Богатство', 'Все предметы'].concat(Object.keys(SUBJ_ACH).map(k => SUBJ_META[k][1]));
 const ACH = [
   A('Старт', 'first', '👣', 'Первые шаги', 'Пройди первую локацию', 1, 5, () => doneLessons().length),
   A('Старт', 'diag', '🔎', 'Разведчик', 'Пройди «Разведку»', 1, 10, () => (S.diagRun ? 1 : 0)),
@@ -2672,15 +2692,29 @@ const ACH = [
   A('Богатство', 'shop10', '🛍️', 'Модный остров', 'Купи 10 вещей в магазине', 10, 20, () => Math.max(0, S.owned.length - 1)),
   A('Богатство', 'shop25', '🛒', 'Магазин-мастер', 'Купи 25 вещей в магазине', 25, 40, () => Math.max(0, S.owned.length - 1)),
   A('Богатство', 'e100', '💎', 'Копилка', 'Накопи 100 изумрудов', 100, 10, () => S.maxEm || 0),
-  A('Богатство', 'e300', '💰', 'Сокровищница', 'Накопи 300 изумрудов', 300, 20, () => S.maxEm || 0)
-];
+  A('Богатство', 'e300', '💰', 'Сокровищница', 'Накопи 300 изумрудов', 300, 20, () => S.maxEm || 0),
+  A('Все предметы', 'multi3', '🌈', 'Разносторонний', 'Пройди уроки в 3 разных предметах', 3, 10, subjStarted),
+  A('Все предметы', 'multi5', '🦉', 'Энциклопедист', 'Пройди уроки в 5 разных предметах', 5, 25, subjStarted),
+  A('Все предметы', 'multiB', '🗡️', 'Охотник на боссов', 'Победи боссов в 3 разных предметах', 3, 30, () => Object.keys(SUBJ_META).filter(k => subjBoss(k)).length)
+].concat(...Object.keys(SUBJ_ACH).map(k => {
+  const [e, nm] = SUBJ_META[k], tl = SUBJ_ACH[k], c = nm, n = subjLessons(k).length;
+  const g2 = Math.min(10, Math.ceil(n / 3)), g3 = Math.min(25, n - Math.max(3, Math.round(n * .15)));
+  return [
+    Object.assign(A(c, k + '_l1', e, tl[0], `Пройди первый урок: «${nm}»`, 1, 5, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_l2', '🥈', tl[1], `Пройди ${g2} уроков: «${nm}»`, g2, 10, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_l3', '🥇', tl[2], `Пройди ${g3} уроков: «${nm}»`, g3, 25, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_b', '👑', tl[3], `Победи босса: «${nm}»`, 1, 20, () => subjBoss(k)), { subj: k }),
+    Object.assign(A(c, k + '_s3', '🎖️', tl[4], `Получи 3 звезды в ${Math.min(10, g2)} уроках: «${nm}»`, Math.min(10, g2), 15, () => subjDone(k).filter(l => S.lessons[l.id].stars === 3).length), { subj: k })
+  ];
+}));
+const achList = () => ACH.filter(a => !a.subj || subjOn(a.subj)); // награды выключенных родителем предметов не показываем
 const tierOf = a => (a.r >= 25 ? 'gold' : a.r >= 10 ? 'silver' : 'bronze');
 
 function checkAch() {
   if (tmLocked || tmFree || (tmInLesson && $('msg'))) return; // не всплываем поверх задания, экрана родителей или замка — проверим при следующем заходе на карту
   S.maxEm = Math.max(S.maxEm || 0, S.emeralds);
   const got = [];
-  ACH.forEach(a => {
+  achList().forEach(a => {
     if (S.ach[a.id]) return;
     let v = 0; try { v = a.val(); } catch (e) {}
     if (v >= a.goal) { S.ach[a.id] = today(); S.emeralds += a.r; got.push(a); }
@@ -2700,9 +2734,10 @@ function checkAch() {
 
 function awards() {
   if (tmGate()) return; tmInLesson = false;
-  const have = ACH.filter(a => S.ach[a.id]).length;
+  const vis = achList(), have = vis.filter(a => S.ach[a.id]).length;
   const secs = ACH_CATS.map(c => {
-    const list = ACH.filter(a => a.cat === c);
+    const list = vis.filter(a => a.cat === c);
+    if (!list.length) return '';
     return `<h3>${c} <small>${list.filter(a => S.ach[a.id]).length}/${list.length}</small></h3><div class="shop">` + list.map(a => {
       const got = S.ach[a.id]; let v = 0; try { v = a.val(); } catch (e) {}
       const pct = Math.min(100, Math.round(v / a.goal * 100));
@@ -2716,7 +2751,7 @@ function awards() {
     return `<div class="item ach ${ok ? 'gold' : 'lock'}"><div class="ie">${ok ? '🎁' : '🔒'}</div><b>${p.text}</b><br><small>${ok ? 'Приз открыт! Покажи родителям 🎉' : `Нужно наград: ${have} / ${p.need}`}</small></div>`;
   }).join('');
   app.innerHTML = `<div class="card top" id="awc"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>🏆 Мои награды</h2></div><span class="chip">💎 ${S.emeralds}</span></div>
-    <div class="card"><p>Получено наград: <b>${have}</b> из ${ACH.length}</p><div class="bar"><i style="width:${Math.round(have / ACH.length * 100)}%"></i></div>
+    <div class="card"><p>Получено наград: <b>${have}</b> из ${vis.length}</p><div class="bar"><i style="width:${Math.round(have / vis.length * 100)}%"></i></div>
       ${prizes ? `<h3>🎁 Семейные призы</h3><div class="shop">${prizes}</div>` : ''}${secs}</div>`;
   $('bk').onclick = map;
 }

@@ -20,7 +20,7 @@ html{font-size:clamp(16px,2.3vw,22px);-webkit-text-size-adjust:100%}
 body,button,.node,.sl,.opt,.tile,.mc{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 textarea,input{-webkit-user-select:text;user-select:text}
 button{min-height:44px}
-body{margin:0;font-family:"Trebuchet MS","Segoe UI",sans-serif;font-weight:700;color:var(--ink);background:#8ed1fc;min-height:100vh}
+body{font-variant-numeric:tabular-nums;margin:0;font-family:"Trebuchet MS","Segoe UI",sans-serif;font-weight:700;color:var(--ink);background:#8ed1fc;min-height:100vh}
 body.theme1{background:#1e2a5a}
 body.theme2{background:#6a2020}
 #app{max-width:1100px;margin:0 auto;padding:12px;padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:max(24px,env(safe-area-inset-bottom))}
@@ -201,9 +201,9 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .ib{font:inherit;font-size:1.1rem;padding:4px 10px;border:3px solid #1b1b1b;border-radius:8px;background:#e8e8e8;opacity:.75;cursor:pointer}
 .moregrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .pinbox{text-align:center;max-width:340px;margin:0 auto}
-.dots{display:flex;gap:12px;justify-content:center;margin:8px 0}
-.dots i{width:22px;height:22px;border:3px solid #1b1b1b;border-radius:50%;background:#fff}
-.dots i.on{background:#1b1b1b}
+.pinbox .dots{gap:12px;justify-content:center;margin:8px 0}
+.pinbox .dots i{width:22px;height:22px;border:3px solid #1b1b1b;border-radius:50%;background:#fff}
+.pinbox .dots i.on{background:#1b1b1b}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pad .btn{font-size:1.5rem;padding:.5em 0}
 .pmsg{color:#c62828;min-height:1.4em}
@@ -238,7 +238,7 @@ td,th{border-bottom:2px solid #ccc;padding:6px;text-align:left}
 .clue{font-size:1.15rem;margin:4px 0 10px}.wbox{min-width:200px;font-size:2rem;letter-spacing:3px}.rukeys{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin:10px auto}.rukeys .btn{min-width:46px;padding:10px 0;font-size:1.2rem}
 .sent{font-size:1.5rem;margin:8px 0;line-height:1.5}.gapb{display:inline-block;border-bottom:4px solid #2e7d32;min-width:3em}
 .bkl{display:flex;flex-wrap:wrap;gap:10px}.bki{display:flex;flex-direction:column;align-items:center;gap:4px;width:120px}.bki img{width:120px;height:90px;object-fit:cover;border:3px solid #1b1b1b;border-radius:8px}
-.dcv{width:100%;max-width:640px;height:auto;aspect-ratio:4/3;border:4px solid #1b1b1b;border-radius:12px;background:#fffdf5;touch-action:none;cursor:crosshair}.dtxt{font-size:1.2rem;margin:4px 0 8px}.dbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:8px 0}.sw{width:38px;height:38px;border-radius:8px;border:3px solid #1b1b1b;cursor:pointer}.sw.on{outline:4px solid #2e7d32}.gi small{max-width:120px;text-align:center}
+.dcv{width:100%;max-width:640px;height:auto;aspect-ratio:4/3;border:4px solid #1b1b1b;border-radius:12px;background:#fffdf5;touch-action:none;cursor:crosshair}.dtxt{font-size:1.2rem;margin:4px 0 8px}.dbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:8px 0}.dbtns .sw{min-width:0;min-height:0;width:38px;height:38px;padding:0;font-size:0;border-radius:8px;border:3px solid #1b1b1b;cursor:pointer}.dbtns .sw.on{outline:4px solid #2e7d32}.gi small{max-width:120px;text-align:center}
 .btn.huge{font-size:2rem;padding:16px 52px;margin:8px 0}.sjhint{font-size:1.1rem;margin:2px 0 10px}.sjgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 14px}.sjt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:4px solid #1b1b1b;border-radius:14px;background:#fff;font:inherit;color:inherit;cursor:pointer;box-shadow:0 5px 0 #1b1b1b}.sjt:active{transform:translateY(3px);box-shadow:0 2px 0 #1b1b1b}.sjt.cur{background:#ffe27a}.sjt .te{font-size:46px;line-height:1}.sjt .tn{font-size:1.15rem;font-weight:700}.sjt .tp{display:block;width:100%;height:10px;border:2px solid #1b1b1b;border-radius:6px;background:#eee;overflow:hidden}.sjt .tp i{display:block;height:100%;background:#43a047}.btn.big,.bigrow .btn{font-size:1.25rem;padding:12px 22px}.bigrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:10px 0}.toprow{display:flex;align-items:center;gap:12px}.toprow h2{flex:1;margin:0}.mini2{display:flex;gap:10px;justify-content:center;margin:16px 0}
 .lkeys{max-width:640px;margin:8px auto}.lrow{display:flex;gap:5px;justify-content:center;margin:5px 0}.lrow .btn{min-width:38px;padding:9px 0;font-size:1.15rem}.wbox{word-break:break-word}
 
@@ -279,6 +279,21 @@ details summary{cursor:pointer}
 @media (max-width:600px){.ptab{font-size:.9rem;padding:6px 8px}}
 .offl{margin:.4rem 0;padding-left:1.3rem;line-height:1.45}.offl li{margin:.25rem 0}
 #offper:empty{display:none}
+/* ровные плитки и карточки: подписи не вылезают за рамку, полоски прогресса и кнопки на одной высоте */
+.sjt{container-type:inline-size;min-width:0}
+.sjt .tn{font-size:.9rem;font-size:min(1.05rem,14cqi);line-height:1.2;min-height:2.4em;display:flex;align-items:center;justify-content:center;text-align:center;overflow-wrap:break-word;max-width:100%}
+.sjt .tp{margin-top:auto}
+.shop .item{display:flex;flex-direction:column;align-items:center;gap:2px}
+.shop .item>br{display:none}
+.shop .item>.bar{width:100%;margin-top:auto}
+.shop .item>.ie{line-height:1.15}
+.shop .item>button:last-child{margin-top:auto}
+.shop .item>.swatch{align-self:stretch}
+.sjgrid{grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}
+@media (max-width:420px){.sjgrid{grid-template-columns:repeat(2,1fr)}}
+.node{container-type:inline-size}
+.node .t{font-size:min(.85rem,11.5cqi);overflow-wrap:break-word}
+#app{padding-bottom:max(72px,env(safe-area-inset-bottom))}
 
 </style>
 </head>
@@ -5978,7 +5993,12 @@ const TITLES = {
   t_r1: { e: '👾', n: 'Победитель Забывака', p: 999, a: 'b1' }, t_r2: { e: '🌍', n: 'Мастер всех миров', p: 999, a: 'all' },
   t_r3: { e: '📚', n: 'Король словаря', p: 999, a: 'w200' }, t_r4: { e: '🔥', n: 'Железная воля', p: 999, a: 'st30' },
   t_r5: { e: '📜', n: 'Сказочный герой', p: 999, a: 'tale' }, t_r6: { e: '🎧', n: 'Мастер слуха', p: 999, a: 'aud60' },
-  t_r7: { e: '🏆', n: 'Мастер острова', p: 999, a: 'l60' }
+  t_r7: { e: '🏆', n: 'Мастер острова', p: 999, a: 'l60' },
+  t_s_math: { e: '🧮', n: 'Великий математик', p: 999, a: 'math_l3' }, t_s_ru: { e: '✒️', n: 'Мастер русского', p: 999, a: 'ru_l3' },
+  t_s_ow: { e: '🔭', n: 'Учёный-натуралист', p: 999, a: 'ow_l3' }, t_s_izo: { e: '🖌️', n: 'Художник-мастер', p: 999, a: 'izo_l3' },
+  t_s_pdd: { e: '🚦', n: 'Инспектор дорог', p: 999, a: 'pdd_l3' }, t_s_lit: { e: '📖', n: 'Книжный мудрец', p: 999, a: 'lit_l3' },
+  t_s_logic: { e: '♟️', n: 'Гроссмейстер', p: 999, a: 'logic_l3' }, t_s_att: { e: '🎯', n: 'Снайпер внимания', p: 999, a: 'att_l3' },
+  t_s_all: { e: '🦉', n: 'Энциклопедист', p: 999, a: 'multi5' }, t_s_boss: { e: '🗡️', n: 'Охотник на боссов', p: 999, a: 'multiB' }
 };
 // редкие питомцы и фоны
 Object.assign(PET_LINES, {
@@ -6890,7 +6910,7 @@ function home() {
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
-    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${ACH.filter(a => S.ach[a.id]).length}/${ACH.length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
+    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
   app.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => { S.subj = b.dataset.sj; homeView = false; save(); map(); });
@@ -8479,7 +8499,22 @@ const allLessons = () => [].concat(...EN_PACK.WORLDS.concat(IT_PACK.WORLDS).map(
 const doneLessons = () => allLessons().filter(l => (S.lessons[l.id] || {}).done);
 const cntDone = obj => Object.values(obj || {}).filter(x => x.done).length;
 const A = (cat, id, i, t, d, goal, r, val) => ({ cat, id, i, t, d, goal, r, val });
-const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Прогресс', 'Разнообразие', 'Питомец', 'Богатство'];
+// награды по остальным предметам: [ключ, первый урок, N уроков, много уроков, босс, отличник]
+const SUBJ_ACH = {
+  math: ['Первый пример', 'Счетовод', 'Математик', 'Гроза задач', 'Точный расчёт'],
+  ru: ['Первое правило', 'Знаток букв', 'Знаток русского', 'Победитель Ошибок', 'Без единой ошибки'],
+  ow: ['Юный натуралист', 'Исследователь', 'Знаток природы', 'Покоритель мира', 'Эрудит'],
+  izo: ['Первый мазок', 'Художник', 'Мастер кисти', 'Победитель Серости', 'Зоркий глаз'],
+  pdd: ['Пешеход', 'Знаток знаков', 'Безопасный герой', 'Хранитель дороги', 'Осторожный'],
+  lit: ['Первая страница', 'Читатель', 'Книголюб', 'Хранитель сказок', 'Внимательный читатель'],
+  logic: ['Первая загадка', 'Смекалистый', 'Логик', 'Шахматный боец', 'Стратег'],
+  att: ['Внимательный', 'Зоркий', 'Сосредоточенный', 'Победитель Рассеянности', 'Мастер внимания']
+};
+const subjLessons = k => [].concat(...SUBJ_META[k][2]().map(w => w.lessons));
+const subjDone = k => subjLessons(k).filter(l => (S.lessons[l.id] || {}).done);
+const subjBoss = k => SUBJ_META[k][2]().filter(w => (S.lessons[w.boss.id] || {}).done).length;
+const subjStarted = () => Object.keys(SUBJ_META).filter(k => subjDone(k).length).length;
+const ACH_CATS = ['Старт', 'Уроки', 'Звёзды', 'Миры', 'Слова', 'Серия', 'Прогресс', 'Разнообразие', 'Питомец', 'Богатство', 'Все предметы'].concat(Object.keys(SUBJ_ACH).map(k => SUBJ_META[k][1]));
 const ACH = [
   A('Старт', 'first', '👣', 'Первые шаги', 'Пройди первую локацию', 1, 5, () => doneLessons().length),
   A('Старт', 'diag', '🔎', 'Разведчик', 'Пройди «Разведку»', 1, 10, () => (S.diagRun ? 1 : 0)),
@@ -8527,15 +8562,29 @@ const ACH = [
   A('Богатство', 'shop10', '🛍️', 'Модный остров', 'Купи 10 вещей в магазине', 10, 20, () => Math.max(0, S.owned.length - 1)),
   A('Богатство', 'shop25', '🛒', 'Магазин-мастер', 'Купи 25 вещей в магазине', 25, 40, () => Math.max(0, S.owned.length - 1)),
   A('Богатство', 'e100', '💎', 'Копилка', 'Накопи 100 изумрудов', 100, 10, () => S.maxEm || 0),
-  A('Богатство', 'e300', '💰', 'Сокровищница', 'Накопи 300 изумрудов', 300, 20, () => S.maxEm || 0)
-];
+  A('Богатство', 'e300', '💰', 'Сокровищница', 'Накопи 300 изумрудов', 300, 20, () => S.maxEm || 0),
+  A('Все предметы', 'multi3', '🌈', 'Разносторонний', 'Пройди уроки в 3 разных предметах', 3, 10, subjStarted),
+  A('Все предметы', 'multi5', '🦉', 'Энциклопедист', 'Пройди уроки в 5 разных предметах', 5, 25, subjStarted),
+  A('Все предметы', 'multiB', '🗡️', 'Охотник на боссов', 'Победи боссов в 3 разных предметах', 3, 30, () => Object.keys(SUBJ_META).filter(k => subjBoss(k)).length)
+].concat(...Object.keys(SUBJ_ACH).map(k => {
+  const [e, nm] = SUBJ_META[k], tl = SUBJ_ACH[k], c = nm, n = subjLessons(k).length;
+  const g2 = Math.min(10, Math.ceil(n / 3)), g3 = Math.min(25, n - Math.max(3, Math.round(n * .15)));
+  return [
+    Object.assign(A(c, k + '_l1', e, tl[0], `Пройди первый урок: «${nm}»`, 1, 5, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_l2', '🥈', tl[1], `Пройди ${g2} уроков: «${nm}»`, g2, 10, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_l3', '🥇', tl[2], `Пройди ${g3} уроков: «${nm}»`, g3, 25, () => subjDone(k).length), { subj: k }),
+    Object.assign(A(c, k + '_b', '👑', tl[3], `Победи босса: «${nm}»`, 1, 20, () => subjBoss(k)), { subj: k }),
+    Object.assign(A(c, k + '_s3', '🎖️', tl[4], `Получи 3 звезды в ${Math.min(10, g2)} уроках: «${nm}»`, Math.min(10, g2), 15, () => subjDone(k).filter(l => S.lessons[l.id].stars === 3).length), { subj: k })
+  ];
+}));
+const achList = () => ACH.filter(a => !a.subj || subjOn(a.subj)); // награды выключенных родителем предметов не показываем
 const tierOf = a => (a.r >= 25 ? 'gold' : a.r >= 10 ? 'silver' : 'bronze');
 
 function checkAch() {
   if (tmLocked || tmFree || (tmInLesson && $('msg'))) return; // не всплываем поверх задания, экрана родителей или замка — проверим при следующем заходе на карту
   S.maxEm = Math.max(S.maxEm || 0, S.emeralds);
   const got = [];
-  ACH.forEach(a => {
+  achList().forEach(a => {
     if (S.ach[a.id]) return;
     let v = 0; try { v = a.val(); } catch (e) {}
     if (v >= a.goal) { S.ach[a.id] = today(); S.emeralds += a.r; got.push(a); }
@@ -8555,9 +8604,10 @@ function checkAch() {
 
 function awards() {
   if (tmGate()) return; tmInLesson = false;
-  const have = ACH.filter(a => S.ach[a.id]).length;
+  const vis = achList(), have = vis.filter(a => S.ach[a.id]).length;
   const secs = ACH_CATS.map(c => {
-    const list = ACH.filter(a => a.cat === c);
+    const list = vis.filter(a => a.cat === c);
+    if (!list.length) return '';
     return `<h3>${c} <small>${list.filter(a => S.ach[a.id]).length}/${list.length}</small></h3><div class="shop">` + list.map(a => {
       const got = S.ach[a.id]; let v = 0; try { v = a.val(); } catch (e) {}
       const pct = Math.min(100, Math.round(v / a.goal * 100));
@@ -8571,7 +8621,7 @@ function awards() {
     return `<div class="item ach ${ok ? 'gold' : 'lock'}"><div class="ie">${ok ? '🎁' : '🔒'}</div><b>${p.text}</b><br><small>${ok ? 'Приз открыт! Покажи родителям 🎉' : `Нужно наград: ${have} / ${p.need}`}</small></div>`;
   }).join('');
   app.innerHTML = `<div class="card top" id="awc"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center"><h2>🏆 Мои награды</h2></div><span class="chip">💎 ${S.emeralds}</span></div>
-    <div class="card"><p>Получено наград: <b>${have}</b> из ${ACH.length}</p><div class="bar"><i style="width:${Math.round(have / ACH.length * 100)}%"></i></div>
+    <div class="card"><p>Получено наград: <b>${have}</b> из ${vis.length}</p><div class="bar"><i style="width:${Math.round(have / vis.length * 100)}%"></i></div>
       ${prizes ? `<h3>🎁 Семейные призы</h3><div class="shop">${prizes}</div>` : ''}${secs}</div>`;
   $('bk').onclick = map;
 }
