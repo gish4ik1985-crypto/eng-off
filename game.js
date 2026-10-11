@@ -1390,7 +1390,7 @@ function quiz(o, done) {
       : `<button class="speak" id="sp">🔊</button><p>${mode === 'mine' ? 'Найди блок с этим словом и копай!' : 'Послушай и найди картинку'}</p>`;
     const optHTML = opts.map(id => {
       const x = WORDS[id];
-      return `<button class="opt ${mode}" data-id="${id}">${mode === 'listen' ? `<span class="oe">${x.e}</span>` : `<span class="ot">${x.en}</span>`}</button>`;
+      return `<button class="opt ${mode}" data-id="${id}">${mode === 'listen' ? `<span class="oe">${x.e}</span>` : `<span class="ot">${x.en}</span>${trSmall(id)}`}</button>`;
     }).join('');
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}${prompt}<div id="msg" class="msg">&nbsp;</div><div class="opts ${mode}">${optHTML}</div></div>`);
     if ($('sp')) { $('sp').onclick = () => speak(w.en); speakLater(w.en, 350); }
@@ -1424,7 +1424,7 @@ function memory(ctx, cb) {
   const ids = sample(ctx.L.words, Math.min(6, ctx.L.words.length));
   const cards = shuffle(ids.flatMap(id => [{ id, t: 'e' }, { id, t: 'w' }]));
   frame(ctx, `<div class="card center"><h3>Найди пары: картинка и слово</h3><div id="msg" class="msg">&nbsp;</div>
-    <div class="mem">${cards.map((c, k) => `<button class="mc" data-k="${k}"><span class="b">⛏️</span><span class="f ${c.t}">${c.t === 'e' ? WORDS[c.id].e : WORDS[c.id].en}</span></button>`).join('')}</div></div>`);
+    <div class="mem">${cards.map((c, k) => `<button class="mc" data-k="${k}"><span class="b">⛏️</span><span class="f ${c.t}">${c.t === 'e' ? WORDS[c.id].e : WORDS[c.id].en + trSmall(c.id)}</span></button>`).join('')}</div></div>`);
   let open = [], matched = 0, mism = 0, lock = false;
   app.querySelectorAll('.mc').forEach(b => b.onclick = () => {
     const k = +b.dataset.k;
@@ -2053,6 +2053,7 @@ function planScreen() {
 const isIt = () => LNOW === LANGINFO.it;
 const trOf = id => (isIt() ? (typeof IT_TR !== 'undefined' ? IT_TR[id] : '') : (typeof EN_TR !== 'undefined' ? EN_TR[id] : '')) || '';
 // транскрипция под словом: у английского — международная [ ], у итальянского — как читается русскими буквами
+const trSmall = id => { const r = trOf(id); return r ? `<small class="otr">${isIt() ? r : '[' + r + ']'}</small>` : ''; }; // транскрипция в карточке ответа
 const trHtml = id => { const r = trOf(id); return r ? `<div class="trn">${isIt() ? 'читается: ' + r : '[' + r + ']'}</div>` : ''; };
 const dNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ё/g, 'е').replace(/[’'?!.,]/g, ' ').replace(/\s+/g, ' ').trim();
 let dictQ = '', dictL = null;
@@ -3514,7 +3515,7 @@ function diag() {
     if (q.kind === 'word') {
       const w = WORDS[q.id]; ans = q.id; sayOk = w.en;
       prompt = `<div class="bigemoji">${w.e}</div><p>Как это ${LN().adv}?</p>`;
-      optHTML = q.opts.map(id => `<button class="opt see" data-v="${id}"><span class="ot">${WORDS[id].en}</span></button>`).join('');
+      optHTML = q.opts.map(id => `<button class="opt see" data-v="${id}"><span class="ot">${WORDS[id].en}</span>${trSmall(id)}</button>`).join('');
     } else {
       const g = q.g, hasGap = g.en.includes('___'); ans = g.ans; sayOk = g.en.replace('___', g.ans);
       const text = q.text ? `<div class="rule" style="text-align:left;font-size:1rem">${q.text.map(s => s.en).join(' ')}</div>` : '';
