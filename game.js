@@ -1128,7 +1128,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
-  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
+  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -1143,6 +1143,7 @@ function map() {
   if ($('gal')) $('gal').onclick = izoGallery;
   $('trn').onclick = isGen() ? mathTraining : training;
   if ($('more')) $('more').onclick = more;
+  if ($('dict')) $('dict').onclick = () => dictScreen(map);
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
     if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
@@ -1351,7 +1352,7 @@ function intro(ctx, cb) {
     frame(ctx, `<div class="card center">${i === 0 ? `<div class="story">${ctx.L.story}</div>` : ''}
       <div class="bigemoji">${w.e}</div>
       ${w.L ? `<div class="letter">${w.L}${w.L.toLowerCase()}</div>` : ''}
-      <div class="en">${w.en}</div><div class="ru">${w.ru}</div>
+      <div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div>
       <p><button class="speak" id="sp">🔊</button></p>
       <p>Повтори вслух за роботом! (${i + 1} из ${ws.length})</p>
       <p>${i > 0 ? '<button class="btn sec" id="pv">⬅</button>' : ''}<button class="btn gold" id="nx">${i < ws.length - 1 ? 'Дальше ➜' : 'К играм ➜'}</button></p></div>`);
@@ -2048,12 +2049,60 @@ function planScreen() {
 
 /* ---------- родителям ---------- */
 /* ---------- «Ещё» и PIN для родителей ---------- */
+/* ---------- словарь: все слова языка с транскрипцией, переводом и поиском ---------- */
+const isIt = () => LNOW === LANGINFO.it;
+const trOf = id => (isIt() ? (typeof IT_TR !== 'undefined' ? IT_TR[id] : '') : (typeof EN_TR !== 'undefined' ? EN_TR[id] : '')) || '';
+// транскрипция под словом: у английского — международная [ ], у итальянского — как читается русскими буквами
+const trHtml = id => { const r = trOf(id); return r ? `<div class="trn">${isIt() ? 'читается: ' + r : '[' + r + ']'}</div>` : ''; };
+const dNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ё/g, 'е').replace(/[’'?!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+let dictQ = '', dictL = null;
+function dictScreen(back) {
+  if (tmGate()) return; tmInLesson = false;
+  if (dictL !== LNOW) { dictQ = ''; dictL = LNOW; } // другой язык — поиск с чистого листа
+  epoch++; newScreen();
+  const it = isIt(), col = collectedSet(), ids = Object.keys(WORDS);
+  const lang = it ? 'итальянский' : 'английский', adv = it ? 'по-итальянски' : 'по-английски';
+  app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Назад</button><div class="grow center"><h2>📕 Словарь: ${lang}</h2></div></div>
+    <div class="card dsearch"><input type="search" id="dq" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="🔎 Напиши слово ${adv} или по-русски" value="${esc(dictQ)}">
+      <p class="dn" id="dn"></p></div><div class="card"><div id="dl" class="dlist"></div></div>`;
+  $('bk').onclick = back || map;
+  const row = id => {
+    const w = WORDS[id], r = trOf(id);
+    return `<div class="drow" data-say="${id}"><span class="de">${w.e}</span><div class="dw"><b class="df">${esc(w.en)}</b>${r ? ` <span class="dt">${it ? r : '[' + r + ']'}</span>` : ''}<div class="dr">${esc(w.ru)}</div></div>${col.has(id) ? '<span class="dk" title="Уже есть в моём словарике">✅</span>' : ''}<button class="ib dsp" data-say="${id}" title="Послушать">🔊</button></div>`;
+  };
+  const draw = () => {
+    const q = dNorm(dictQ);
+    let list;
+    if (!q) {
+      list = ids.slice().sort((a, b) => dNorm(WORDS[a].en).localeCompare(dNorm(WORDS[b].en)));
+      let L = '';
+      $('dl').innerHTML = list.map(id => { const f = dNorm(WORDS[id].en)[0].toUpperCase(), h = f !== L ? `<h3 class="dlet">${f}</h3>` : ''; L = f; return h + row(id); }).join('');
+      $('dn').textContent = `В словаре ${list.length} слов. Нажми на слово, чтобы его послушать.`;
+      return;
+    }
+    const score = id => {
+      const f = dNorm(WORDS[id].en), r = dNorm(WORDS[id].ru), parts = r.split(/[,;()/]\s*/).map(x => x.trim()).filter(Boolean);
+      if (f === q || parts.includes(q)) return 0;
+      if (f.startsWith(q) || parts.some(p => p.startsWith(q))) return 1;
+      if ((' ' + f).includes(' ' + q) || (' ' + r).includes(' ' + q)) return 2;
+      if (f.includes(q) || r.includes(q)) return 3;
+      return 9;
+    };
+    list = ids.map(id => [id, score(id)]).filter(x => x[1] < 9).sort((a, b) => a[1] - b[1] || WORDS[a[0]].ru.length - WORDS[b[0]].ru.length || dNorm(WORDS[a[0]].en).localeCompare(dNorm(WORDS[b[0]].en))).map(x => x[0]);
+    $('dl').innerHTML = list.length ? list.map(row).join('') : `<p class="center">🤔 Такого слова в словаре пока нет. Проверь, как написано, или попробуй ${/[а-я]/.test(q) ? adv : 'по-русски'}.</p>`;
+    $('dn').textContent = list.length ? `Нашлось: ${list.length}` : '';
+  };
+  draw();
+  $('dq').oninput = e => { dictQ = e.target.value; draw(); };
+  $('dl').onclick = e => { const el = e.target.closest('[data-say]'); if (el) speak(WORDS[el.dataset.say].en); };
+}
+
 function more() {
   if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
-    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button></div></div>`;
-  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab;
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button></div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more);
 }
 const PIN_KEY = 'engAdventure_pin';
 // сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
@@ -2947,7 +2996,7 @@ function vocab() {
 function wordCard(id) {
   const w = WORDS[id], r = S.words[id] || {}, md = medal(id), ex = exampleOf(id);
   const ov = document.createElement('div'); ov.className = 'overlay';
-  ov.innerHTML = `<div class="card center wc"><div class="ve" style="font-size:5rem">${w.e}</div><div class="en">${w.en}</div><div class="ru">${w.ru}</div>
+  ov.innerHTML = `<div class="card center wc"><div class="ve" style="font-size:5rem">${w.e}</div><div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div>
     <p>${md.m} ${md.t}${r.miss ? ` · ошибок: ${r.miss}` : ''}</p>
     ${ex ? `<p class="story">${ex.en}<br><small>${ex.ru}</small></p>` : ''}
     <p><button class="speak" id="ws">🔊</button></p><p><button class="btn gold" id="wx">Закрыть</button></p></div>`;
@@ -2981,7 +3030,7 @@ function flashcards() {
       if (flipped) { speak(w.en); return; }
       flipped = true; speak(w.en);
       $('fl').classList.add('flip');
-      $('fl').innerHTML = `<div class="ve" style="font-size:3rem">${w.e}</div><div class="en">${w.en}</div><div class="ru">${w.ru}</div><small>нажми, чтобы послушать ещё раз</small>`;
+      $('fl').innerHTML = `<div class="ve" style="font-size:3rem">${w.e}</div><div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div><small>нажми, чтобы послушать ещё раз</small>`;
       $('fb').innerHTML = '<p><button class="btn" id="fk">✅ Знал(а)</button><button class="btn sec" id="fr">🔁 Ещё повторю</button></p>';
       $('fk').onclick = () => { known++; srs(w.id, true); save(); i++; show(); };
       $('fr').onclick = () => { srs(w.id, false); save(); i++; show(); };

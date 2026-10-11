@@ -298,6 +298,15 @@ details summary{cursor:pointer}
 .deal{margin:10px 0 4px;padding:8px 12px;background:#ffe9a8;border:3px dashed #e65100;border-radius:10px;text-align:center}
 .item.know{background:#eef7ff;border-color:#1565c0}.item.know.lock{background:#e4e4e4;border-color:#999}.item.know.lock .ie,.item.know.lock .swatch{filter:grayscale(1);opacity:.55}
 .shop .kh{grid-column:1/-1;margin:10px 0 0}.knew{display:inline-block;background:#e53935;color:#fff;border-radius:10px;padding:0 7px;font-size:.9rem;margin-left:4px}
+/* словарь */
+.trn{font-size:1.15rem;color:#5b4bb7;margin:-2px 0 6px;font-family:"Segoe UI","Arial Unicode MS",sans-serif}
+.dsearch{position:sticky;top:0;z-index:5}.dsearch input{max-width:100%;font-size:1.25rem}.dn{margin:6px 0 0;font-size:.95rem;color:#555}
+.dlist{display:flex;flex-direction:column;gap:6px}.dlet{margin:10px 0 2px;color:#1565c0}
+.drow{display:flex;align-items:center;gap:10px;padding:6px 10px;border:3px solid #1b1b1b;border-radius:10px;background:#fff;cursor:pointer}
+.drow .de{font-size:2rem;width:2.4rem;text-align:center;flex:none}.drow .dw{flex:1;min-width:0;overflow-wrap:anywhere}.drow .df{font-size:1.25rem}
+.drow .dt{color:#5b4bb7;font-family:"Segoe UI","Arial Unicode MS",sans-serif;font-weight:600}.drow .dr{color:#444;font-size:1rem}.drow .dk{flex:none}.drow .dsp{flex:none;min-height:40px}
+input[type=search]{font:inherit;font-size:1.3rem;padding:10px;border:4px solid var(--ink);border-radius:8px;width:100%;-webkit-appearance:none;appearance:none;background:#fff}
+.drow .dsp{opacity:1;background:#fff3b0;font-size:1.3rem}
 
 </style>
 </head>
@@ -5713,6 +5722,58 @@ IT_DIALOGS.push(
 
 </script>
 <script>
+/* Транскрипция английских слов (британский вариант, как в учебниках Spotlight). Ключ — id слова из WORDS. */
+const EN_TR = {
+  hello: 'həˈləʊ', bye: 'baɪ', yes: 'jes', no: 'nəʊ', thanks: 'θæŋks', sorry: 'ˈsɒri',
+  apple: 'ˈæpl', ball: 'bɔːl', cat: 'kæt', dog: 'dɒɡ', egg: 'eɡ', fish: 'fɪʃ', girl: 'ɡɜːl', hat: 'hæt', ice: 'aɪs', juice: 'dʒuːs',
+  kite: 'kaɪt', lion: 'ˈlaɪən', monkey: 'ˈmʌŋki', nose: 'nəʊz', owl: 'aʊl', pig: 'pɪɡ', queen: 'kwiːn', robot: 'ˈrəʊbɒt', sun: 'sʌn',
+  tree: 'triː', umbrella: 'ʌmˈbrelə', van: 'væn', window: 'ˈwɪndəʊ', box: 'bɒks', yacht: 'jɒt', zebra: 'ˈzebrə',
+  one: 'wʌn', two: 'tuː', three: 'θriː', four: 'fɔː', five: 'faɪv', six: 'sɪks', seven: 'ˈsevn', eight: 'eɪt', nine: 'naɪn', ten: 'ten',
+  red: 'red', blue: 'bluː', green: 'ɡriːn', yellow: 'ˈjeləʊ', orange: 'ˈɒrɪndʒ', pink: 'pɪŋk', black: 'blæk', white: 'waɪt',
+  mum: 'mʌm', dad: 'dæd', brother: 'ˈbrʌðə', sister: 'ˈsɪstə', grandma: 'ˈɡrænmɑː', grandpa: 'ˈɡrænpɑː', baby: 'ˈbeɪbi',
+  doll: 'dɒl', car: 'kɑː', train: 'treɪn', bike: 'baɪk', teddy: 'ˈtedi', bird: 'bɜːd', mouse: 'maʊs', rabbit: 'ˈræbɪt', frog: 'frɒɡ', horse: 'hɔːs',
+  eyes: 'aɪz', ears: 'ɪəz', mouth: 'maʊθ', hand: 'hænd', leg: 'leɡ', foot: 'fʊt',
+  bread: 'bred', milk: 'mɪlk', cake: 'keɪk', pizza: 'ˈpiːtsə', banana: 'bəˈnɑːnə',
+  shoes: 'ʃuːz', socks: 'sɒks', dress: 'dres', jeans: 'dʒiːnz', shirt: 'ʃɜːt', coat: 'kəʊt',
+  pen: 'pen', pencil: 'ˈpensl', book: 'bʊk', bag: 'bæɡ', ruler: 'ˈruːlə', school: 'skuːl', teacher: 'ˈtiːtʃə', scissors: 'ˈsɪzəz',
+  monday: 'ˈmʌndeɪ', tuesday: 'ˈtjuːzdeɪ', wednesday: 'ˈwenzdeɪ', thursday: 'ˈθɜːzdeɪ', friday: 'ˈfraɪdeɪ', saturday: 'ˈsætədeɪ', sunday: 'ˈsʌndeɪ',
+  house: 'haʊs', kitchen: 'ˈkɪtʃɪn', bedroom: 'ˈbedruːm', bathroom: 'ˈbɑːθruːm', garden: 'ˈɡɑːdn', key: 'kiː', chair: 'tʃeə', sofa: 'ˈsəʊfə',
+  bed: 'bed', lamp: 'læmp', tv: 'ˌtiːˈviː', clock: 'klɒk', mirror: 'ˈmɪrə',
+  swim: 'swɪm', run: 'rʌn', jump: 'dʒʌmp', dance: 'dɑːns', sing: 'sɪŋ', draw: 'drɔː', play: 'pleɪ',
+  elephant: 'ˈelɪfənt', giraffe: 'dʒəˈrɑːf', tiger: 'ˈtaɪɡə', bear: 'beə', snake: 'sneɪk', parrot: 'ˈpærət', crocodile: 'ˈkrɒkədaɪl', panda: 'ˈpændə',
+  sandwich: 'ˈsænwɪdʒ', soup: 'suːp', rice: 'raɪs', chicken: 'ˈtʃɪkɪn', chocolate: 'ˈtʃɒklət', cheese: 'tʃiːz', tomato: 'təˈmɑːtəʊ', potato: 'pəˈteɪtəʊ',
+  happy: 'ˈhæpi', sad: 'sæd', angry: 'ˈæŋɡri', tired: 'ˈtaɪəd', scared: 'skeəd', hot: 'hɒt', cold: 'kəʊld', surprised: 'səˈpraɪzd',
+  winter: 'ˈwɪntə', spring: 'sprɪŋ', summer: 'ˈsʌmə', autumn: 'ˈɔːtəm', sunny: 'ˈsʌni', rainy: 'ˈreɪni', windy: 'ˈwɪndi', snowy: 'ˈsnəʊi',
+  doctor: 'ˈdɒktə', cook: 'kʊk', pilot: 'ˈpaɪlət', farmer: 'ˈfɑːmə', policeman: 'pəˈliːsmən', astronaut: 'ˈæstrənɔːt', artist: 'ˈɑːtɪst',
+  russia: 'ˈrʌʃə', england: 'ˈɪŋɡlənd', france: 'frɑːns', america: 'əˈmerɪkə', egypt: 'ˈiːdʒɪpt', japan: 'dʒəˈpæn', china: 'ˈtʃaɪnə',
+  shop: 'ʃɒp', park: 'pɑːk', hospital: 'ˈhɒspɪtl', bank: 'bæŋk', cinema: 'ˈsɪnəmə', museum: 'mjuˈziːəm', bridge: 'brɪdʒ',
+  bus: 'bʌs', plane: 'pleɪn', ship: 'ʃɪp', taxi: 'ˈtæksi', metro: 'ˈmetrəʊ', helicopter: 'ˈhelɪkɒptə', rocket: 'ˈrɒkɪt',
+  breakfast: 'ˈbrekfəst', lunch: 'lʌntʃ', dinner: 'ˈdɪnə', homework: 'ˈhəʊmwɜːk', sleep: 'sliːp', wash: 'wɒʃ', brush: 'brʌʃ', walk: 'wɔːk',
+  birthday: 'ˈbɜːθdeɪ', present: 'ˈpreznt', party: 'ˈpɑːti', christmas: 'ˈkrɪsməs', fireworks: 'ˈfaɪəwɜːks', balloon: 'bəˈluːn', candle: 'ˈkændl',
+  mountain: 'ˈmaʊntɪn', river: 'ˈrɪvə', forest: 'ˈfɒrɪst', sea: 'siː', island: 'ˈaɪlənd', desert: 'ˈdezət', volcano: 'vɒlˈkeɪnəʊ',
+  english: 'ˈɪŋɡlɪʃ', maths: 'mæθs', art: 'ɑːt', music: 'ˈmjuːzɪk', pe: 'ˌpiːˈiː', science: 'ˈsaɪəns', geography: 'dʒiˈɒɡrəfi',
+  eleven: 'ɪˈlevn', twelve: 'twelv', thirteen: 'ˌθɜːˈtiːn', fourteen: 'ˌfɔːˈtiːn', fifteen: 'ˌfɪfˈtiːn', sixteen: 'ˌsɪksˈtiːn',
+  seventeen: 'ˌsevnˈtiːn', eighteen: 'ˌeɪˈtiːn', nineteen: 'ˌnaɪnˈtiːn', twenty: 'ˈtwenti', thirty: 'ˈθɜːti', forty: 'ˈfɔːti', fifty: 'ˈfɪfti',
+  computer: 'kəmˈpjuːtə', phone: 'fəʊn', camera: 'ˈkæmərə', guitar: 'ɡɪˈtɑː', piano: 'piˈænəʊ', drum: 'drʌm', puzzle: 'ˈpʌzl',
+  uncle: 'ˈʌŋkl', aunt: 'ɑːnt', cousin: 'ˈkʌzn', glasses: 'ˈɡlɑːsɪz', hair: 'heə', watch: 'wɒtʃ', cd: 'ˌsiːˈdiː',
+  station: 'ˈsteɪʃn', cafe: 'ˈkæfeɪ', theatre: 'ˈθɪətə', bakery: 'ˈbeɪkəri', library: 'ˈlaɪbrəri', supermarket: 'ˈsuːpəmɑːkɪt',
+  tennis: 'ˈtenɪs', basketball: 'ˈbɑːskɪtbɔːl', volleyball: 'ˈvɒlibɔːl', hockey: 'ˈhɒki', skate: 'skeɪt', ski: 'skiː', cycling: 'ˈsaɪklɪŋ',
+  lemon: 'ˈlemən', mango: 'ˈmæŋɡəʊ', butter: 'ˈbʌtə', coconut: 'ˈkəʊkənʌt', honey: 'ˈhʌni', tea: 'tiː', bottle: 'ˈbɒtl',
+  dolphin: 'ˈdɒlfɪn', seal: 'siːl', whale: 'weɪl', hippo: 'ˈhɪpəʊ', shark: 'ʃɑːk', octopus: 'ˈɒktəpəs', turtle: 'ˈtɜːtl',
+  january: 'ˈdʒænjuəri', february: 'ˈfebruəri', march: 'mɑːtʃ', april: 'ˈeɪprəl', may: 'meɪ', june: 'dʒuːn', july: 'dʒuˈlaɪ',
+  august: 'ˈɔːɡəst', september: 'sepˈtembə', october: 'ɒkˈtəʊbə', november: 'nəʊˈvembə', december: 'dɪˈsembə',
+  first: 'fɜːst', second: 'ˈsekənd', third: 'θɜːd', fourth: 'fɔːθ', fifth: 'fɪfθ', sixth: 'sɪksθ', seventh: 'ˈsevnθ', eighth: 'eɪtθ', ninth: 'naɪnθ', tenth: 'tenθ',
+  greece: 'ɡriːs', italy: 'ˈɪtəli', spain: 'speɪn', turkey: 'ˈtɜːki', germany: 'ˈdʒɜːməni',
+  swimsuit: 'ˈswɪmsuːt', sunglasses: 'ˈsʌnɡlɑːsɪz', sandals: 'ˈsændlz', shorts: 'ʃɔːts', scarf: 'skɑːf', gloves: 'ɡlʌvz', boots: 'buːts'
+};
+
+</script>
+<script>
+/* Чтение итальянских слов русскими буквами, ´ — ударение. Сделано скриптом с правилами чтения и проверено вручную. */
+const IT_TR = { "it_ciao": "ча́о", "it_arrivederci": "арриведе́рчи", "it_si": "си́", "it_no": "но", "it_grazie": "гра́цье", "it_prego": "пре́го", "it_scusa": "ску́за", "it_per_favore": "пер фаво́ре", "it_ape": "а́пе", "it_barca": "ба́рка", "it_casa": "ка́за", "it_dado": "да́до", "it_elefante": "элефа́нте", "it_fiore": "фьо́ре", "it_gatto": "га́тто", "it_hotel": "оте́ль", "it_isola": "и́зола", "it_luna": "лу́на", "it_mela": "ме́ла", "it_naso": "на́зо", "it_occhio": "о́ккьо", "it_pane": "па́не", "it_quadro": "ква́дро", "it_riso": "ри́зо", "it_sole": "со́ле", "it_torta": "то́рта", "it_uva": "у́ва", "it_volpe": "во́лпе", "it_zebra": "дзе́бра", "it_uno": "у́но", "it_due": "ду́э", "it_tre": "тре", "it_quattro": "ква́ттро", "it_cinque": "чи́нкве", "it_sei": "сей", "it_sette": "се́тте", "it_otto": "о́тто", "it_nove": "но́ве", "it_dieci": "дье́чи", "it_undici": "у́ндичи", "it_dodici": "до́дичи", "it_tredici": "тре́дичи", "it_quattordici": "кватто́рдичи", "it_quindici": "кви́ндичи", "it_sedici": "се́дичи", "it_diciassette": "дичассе́тте", "it_diciotto": "дичо́тто", "it_diciannove": "дичанно́ве", "it_venti": "ве́нти", "it_rosso": "ро́ссо", "it_blu": "блу", "it_verde": "ве́рде", "it_giallo": "джа́лло", "it_arancione": "аранчо́не", "it_rosa": "ро́за", "it_nero": "не́ро", "it_bianco": "бья́нко", "it_mamma": "ма́мма", "it_papa": "папа́", "it_fratello": "фрате́лло", "it_sorella": "соре́лла", "it_nonna": "но́нна", "it_nonno": "но́нно", "it_bambino": "бамби́но", "it_robot": "ро́бот", "it_macchina": "ма́ккина", "it_treno": "тре́но", "it_bicicletta": "бичикле́тта", "it_bambola": "ба́мбола", "it_orsacchiotto": "орсаккьо́тто", "it_palla": "па́лла", "it_cane": "ка́не", "it_uccello": "учче́лло", "it_topo": "то́по", "it_coniglio": "кони́льо", "it_rana": "ра́на", "it_cavallo": "кава́лло", "it_occhi": "о́кки", "it_orecchie": "оре́ккье", "it_bocca": "бо́кка", "it_mano": "ма́но", "it_gamba": "га́мба", "it_piede": "пье́де", "it_latte": "ла́тте", "it_pizza": "пи́цца", "it_banana": "бана́на", "it_succo": "су́кко", "it_cappello": "каппе́лло", "it_scarpe": "ска́рпе", "it_calzini": "калци́ни", "it_vestito": "вести́то", "it_jeans": "джинс", "it_camicia": "ками́ча", "it_giacca": "джа́кка", "it_letto": "ле́тто", "it_sedia": "се́дья", "it_divano": "дива́но", "it_lampada": "ла́мпада", "it_tavolo": "та́воло", "it_finestra": "фине́стра", "it_compleanno": "комплеа́нно", "it_palloncino": "паллончи́но", "it_regalo": "рега́ло", "it_candela": "канде́ла", "it_festa": "фе́ста", "it_lunedi": "лунеди́", "it_martedi": "мартеди́", "it_mercoledi": "мерколеди́", "it_giovedi": "джоведи́", "it_venerdi": "венерди́", "it_sabato": "са́бато", "it_domenica": "доме́ника", "it_pioggia": "пьо́дджа", "it_neve": "не́ве", "it_vento": "ве́нто", "it_nuvola": "ну́вола", "it_caldo": "ка́лдо", "it_freddo": "фре́ддо", "it_correre": "ко́ррере", "it_saltare": "салта́ре", "it_nuotare": "нуота́ре", "it_volare": "вола́ре", "it_cantare": "канта́ре", "it_ballare": "балла́ре", "it_giocare": "джока́ре", "it_buongiorno": "буонджо́рно", "it_buonasera": "буоназе́ра", "it_buonanotte": "буонано́тте", "it_bene": "бе́не", "it_male": "ма́ле", "it_come_stai": "ко́ме стай", "it_scuola": "скуо́ла", "it_libro": "ли́бро", "it_quaderno": "кваде́рно", "it_penna": "пе́нна", "it_matita": "мати́та", "it_zaino": "дза́йно", "it_banco": "ба́нко", "it_arancia": "ара́нча", "it_limone": "лимо́не", "it_pesca": "пе́ска", "it_fragola": "фра́гола", "it_ciliegia": "чилье́джа", "it_pera": "пе́ра", "it_mi_chiamo": "ми кья́мо", "it_ho_fame": "о фа́ме", "it_ho_sete": "о се́те", "it_sono_felice": "со́но фели́че", "it_sono_stanco": "со́но ста́нко", "it_ho_paura": "о пау́ра", "it_trenta": "тре́нта", "it_quaranta": "квара́нта", "it_cinquanta": "чинква́нта", "it_sessanta": "сесса́нта", "it_settanta": "сетта́нта", "it_ottanta": "отта́нта", "it_novanta": "нова́нта", "it_cento": "че́нто", "it_parco": "па́рко", "it_negozio": "него́цьо", "it_bar": "бар", "it_stazione": "стацьо́не", "it_ospedale": "оспеда́ле", "it_chiesa": "кье́за", "it_piazza": "пья́цца", "it_gennaio": "дженна́йо", "it_febbraio": "феббра́йо", "it_marzo": "ма́рцо", "it_aprile": "апри́ле", "it_maggio": "ма́дджо", "it_giugno": "джу́ньо", "it_luglio": "лу́льо", "it_agosto": "аго́сто", "it_settembre": "сетте́мбре", "it_ottobre": "отто́бре", "it_novembre": "нове́мбре", "it_dicembre": "диче́мбре", "it_primavera": "примаве́ра", "it_estate": "эста́те", "it_autunno": "ауту́нно", "it_inverno": "инве́рно", "it_stagione": "стаджо́не", "it_anno": "а́нно", "it_mese": "ме́зе", "it_italiano": "италья́но", "it_matematica": "матема́тика", "it_arte": "а́рте", "it_musica": "му́зика", "it_scienze": "ше́нце", "it_geografia": "джеографи́я", "it_storia": "сто́рья", "it_ginnastica": "джинна́стика", "it_calcio": "ка́лчо", "it_tennis": "те́ннис", "it_nuoto": "нуо́то", "it_pallavolo": "палла́воло", "it_pallacanestro": "паллакане́стро", "it_sci": "ши", "it_ciclismo": "чикли́смо", "it_pasta": "па́ста", "it_formaggio": "форма́дджо", "it_prosciutto": "прошу́тто", "it_gelato": "джела́то", "it_cioccolato": "чоккола́то", "it_biscotti": "биско́тти", "it_uova": "уо́ва", "it_acqua": "а́кква", "it_pomodoro": "помодо́ро", "it_patata": "пата́та", "it_carota": "каро́та", "it_cipolla": "чипо́лла", "it_insalata": "инсала́та", "it_zucchina": "дзукки́на", "it_leone": "лео́не", "it_scimmia": "ши́ммья", "it_tigre": "ти́гре", "it_giraffa": "джира́ффа", "it_orso": "о́рсо", "it_delfino": "делфи́но", "it_balena": "бале́на", "it_mucca": "му́кка", "it_maiale": "мая́ле", "it_pecora": "пе́кора", "it_gallina": "галли́на", "it_anatra": "а́натра", "it_capra": "ка́пра", "it_medico": "ме́дико", "it_maestra": "маэ́стра", "it_cuoco": "куо́ко", "it_pompiere": "помпье́ре", "it_poliziotto": "полицьо́тто", "it_pilota": "пило́та", "it_panettiere": "панеттье́ре", "it_autobus": "а́утобус", "it_aereo": "аэ́рео", "it_nave": "на́ве", "it_moto": "мо́то", "it_taxi": "та́кси", "it_camion": "ка́мьон", "it_cucina": "кучи́на", "it_bagno": "ба́ньо", "it_camera": "ка́мера", "it_giardino": "джарди́но", "it_porta": "по́рта", "it_tetto": "те́тто", "it_scala": "ска́ла", "it_zio": "дзи́о", "it_zia": "дзи́я", "it_cugino": "куджи́но", "it_nipote": "нипо́те", "it_genitori": "дженито́ри", "it_figlio": "фи́льо", "it_figlia": "фи́лья", "it_grande": "гра́нде", "it_piccolo": "пи́кколо", "it_nuovo": "нуо́во", "it_vecchio": "ве́ккьо", "it_bello": "бе́лло", "it_brutto": "бру́тто", "it_alto": "а́лто", "it_basso": "ба́ссо", "it_mangiare": "манджа́ре", "it_bere": "бе́ре", "it_dormire": "дорми́ре", "it_leggere": "ле́дджере", "it_scrivere": "скри́вере", "it_guardare": "гуарда́ре", "it_ascoltare": "асколта́ре", "it_parlare": "парла́ре", "it_mattina": "матти́на", "it_pomeriggio": "помери́дджо", "it_sera": "се́ра", "it_notte": "но́тте", "it_colazione": "колацьо́не", "it_pranzo": "пра́нцо", "it_cena": "че́на", "it_disegnare": "дизенья́ре", "it_dipingere": "дипи́нджере", "it_cucinare": "кучина́ре", "it_suonare": "суона́ре", "it_passeggiare": "пасседджа́ре", "it_viaggiare": "вьядджа́ре", "it_italia": "ита́лья", "it_roma": "ро́ма", "it_milano": "мила́но", "it_venezia": "вене́цья", "it_napoli": "на́поли", "it_firenze": "фире́нце", "it_torino": "тори́но", "it_palermo": "пале́рмо", "it_colosseo": "колоссе́о", "it_torre_di_pisa": "то́рре ди пи́за", "it_gondola": "го́ндола", "it_vesuvio": "везу́вьо", "it_fontana": "фонта́на", "it_ponte": "по́нте", "it_duomo": "дуо́мо", "it_mare": "ма́ре", "it_montagna": "монта́нья", "it_lago": "ла́го", "it_vulcano": "вулка́но", "it_fiume": "фью́ме", "it_spiaggia": "спья́дджа", "it_collina": "колли́на", "it_spaghetti": "спаге́тти", "it_lasagne": "лаза́нье", "it_risotto": "ризо́тто", "it_tiramisu": "тирами́су", "it_panino": "пани́но", "it_caffe": "каффе́", "it_olio": "о́льо", "it_menu": "мену́", "it_cameriere": "камерье́ре", "it_conto": "ко́нто", "it_forchetta": "форке́тта", "it_coltello": "колте́лло", "it_cucchiaio": "куккья́йо", "it_piatto": "пья́тто", "it_bicchiere": "биккье́ре", "it_prezzo": "пре́ццо", "it_euro": "э́уро", "it_soldi": "со́лди", "it_carrello": "карре́лло", "it_sacchetto": "сакке́тто", "it_borsa": "бо́рса", "it_mercato": "мерка́то", "it_biglietto": "билье́тто", "it_valigia": "вали́джа", "it_passaporto": "пассапо́рто", "it_aeroporto": "аэропо́рто", "it_albergo": "албе́рго", "it_mappa": "ма́ппа", "it_turista": "тури́ста", "it_natale": "ната́ле", "it_pasqua": "па́сква", "it_carnevale": "карнева́ле", "it_maschera": "ма́скера", "it_befana": "бефа́на", "it_fuochi_d_artificio": "фуо́ки дартифи́чо", "it_coriandoli": "корья́ндоли", "it_chitarra": "кита́рра", "it_pianoforte": "пьянофо́рте", "it_tamburo": "тамбу́ро", "it_violino": "вьоли́но", "it_canzone": "канцо́не", "it_cantante": "канта́нте", "it_opera": "о́пера", "it_maglione": "мальо́не", "it_sciarpa": "ша́рпа", "it_guanti": "гуа́нти", "it_stivali": "стива́ли", "it_costume": "косту́ме", "it_occhiali_da_sole": "оккья́ли да со́ле", "it_pantaloncini": "панталончи́ни", "it_primo": "при́мо", "it_secondo": "секо́ндо", "it_terzo": "те́рцо", "it_quarto": "ква́рто", "it_quinto": "кви́нто", "it_sesto": "се́сто", "it_settimo": "се́ттимо", "it_ottavo": "отта́во", "it_nono": "но́но", "it_decimo": "де́чимо", "it_testa": "те́ста", "it_capelli": "капе́лли", "it_braccio": "бра́ччо", "it_dito": "ди́то", "it_dente": "де́нте", "it_ginocchio": "джино́ккьо", "it_schiena": "скье́на", "it_felice": "фели́че", "it_triste": "три́сте", "it_arrabbiato": "арраббья́то", "it_stanco": "ста́нко", "it_spaventato": "спавента́то", "it_annoiato": "анноя́то", "it_sorpreso": "сорпре́зо", "it_malato": "мала́то", "it_cerchio": "че́ркьо", "it_quadrato": "квадра́то", "it_triangolo": "трья́нголо", "it_rettangolo": "ретта́нголо", "it_stella": "сте́лла", "it_cuore": "куо́ре", "it_farfalla": "фарфа́лла", "it_formica": "форми́ка", "it_ragno": "ра́ньо", "it_coccinella": "коччине́лла", "it_lumaca": "лума́ка", "it_zanzara": "дзанца́ра", "it_giostra": "джо́стра", "it_aquilone": "аквило́не", "it_gioco": "джо́ко", "it_puzzle": "пазл", "it_carte": "ка́рте", "it_gara": "га́ра", "it_frigorifero": "фригори́феро", "it_forno": "фо́рно", "it_pentola": "пе́нтола", "it_padella": "паде́лла", "it_tazza": "та́цца", "it_bottiglia": "ботти́лья", "it_sale": "са́ле", "it_zucchero": "дзу́ккеро", "it_sapone": "сапо́не", "it_spazzolino": "спаццоли́но", "it_doccia": "до́чча", "it_specchio": "спе́ккьо", "it_asciugamano": "ашугама́но", "it_dentifricio": "дентифри́чо", "it_pianeta": "пьяне́та", "it_razzo": "ра́ццо", "it_astronauta": "астрона́ута", "it_cielo": "че́ло", "it_arcobaleno": "аркобале́но", "it_destra": "де́стра", "it_sinistra": "сини́стра", "it_avanti": "ава́нти", "it_indietro": "индье́тро", "it_su": "су", "it_giu": "джу́", "it_vicino": "вичи́но", "it_lontano": "лонта́но", "it_lavagna": "лава́нья", "it_gomma": "го́мма", "it_righello": "риге́лло", "it_forbici": "фо́рбичи", "it_colla": "ко́лла", "it_astuccio": "асту́ччо", "it_aula": "а́ула", "it_panetteria": "панеттери́я", "it_macelleria": "мачеллери́я", "it_farmacia": "фармачи́я", "it_libreria": "либрери́я", "it_edicola": "эди́кола", "it_gelateria": "джелатери́я", "it_pizzeria": "пиццери́я", "it_onda": "о́нда", "it_sabbia": "са́ббья", "it_conchiglia": "конки́лья", "it_ombrellone": "омбрелло́не", "it_granchio": "гра́нкьо", "it_pesce": "пе́ше", "it_salvagente": "салвадже́нте", "it_sentiero": "сентье́ро", "it_bosco": "бо́ско", "it_lupo": "лу́по", "it_cervo": "че́рво", "it_scoiattolo": "скоя́ттоло", "it_tenda": "те́нда", "it_cima": "чи́ма", "it_temporale": "темпора́ле", "it_nebbia": "не́ббья", "it_fulmine": "фу́лмине", "it_ghiaccio": "гья́ччо", "it_grandine": "гра́ндине", "it_nuvoloso": "нуволо́зо", "it_aprire": "апри́ре", "it_chiudere": "кью́дере", "it_comprare": "компра́ре", "it_camminare": "каммина́ре", "it_aiutare": "аюта́ре", "it_lavare": "лава́ре", "it_pulire": "пули́ре", "it_cercare": "черка́ре", "it_veloce": "вело́че", "it_lento": "ле́нто", "it_forte": "фо́рте", "it_debole": "де́боле", "it_dolce": "до́лче", "it_salato": "сала́то", "it_pulito": "пули́то", "it_sporco": "спо́рко", "it_litro": "ли́тро", "it_chilo": "ки́ло", "it_metro": "ме́тро", "it_grammo": "гра́ммо", "it_mezzo": "ме́ццо", "it_doppio": "до́ппьо", "it_pieno": "пье́но", "it_vuoto": "вуо́то", "it_sicilia": "сичи́лья", "it_toscana": "тоска́на", "it_sardegna": "сарде́нья", "it_lombardia": "ломбарди́я", "it_veneto": "ве́нето", "it_puglia": "пу́лья", "it_liguria": "лигу́рья", "it_lazio": "ла́цьо", "it_pittore": "питто́ре", "it_scultore": "скулто́ре", "it_museo": "музе́о", "it_statua": "ста́туа", "it_castello": "касте́лло", "it_antico": "анти́ко", "it_romano": "рома́но", "it_tesoro": "тезо́ро", "it_allenatore": "алленато́ре", "it_squadra": "сква́дра", "it_partita": "парти́та", "it_coppa": "ко́ппа", "it_gol": "гол", "it_campo": "ка́мпо", "it_arbitro": "а́рбитро", "it_medaglia": "меда́лья", "it_computer": "компью́тер", "it_telefono": "теле́фоно", "it_schermo": "ске́рмо", "it_tastiera": "тастье́ра", "it_internet": "и́нтернет", "it_messaggio": "месса́дджо", "it_foto": "фо́то", "it_videogioco": "видеоджо́ко", "it_dottore": "дотто́ре", "it_medicina": "медичи́на", "it_febbre": "фе́ббре", "it_mal_di_testa": "мал ди те́ста", "it_ambulanza": "амбула́нца", "it_cerotto": "черо́тто", "it_tosse": "то́ссе", "it_semaforo": "сема́форо", "it_strada": "стра́да", "it_incrocio": "инкро́чо", "it_autostrada": "аутостра́да", "it_benzina": "бенци́на", "it_metropolitana": "метрополита́на", "it_tram": "трам", "it_pedone": "педо́не", "it_cappuccino": "каппуччи́но", "it_cornetto": "корне́тто", "it_spremuta": "спрему́та", "it_panna": "па́нна", "it_te": "те́", "it_cioccolata_calda": "чоккола́та ка́лда", "it_ufficio": "уффи́чо", "it_ingegnere": "индженье́ре", "it_avvocato": "аввока́то", "it_fotografo": "фото́графо", "it_contadino": "контади́но", "it_giornalista": "джорнали́ста", "it_musicista": "музичи́ста", "it_scrittore": "скритто́ре", "it_albero": "а́лберо", "it_foglia": "фо́лья", "it_erba": "э́рба", "it_ramo": "ра́мо", "it_seme": "се́ме", "it_frutto": "фру́тто" };
+
+</script>
+<script>
 /* Языки изучения. Английский и итальянский работают на одном движке: слова, уроки, диалоги, песенки и аудирование
    лежат в наборах (пакетах), а игра на лету подменяет глобальные данные на нужный язык (функция langUse в game.js).
    Данные итальянского — файлы it_*.js (подключаются до этого файла). Пакет английского снимается здесь «снимком» из уже загруженных данных. */
@@ -7002,7 +7063,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
-  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button>` : '');
+  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -7017,6 +7078,7 @@ function map() {
   if ($('gal')) $('gal').onclick = izoGallery;
   $('trn').onclick = isGen() ? mathTraining : training;
   if ($('more')) $('more').onclick = more;
+  if ($('dict')) $('dict').onclick = () => dictScreen(map);
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
     if (!bossRec.done) return bossOk ? startBoss() : toast('Сначала пройди все локации 🔒');
@@ -7225,7 +7287,7 @@ function intro(ctx, cb) {
     frame(ctx, `<div class="card center">${i === 0 ? `<div class="story">${ctx.L.story}</div>` : ''}
       <div class="bigemoji">${w.e}</div>
       ${w.L ? `<div class="letter">${w.L}${w.L.toLowerCase()}</div>` : ''}
-      <div class="en">${w.en}</div><div class="ru">${w.ru}</div>
+      <div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div>
       <p><button class="speak" id="sp">🔊</button></p>
       <p>Повтори вслух за роботом! (${i + 1} из ${ws.length})</p>
       <p>${i > 0 ? '<button class="btn sec" id="pv">⬅</button>' : ''}<button class="btn gold" id="nx">${i < ws.length - 1 ? 'Дальше ➜' : 'К играм ➜'}</button></p></div>`);
@@ -7922,12 +7984,60 @@ function planScreen() {
 
 /* ---------- родителям ---------- */
 /* ---------- «Ещё» и PIN для родителей ---------- */
+/* ---------- словарь: все слова языка с транскрипцией, переводом и поиском ---------- */
+const isIt = () => LNOW === LANGINFO.it;
+const trOf = id => (isIt() ? (typeof IT_TR !== 'undefined' ? IT_TR[id] : '') : (typeof EN_TR !== 'undefined' ? EN_TR[id] : '')) || '';
+// транскрипция под словом: у английского — международная [ ], у итальянского — как читается русскими буквами
+const trHtml = id => { const r = trOf(id); return r ? `<div class="trn">${isIt() ? 'читается: ' + r : '[' + r + ']'}</div>` : ''; };
+const dNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ё/g, 'е').replace(/[’'?!.,]/g, ' ').replace(/\s+/g, ' ').trim();
+let dictQ = '', dictL = null;
+function dictScreen(back) {
+  if (tmGate()) return; tmInLesson = false;
+  if (dictL !== LNOW) { dictQ = ''; dictL = LNOW; } // другой язык — поиск с чистого листа
+  epoch++; newScreen();
+  const it = isIt(), col = collectedSet(), ids = Object.keys(WORDS);
+  const lang = it ? 'итальянский' : 'английский', adv = it ? 'по-итальянски' : 'по-английски';
+  app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Назад</button><div class="grow center"><h2>📕 Словарь: ${lang}</h2></div></div>
+    <div class="card dsearch"><input type="search" id="dq" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="🔎 Напиши слово ${adv} или по-русски" value="${esc(dictQ)}">
+      <p class="dn" id="dn"></p></div><div class="card"><div id="dl" class="dlist"></div></div>`;
+  $('bk').onclick = back || map;
+  const row = id => {
+    const w = WORDS[id], r = trOf(id);
+    return `<div class="drow" data-say="${id}"><span class="de">${w.e}</span><div class="dw"><b class="df">${esc(w.en)}</b>${r ? ` <span class="dt">${it ? r : '[' + r + ']'}</span>` : ''}<div class="dr">${esc(w.ru)}</div></div>${col.has(id) ? '<span class="dk" title="Уже есть в моём словарике">✅</span>' : ''}<button class="ib dsp" data-say="${id}" title="Послушать">🔊</button></div>`;
+  };
+  const draw = () => {
+    const q = dNorm(dictQ);
+    let list;
+    if (!q) {
+      list = ids.slice().sort((a, b) => dNorm(WORDS[a].en).localeCompare(dNorm(WORDS[b].en)));
+      let L = '';
+      $('dl').innerHTML = list.map(id => { const f = dNorm(WORDS[id].en)[0].toUpperCase(), h = f !== L ? `<h3 class="dlet">${f}</h3>` : ''; L = f; return h + row(id); }).join('');
+      $('dn').textContent = `В словаре ${list.length} слов. Нажми на слово, чтобы его послушать.`;
+      return;
+    }
+    const score = id => {
+      const f = dNorm(WORDS[id].en), r = dNorm(WORDS[id].ru), parts = r.split(/[,;()/]\s*/).map(x => x.trim()).filter(Boolean);
+      if (f === q || parts.includes(q)) return 0;
+      if (f.startsWith(q) || parts.some(p => p.startsWith(q))) return 1;
+      if ((' ' + f).includes(' ' + q) || (' ' + r).includes(' ' + q)) return 2;
+      if (f.includes(q) || r.includes(q)) return 3;
+      return 9;
+    };
+    list = ids.map(id => [id, score(id)]).filter(x => x[1] < 9).sort((a, b) => a[1] - b[1] || WORDS[a[0]].ru.length - WORDS[b[0]].ru.length || dNorm(WORDS[a[0]].en).localeCompare(dNorm(WORDS[b[0]].en))).map(x => x[0]);
+    $('dl').innerHTML = list.length ? list.map(row).join('') : `<p class="center">🤔 Такого слова в словаре пока нет. Проверь, как написано, или попробуй ${/[а-я]/.test(q) ? adv : 'по-русски'}.</p>`;
+    $('dn').textContent = list.length ? `Нашлось: ${list.length}` : '';
+  };
+  draw();
+  $('dq').oninput = e => { dictQ = e.target.value; draw(); };
+  $('dl').onclick = e => { const el = e.target.closest('[data-say]'); if (el) speak(WORDS[el.dataset.say].en); };
+}
+
 function more() {
   if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
-    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button></div></div>`;
-  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab;
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button></div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more);
 }
 const PIN_KEY = 'engAdventure_pin';
 // сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
@@ -8821,7 +8931,7 @@ function vocab() {
 function wordCard(id) {
   const w = WORDS[id], r = S.words[id] || {}, md = medal(id), ex = exampleOf(id);
   const ov = document.createElement('div'); ov.className = 'overlay';
-  ov.innerHTML = `<div class="card center wc"><div class="ve" style="font-size:5rem">${w.e}</div><div class="en">${w.en}</div><div class="ru">${w.ru}</div>
+  ov.innerHTML = `<div class="card center wc"><div class="ve" style="font-size:5rem">${w.e}</div><div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div>
     <p>${md.m} ${md.t}${r.miss ? ` · ошибок: ${r.miss}` : ''}</p>
     ${ex ? `<p class="story">${ex.en}<br><small>${ex.ru}</small></p>` : ''}
     <p><button class="speak" id="ws">🔊</button></p><p><button class="btn gold" id="wx">Закрыть</button></p></div>`;
@@ -8855,7 +8965,7 @@ function flashcards() {
       if (flipped) { speak(w.en); return; }
       flipped = true; speak(w.en);
       $('fl').classList.add('flip');
-      $('fl').innerHTML = `<div class="ve" style="font-size:3rem">${w.e}</div><div class="en">${w.en}</div><div class="ru">${w.ru}</div><small>нажми, чтобы послушать ещё раз</small>`;
+      $('fl').innerHTML = `<div class="ve" style="font-size:3rem">${w.e}</div><div class="en">${w.en}</div>${trHtml(w.id)}<div class="ru">${w.ru}</div><small>нажми, чтобы послушать ещё раз</small>`;
       $('fb').innerHTML = '<p><button class="btn" id="fk">✅ Знал(а)</button><button class="btn sec" id="fr">🔁 Ещё повторю</button></p>';
       $('fk').onclick = () => { known++; srs(w.id, true); save(); i++; show(); };
       $('fr').onclick = () => { srs(w.id, false); save(); i++; show(); };
