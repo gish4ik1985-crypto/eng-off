@@ -2064,7 +2064,9 @@ function fsEnter() {
   try { const r = (e.requestFullscreen || e.webkitRequestFullscreen).call(e); if (r && r.catch) r.catch(() => {}); } catch (x) {}
 }
 function fsExit() { try { const r = (document.exitFullscreen || document.webkitExitFullscreen).call(document); if (r && r.catch) r.catch(() => {}); } catch (x) {} }
+const fsNative = () => { try { return matchMedia('(display-mode: fullscreen)').matches && !fsEl(); } catch (e) { return false; } };
 function fsButton() {
+  if (fsNative()) return;
   const b = document.createElement('button'); b.id = 'fsbtn'; b.className = 'fsbtn'; b.type = 'button';
   const upd = () => { b.textContent = fsEl() ? '🗗' : '⛶'; b.title = fsEl() ? 'Выйти из полного экрана' : 'Во весь экран'; };
   upd();
@@ -2079,6 +2081,48 @@ function fsButton() {
   document.addEventListener('pointerup', again, true);
 }
 fsButton();
+/* ---------- офлайн-режим и установка на главный экран (sw.js, manifest.webmanifest) ---------- */
+let installEv = null, offToastAt = 0;
+const offApp = () => { try { return fsNative() || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } };
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const swOk = () => 'serviceWorker' in navigator && /^https?:$/.test(location.protocol);
+if (swOk()) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.ready.then(() => { // один раз сообщаем, что игра теперь есть на устройстве
+    try { if (localStorage.getItem('engAdventure_offmsg')) return; localStorage.setItem('engAdventure_offmsg', '1'); } catch (e) { return; }
+    toast('✅ Игра сохранена на устройстве — теперь откроется и без интернета');
+  }).catch(() => {});
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; }); // своё окно браузера не показываем ребёнку — установка из «Родителям»
+window.addEventListener('appinstalled', () => { installEv = null; });
+window.addEventListener('offline', () => { if (Date.now() - offToastAt > 600000) { offToastAt = Date.now(); toast('📴 Нет интернета — играем дальше, всё сохраняется на устройстве'); } });
+function offStatus() { // спрашиваем sw.js, все ли файлы игры сохранены на устройстве
+  return new Promise(res => {
+    const sw = swOk() && navigator.serviceWorker.controller;
+    if (!sw) return res(null);
+    const ch = new MessageChannel(), tm = setTimeout(() => res(null), 3000);
+    ch.port1.onmessage = e => { clearTimeout(tm); res(e.data); };
+    try { sw.postMessage('status', [ch.port2]); } catch (e) { clearTimeout(tm); res(null); }
+  });
+}
+function offCard() {
+  const st = $('offst'), inst = $('offinst'); if (!st || !inst) return;
+  const vt = v => v.slice(6, 8) + '.' + v.slice(4, 6) + '.' + v.slice(0, 4) + ' ' + v.slice(8, 10) + ':' + v.slice(10, 12);
+  if (!/^https?:$/.test(location.protocol)) st.textContent = 'Игра открыта из файла — она и так работает без интернета.';
+  else if (!swOk()) st.textContent = '❌ Этот браузер не умеет сохранять игру для работы без интернета. Откройте её в Chrome или Safari.';
+  else offStatus().then(r => {
+    if (!$('offst')) return;
+    $('offst').innerHTML = !r ? '⏳ Игра сохраняется на устройство. Пока есть интернет, откройте этот экран ещё раз через минуту.'
+      : r.have >= r.need ? `✅ Игра и дневник сохранены на этом устройстве и <b>работают без интернета</b>. Версия от ${vt(String(r.ver))}.`
+      : `⏳ Сохраняется на устройство: ${r.have} из ${r.need} файлов. Не закрывайте игру, пока есть интернет.`;
+  });
+  try { navigator.storage.persist().then(p => { if (p && $('offper')) $('offper').innerHTML = '<small>🔐 Браузер не будет сам удалять игру и прогресс с этого устройства.</small>'; }).catch(() => {}); } catch (e) {}
+  inst.innerHTML = offApp() ? '<p>✅ Игра установлена как приложение: открывается значком с главного экрана, во весь экран, без вкладок браузера.</p>'
+    : installEv ? '<p><button class="btn gold" id="offib">📲 Установить на главный экран</button></p><p><small>Игра будет открываться значком, как отдельное приложение во весь экран — без вкладок и адресной строки.</small></p>'
+    : isIOS() ? '<p>Чтобы поставить игру значком на iPad: откройте её в Safari, нажмите «Поделиться» ⬆️ → «На экран „Домой“». Так она открывается во весь экран, и Safari не удалит прогресс, даже если долго не заходить.</p>'
+    : '<p>Чтобы поставить игру значком на главный экран: меню браузера ⋮ → «Установить приложение» или «Добавить на главный экран». Тогда она будет открываться во весь экран, без вкладок.</p>';
+  if ($('offib')) $('offib').onclick = () => { const ev = installEv; if (!ev) return; installEv = null; ev.prompt(); Promise.resolve(ev.userChoice).catch(() => {}).then(() => { if ($('offinst')) parent(); }); };
+}
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { tmAct = Date.now(); }, true));
 let nudgeScr = -1, nudge2 = -1;
 setInterval(() => { // «Спокойный фокус»: если ребёнок завис над заданием, мягко возвращаем внимание
@@ -2497,7 +2541,14 @@ function parent(tab) {
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
     <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>`;
   // --- настройки ---
-  sec.set = `<div class="card"><h3>🔊 Озвучка</h3>
+  sec.set = `<div class="card"><h3>📲 Приложение и работа без интернета</h3><p id="offst">Проверяю…</p><p id="offper"></p><div id="offinst"></div>
+      <details><summary>Как это работает</summary><ul class="offl">
+        <li>При первом запуске с интернетом игра и дневник сохраняются на устройство. Дальше они открываются и без интернета.</li>
+        <li>Прогресс всегда хранится на самом устройстве — интернет для него не нужен.</li>
+        <li>Без интернета не работают облако (всё отправится само, когда интернет появится), озвучка через интернет и обновления игры.</li>
+        <li>Когда интернет есть, игра при запуске сама берёт новую версию. Если приложение долго не закрывали — нажмите «Проверить обновление».</li></ul></details>
+      <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p></div>
+    <div class="card"><h3>🔊 Озвучка</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="${sel}">${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small ${S.onlineTts ? 'red' : ''}" id="otts">${S.onlineTts ? '🌐 Озвучка через интернет: ВКЛ' : 'Озвучка через интернет: выкл'}</button>
@@ -2519,6 +2570,14 @@ function parent(tab) {
   on('dpar', () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; });
   on('strict', () => { S.strict = !S.strict; save(); parent(); });
   on('otts', () => { S.onlineTts = !S.onlineTts; save(); parent(); });
+  on('offupd', () => {
+    if (!navigator.onLine) { toast('Нет интернета — обновление проверим, когда он появится'); return; }
+    toast('Проверяю обновление…'); save();
+    const go = () => location.reload();
+    if (!swOk()) return setTimeout(go, 400);
+    Promise.race([navigator.serviceWorker.getRegistration().then(r => r && r.update()), new Promise(r => setTimeout(r, 5000))]).catch(() => {}).then(() => setTimeout(go, 400));
+  });
+  offCard();
   app.querySelectorAll('[data-so]').forEach(c => c.onchange = () => {
     S.off = S.off || {}; S.off[c.dataset.so] = !c.checked;
     if (!Object.keys(SUBJ_META).some(subjOn)) { S.off[c.dataset.so] = false; c.checked = true; $('som').textContent = 'Должен остаться хотя бы один предмет.'; return; }
