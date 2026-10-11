@@ -42,3 +42,31 @@ const EN_TR = {
   greece: 'ɡriːs', italy: 'ˈɪtəli', spain: 'speɪn', turkey: 'ˈtɜːki', germany: 'ˈdʒɜːməni',
   swimsuit: 'ˈswɪmsuːt', sunglasses: 'ˈsʌnɡlɑːsɪz', sandals: 'ˈsændlz', shorts: 'ʃɔːts', scarf: 'skɑːf', gloves: 'ɡlʌvz', boots: 'buːts'
 };
+/* Слова из диалогов, аудирования и чтения, которых нет в словаре уроков (служебные слова, формы глаголов, имена).
+   Во фразах a, the, to читаются в слабой форме — так, как их произносят в речи. */
+const EN_TRX = {
+  a: 'ə', an: 'ən', the: 'ðə', to: 'tə', after: 'ˈɑːftə', afternoon: 'ˌɑːftəˈnuːn', all: 'ɔːl', am: 'æm', and: 'ænd', ann: 'æn', anything: 'ˈeniθɪŋ',
+  are: 'ɑː', at: 'æt', ate: 'eɪt', be: 'biː', beach: 'biːtʃ', ben: 'ben', big: 'bɪɡ', bigger: 'ˈbɪɡə', bolt: 'bəʊlt', bottles: 'ˈbɒtlz', bought: 'bɔːt',
+  by: 'baɪ', can: 'kæn', "can't": 'kɑːnt', candles: 'ˈkændlz', cats: 'kæts', collect: 'kəˈlekt', collects: 'kəˈlekts', colour: 'ˈkʌlə', compare: 'kəmˈpeə',
+  cooked: 'kʊkt', cooking: 'ˈkʊkɪŋ', cool: 'kuːl', cousins: 'ˈkʌznz', cream: 'kriːm', dan: 'dæn', day: 'deɪ', did: 'dɪd', "didn't": 'ˈdɪdnt', do: 'duː',
+  does: 'dʌz', "doesn't": 'ˈdʌznt', "don't": 'dəʊnt', drawing: 'ˈdrɔːɪŋ', draws: 'drɔːz', drew: 'druː', drink: 'drɪŋk', drinks: 'drɪŋks', eat: 'iːt',
+  eats: 'iːts', eggs: 'eɡz', else: 'els', eva: 'ˈiːvə', evening: 'ˈiːvnɪŋ', family: 'ˈfæməli', faster: 'ˈfɑːstə', film: 'fɪlm', fine: 'faɪn', flew: 'fluː',
+  flowers: 'ˈflaʊəz', fly: 'flaɪ', food: 'fuːd', football: 'ˈfʊtbɔːl', for: 'fɔː', friends: 'frendz', from: 'frɒm', fun: 'fʌn', get: 'ɡet', give: 'ɡɪv',
+  go: 'ɡəʊ', going: 'ˈɡəʊɪŋ', good: 'ɡʊd', goodbye: 'ˌɡʊdˈbaɪ', got: 'ɡɒt', great: 'ɡreɪt', had: 'hæd', half: 'hɑːf', hare: 'heə', has: 'hæz', have: 'hæv',
+  he: 'hiː', help: 'help', here: 'hɪə', hi: 'haɪ', his: 'hɪz', home: 'həʊm', how: 'haʊ', i: 'aɪ', "i'd": 'aɪd', "i'm": 'aɪm', in: 'ɪn', is: 'ɪz',
+  "isn't": 'ˈɪznt', it: 'ɪt', jack: 'dʒæk', kate: 'keɪt', late: 'leɪt', leaves: 'liːvz', "let's": 'lets', letter: 'ˈletə', like: 'laɪk', likes: 'laɪks',
+  lily: 'ˈlɪli', listen: 'ˈlɪsn', listened: 'ˈlɪsnd', listening: 'ˈlɪsnɪŋ', listens: 'ˈlɪsnz', local: 'ˈləʊkl', longer: 'ˈlɒŋɡə', look: 'lʊk',
+  making: 'ˈmeɪkɪŋ', man: 'mæn', max: 'mæks', me: 'miː', mia: 'ˈmiːə', morning: 'ˈmɔːnɪŋ', much: 'mʌtʃ', museums: 'mjuˈziːəmz', my: 'maɪ', name: 'neɪm',
+  nice: 'naɪs', "o'clock": 'əˈklɒk', ok: 'ˌəʊˈkeɪ', on: 'ɒn', open: 'ˈəʊpən', or: 'ɔː', outside: 'ˌaʊtˈsaɪd', past: 'pɑːst', pets: 'pets', photos: 'ˈfəʊtəʊz',
+  picture: 'ˈpɪktʃə', played: 'pleɪd', playing: 'ˈpleɪɪŋ', plays: 'pleɪz', please: 'pliːz', presents: 'ˈpreznts', read: 'riːd', reading: 'ˈriːdɪŋ',
+  reads: 'riːdz', ride: 'raɪd', rides: 'raɪdz', riding: 'ˈraɪdɪŋ', sam: 'sæm', same: 'seɪm', saw: 'sɔː', see: 'siː', she: 'ʃiː', short: 'ʃɔːt',
+  sleeps: 'sliːps', small: 'smɔːl', snow: 'snəʊ', some: 'sʌm', sounds: 'saʊndz', stronger: 'ˈstrɒŋɡə', swam: 'swæm', swimming: 'ˈswɪmɪŋ', swims: 'swɪmz',
+  take: 'teɪk', tall: 'tɔːl', taller: 'ˈtɔːlə', than: 'ðæn', thank: 'θæŋk', there: 'ðeə', they: 'ðeɪ', this: 'ðɪs', time: 'taɪm', today: 'təˈdeɪ', tom: 'tɒm',
+  too: 'tuː', tortoise: 'ˈtɔːtəs', travel: 'ˈtrævl', trip: 'trɪp', under: 'ˈʌndə', up: 'ʌp', very: 'ˈveri', visit: 'ˈvɪzɪt', visited: 'ˈvɪzɪtɪd', want: 'wɒnt',
+  warm: 'wɔːm', warmer: 'ˈwɔːmə', was: 'wɒz', watched: 'wɒtʃt', watches: 'ˈwɒtʃɪz', watching: 'ˈwɒtʃɪŋ', we: 'wiː', weather: 'ˈweðə', welcome: 'ˈwelkəm',
+  went: 'went', were: 'wɜː', what: 'wɒt', when: 'wen', where: 'weə', who: 'huː', will: 'wɪl', with: 'wɪð', woman: 'ˈwʊmən', would: 'wʊd',
+  old: 'əʊld', toys: 'tɔɪz', toy: 'tɔɪ', before: 'bɪˈfɔː', many: 'ˈmeni', gardens: 'ˈɡɑːdnz', which: 'wɪtʃ', animal: 'ˈænɪml', feel: 'fiːl', gave: 'ɡeɪv',
+  cakes: 'keɪks', boy: 'bɔɪ', gives: 'ɡɪvz', of: 'əv', child: 'tʃaɪld', lessons: 'ˈlesnz', lesson: 'ˈlesn', season: 'ˈsiːzn', doing: 'ˈduːɪŋ',
+  smaller: 'ˈsmɔːlə', weaker: 'ˈwiːkə', slower: 'ˈsləʊə', colder: 'ˈkəʊldə', shorter: 'ˈʃɔːtə',
+  writing: 'ˈraɪtɪŋ', yesterday: 'ˈjestədeɪ', you: 'juː', "you're": 'jɔː', your: 'jɔː', zoe: 'ˈzəʊi', zoo: 'zuː'
+};

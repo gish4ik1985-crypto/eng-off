@@ -294,3 +294,13 @@ input[type=search]{font:inherit;font-size:1.3rem;padding:10px;border:4px solid v
 .drow .dsp{opacity:1;background:#fff3b0;font-size:1.3rem}
 .opt .otr{display:block;font-size:1rem;font-weight:600;color:#5b4bb7;margin-top:2px;font-family:"Segoe UI","Arial Unicode MS",sans-serif}.opt.mine .otr{color:#fff}
 .mc .otr{display:block;font-size:.55em;font-weight:600;color:#5b4bb7;font-family:"Segoe UI","Arial Unicode MS",sans-serif}
+.strn{display:block;font-size:1rem;font-weight:600;color:#5b4bb7;margin-top:2px;font-family:"Segoe UI","Arial Unicode MS",sans-serif}.bub p small{display:block}
+.exb .otr,.exb .exru{display:block}.exb .otr{font-size:.9rem;font-weight:600;color:#5b4bb7;font-family:"Segoe UI","Arial Unicode MS",sans-serif}
+.famjoin{background:#e3f2fd;border-color:#1565c0}#clink{max-width:100%;font-size:.95rem}
+/* слова из слов, исправь ошибку */
+.cparts{display:flex;gap:10px;justify-content:center;align-items:center;margin:10px 0;font-size:1.6rem}
+.cslot{min-width:110px;padding:6px 12px;border:4px solid #1b1b1b;border-radius:8px;background:#fff;font-size:1.6rem}.cslot.f{background:var(--em)}
+.typo{display:inline-block;font-size:1.7rem;color:#c62828;text-decoration:underline wavy #c62828;letter-spacing:1px}
+.tbox{display:inline-block;min-width:200px;min-height:1.6em;padding:6px 14px;border:4px solid #1b1b1b;border-radius:10px;background:#fff;font-size:1.8rem;letter-spacing:2px}.tbox.ok{background:#c8f0d0}.tbox .otr{display:block;font-size:1rem;letter-spacing:0;color:#5b4bb7}
+.thint{min-height:1.3em;color:#777;font-size:1.1rem}
+.lrow .btn.kp{min-width:min(56px,8.6vw);padding:12px 0;font-size:1.35rem;margin:2px}

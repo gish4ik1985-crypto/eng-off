@@ -271,10 +271,25 @@ const speechOn = () => 'speechSynthesis' in window;
 let enVoice = null; // голос изучаемого языка (английского или итальянского)
 let LNOW = LANGINFO.en; // сведения о текущем языке изучения
 const LN = () => LNOW;
+// выбор голоса: родитель может выбрать сам (хранится на этом устройстве — у каждого планшета свои голоса),
+// иначе берём лучший: британский для английского, «живые» нейросетевые голоса выше простых, шуточные голоса Apple — никогда
+const VOICE_KEY = () => 'engAdventure_voice_' + (LNOW === LANGINFO.it ? 'it' : 'en');
+const voiceWish = v => { try { if (v === undefined) return localStorage.getItem(VOICE_KEY()) || ''; localStorage.setItem(VOICE_KEY(), v); } catch (e) { return ''; } };
+const FUN_VOICES = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley/i;
+function voiceScore(v) {
+  const base = LNOW.tts.replace('-', '[-_]');
+  let sc = new RegExp('^' + base, 'i').test(v.lang) ? 50 : LNOW.re.test(v.lang) ? 20 : -999;
+  if (/natural|neural|online|enhanced|premium|siri/i.test(v.name)) sc += 30;
+  if (/google/i.test(v.name)) sc += 20;
+  if (/compact/i.test(v.name)) sc -= 10;
+  if (FUN_VOICES.test(v.name)) sc -= 200;
+  return sc;
+}
+const langVoices = () => { try { return speechSynthesis.getVoices().filter(v => LNOW.re.test(v.lang)).sort((a, b) => voiceScore(b) - voiceScore(a)); } catch (e) { return []; } };
 function pickVoice() {
   try {
-    const vs = speechSynthesis.getVoices(), base = LNOW.tts.replace('-', '[-_]');
-    enVoice = vs.find(v => new RegExp('^' + base, 'i').test(v.lang)) || vs.find(v => LNOW.re.test(v.lang)) || null;
+    const vs = langVoices(), want = voiceWish();
+    enVoice = (want && vs.find(v => v.name === want)) || vs.find(v => voiceScore(v) > 0) || null;
   } catch (e) {}
   return enVoice;
 }
@@ -311,14 +326,17 @@ function sayOnline(t, rate, delay, done) {
   setTimeout(() => {
     if (my !== SPK.seq) return finish();
     try {
-      const a = new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=' + LNOW.tts.slice(0, 2) + '&q=' + encodeURIComponent(t));
+      const a = new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=' + (LNOW === LANGINFO.it ? 'it' : 'en-GB') + '&q=' + encodeURIComponent(t));
       ONLINE_AUDIO = a; a.playbackRate = rate && rate < .8 ? .85 : 1;
       a.onended = a.onerror = () => { if (my === SPK.seq) SPK.ended = true; finish(); };
       const pr = a.play(); if (pr && pr.catch) pr.catch(() => { if (my === SPK.seq) SPK.ended = true; finish(); });
     } catch (e) { finish(); }
   }, wait);
 }
-const useOnlineTts = () => { try { return !!S.onlineTts && navigator.onLine && (!speechOn() || (speechSynthesis.getVoices().length > 0 && !speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang)))); } catch (e) { return false; } };
+// нет на устройстве голоса нужного языка (иначе слова читает русский голос: max → «мах») — при интернете берём онлайн-голос сам,
+// если родитель не выключил это (S.ttsAuto === false); S.onlineTts — включено родителем вручную
+const noLangVoice = () => { try { return !speechOn() || (speechSynthesis.getVoices().length > 0 && !speechSynthesis.getVoices().some(v => LNOW.re.test(v.lang))); } catch (e) { return false; } };
+const useOnlineTts = () => { try { return navigator.onLine && (S.onlineTts || S.ttsAuto !== false) && noLangVoice(); } catch (e) { return false; } };
 function say(t, rate, delay, done) {
   if (tmLocked) { if (done) done(); return; }
   if (useOnlineTts()) return sayOnline(t, rate, delay, done);
@@ -335,7 +353,7 @@ function say(t, rate, delay, done) {
     let started = false, retrying = false;
     try {
       const u = new SpeechSynthesisUtterance(t); u.lang = LNOW.tts; u.rate = rate || .8;
-      try { const v = enVoice || pickVoice(); if (v) u.voice = v; } catch (e) { enVoice = null; } // сбой голоса не должен заглушать речь
+      try { const v = enVoice || pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } } catch (e) { enVoice = null; } // сбой голоса не должен заглушать речь
       u.onstart = () => { started = true; };
       u.onend = u.onerror = () => { if (retrying) return; started = true; if (my === SPK.seq) SPK.ended = true; finish(); };
       speechSynthesis.speak(u);
@@ -822,7 +840,7 @@ async function cloudAutoRun() {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && needPush) cloudSync(false); });
 window.addEventListener('online', () => { if (needPush) cloudSync(false); });
 
-function cloudScreen(back) {
+function cloudScreen(back, autoCode) {
   epoch++; newScreen();
   let msg = '', cloudPlayers = null;
   const draw = () => {
@@ -838,6 +856,9 @@ function cloudScreen(back) {
       const up = PR.list.filter(x => !x.cid).map(x => `<p>${esc(x.name)} <button class="btn small" data-up="${x.id}">Отправить в облако</button></p>`).join('');
       body = `<p>Семейный код: <b style="font-size:1.6rem;letter-spacing:3px">${esc(CL.code)}</b></p><p><small>${esc(cloudStatus())}</small></p>
         <h3>Игроки в облаке</h3>${remote}${up ? '<h3>Только на этом устройстве</h3>' + up : ''}
+        <h3>📲 Подключить новое устройство</h3><p>Откройте эту ссылку на новом планшете или в другом браузере — вход по семейному коду произойдёт сам, игроки появятся.</p>
+        <p><input type="text" id="clink" readonly value="${esc(location.href.split('#')[0].split('?')[0] + '#family=' + CL.code)}"> <button class="btn small gold" id="clk">📋 Скопировать</button></p>
+        <p><small>Или на новом устройстве на первом экране нажмите «☁️ Войти по семейному коду» и введите код.</small></p>
         <p><button class="btn small" id="cs">🔄 Синхронизировать сейчас</button> <button class="btn small red" id="co">Выйти с этого устройства</button></p>`;
     }
     app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>☁️ Облако</h2>${body}<p class="pmsg">${esc(msg)}</p></div>`;
@@ -854,7 +875,13 @@ function cloudScreen(back) {
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
       await cloudAuto();
     };
-    if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false); });
+    const afterJoin = () => { if (PR.list.length && cloudOn()) { toast('☁️ Устройство подключено к семье'); players(); } };
+    if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false).then(afterJoin); });
+    if ($('cc') && autoCode) { $('cc').value = autoCode; const c = autoCode; autoCode = ''; run(() => login(c, false).then(afterJoin)); return; }
+    if ($('clk')) $('clk').onclick = () => {
+      const v = $('clink').value, ok = () => toast('📋 Ссылка скопирована — отправьте её себе и откройте на новом устройстве');
+      try { navigator.clipboard.writeText(v).then(ok, () => { $('clink').select(); document.execCommand('copy'); ok(); }); } catch (e) { $('clink').select(); try { document.execCommand('copy'); ok(); } catch (x) {} }
+    };
     if ($('cn')) $('cn').onclick = () => run(() => login(genCode(), true));
     if ($('cs')) $('cs').onclick = () => run(async () => {
       if (S.name && curPlayer()) { syncBusy = false; await cloudSync(true); if (CL.err) throw new Error(CL.err); }
@@ -887,14 +914,16 @@ function welcome() {
   let hue = S.hue;
   app.innerHTML = `<div class="card center">
     <h1>🎒 Школьный ассистент 🤖</h1>
+    ${cloudUrl() && !cloudOn() ? `<div class="story famjoin"><p><b>Уже занимаетесь на другом устройстве?</b> Войдите по семейному коду — все игроки и их прогресс появятся здесь.</p>
+      <p><button class="btn gold" id="clw">☁️ Войти по семейному коду</button></p><p><small>Код есть на старом устройстве: «🔒 Родителям» → «☁️ Связь».</small></p></div>` : ''}
     <p>Вместе с роботом учим английский и итальянский, считаем, пишем, изучаем мир и рисуем. Злой Забывака украл знания, и только ты можешь их вернуть!</p>
     <p>Как тебя зовут?</p><input type="text" id="nm" maxlength="14" placeholder="Твоё имя" value="${esc(S.name)}">
     <p>Выбери своего робота:</p><div id="heroes"></div>
     <p><button class="btn gold" id="go">Начать приключение ➜</button></p>
     ${newPlayerFrom ? '<p><button class="btn small sec" id="wb">⬅ Назад к игрокам</button></p>' : ''}
-    <p><button class="btn small sec" id="clw">☁️ У меня уже есть семейный код</button></p></div>`;
+    ${cloudUrl() || cloudOn() ? '' : '<p><button class="btn small sec" id="clw">☁️ У меня уже есть семейный код</button></p>'}</div>`;
   if ($('wb')) $('wb').onclick = cancelNewPlayer;
-  $('clw').onclick = () => cloudScreen(welcome);
+  if ($('clw')) $('clw').onclick = () => cloudScreen(welcome);
   const draw = () => {
     $('heroes').innerHTML = HEROES.map(h => `<button class="btn ${h === hue ? 'gold' : 'sec'}" data-h="${h}"><span style="font-size:60px;filter:hue-rotate(${h}deg)">🤖</span></button>`).join('');
     $('heroes').querySelectorAll('button').forEach(b => b.onclick = () => { hue = +b.dataset.h; draw(); });
@@ -1211,6 +1240,7 @@ function startLesson(i) {
     ctx.steps.push(['Новые слова', cb => intro(ctx, cb)]);
     GAME_PAIRS[i % 4].forEach(g => ctx.steps.push([GAMES[g][0], cb => GAMES[g][1](ctx, cb)]));
     if (L.sents) ctx.steps.push(['Предложения', cb => sentBuild(ctx, sample(L.sents, 2), cb)]);
+    { const ty = sample(L.words.filter(typoOk), 3); if (ty.length >= 2) ctx.steps.push(['Исправь ошибку', cb => typoGame(ctx, ty, cb)]); }
     ctx.steps.push(['Мини-тест', cb => quiz({ ctx, mode: 'see', counted: true, title: 'Мини-тест', items: sample(L.words, Math.min(5, L.words.length)) }, cb)]);
   }
   runSteps(ctx, () => reward(ctx));
@@ -1233,7 +1263,7 @@ function readCard(ctx, cb) {
   const draw = () => {
     frame(ctx, `<div class="card">${ctx.L.story ? `<div class="story">${ctx.L.story}</div>` : ''}<h2>${ctx.L.icon} ${ctx.L.title}</h2>
       <p>Нажимай на строки — робот прочитает. Прочитай текст вслух!</p>
-      ${t.map((s, k) => `<button class="btn sec exb" data-k="${k}">🔊 ${s.en}${showRu ? `<br><small>${s.ru}</small>` : ''}</button>`).join('')}
+      ${t.map((s, k) => `<button class="btn sec exb" data-k="${k}">🔊 ${s.en}${sentTrSmall(s.en)}${showRu ? `<small class="exru">${s.ru}</small>` : ''}</button>`).join('')}
       <p class="center"><button class="btn small" id="rd">🔊 Прочитать всё</button><button class="btn small sec" id="tr">${showRu ? 'Скрыть перевод' : 'Показать перевод'}</button></p>
       <p class="center"><button class="btn gold" id="go">${ctx.L.nextLabel || 'Вопросы по тексту ➜'}</button></p></div>`);
     app.querySelectorAll('.exb').forEach(b => b.onclick = () => speak(t[+b.dataset.k].en));
@@ -1284,9 +1314,9 @@ function gapQuiz(o, done) {
     const hasGap = g.en.includes('___');
     const full = g.en.replace('___', g.ans);
     frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : `<h3>${hasGap ? 'Выбери подходящее слово' : 'Выбери правильный ответ'}</h3>`}
-      <p class="ru">${g.ru}</p><div class="gsent">${g.en.replace('___', '<span class="gap" id="gp">___</span>')}</div>
+      <p class="ru">${g.ru}</p><div class="gsent">${g.en.replace('___', '<span class="gap" id="gp">___</span>')}</div>${o.tr && !hasGap ? sentTrHtml(g.en) : ''}
       <p><button class="speak" id="sp">🔊</button></p><div id="msg" class="msg">&nbsp;</div>
-      <div class="opts gapo ${hasGap ? '' : 'long'}">${shuffle(g.opts).map(x => `<button class="opt gapb" data-v="${x}"><span class="ot">${x}</span></button>`).join('')}</div></div>`);
+      <div class="opts gapo ${hasGap ? '' : 'long'}">${shuffle(g.opts).map(x => `<button class="opt gapb" data-v="${x}"><span class="ot">${x}</span>${o.tr ? sentTrSmall(x) : ''}</button>`).join('')}</div></div>`);
     $('sp').onclick = () => speak(full);
     app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
       if (locked) return;
@@ -2054,6 +2084,24 @@ const isIt = () => LNOW === LANGINFO.it;
 const trOf = id => (isIt() ? (typeof IT_TR !== 'undefined' ? IT_TR[id] : '') : (typeof EN_TR !== 'undefined' ? EN_TR[id] : '')) || '';
 // транскрипция под словом: у английского — международная [ ], у итальянского — как читается русскими буквами
 const trSmall = id => { const r = trOf(id); return r ? `<small class="otr">${isIt() ? r : '[' + r + ']'}</small>` : ''; }; // транскрипция в карточке ответа
+// транскрипция целой фразы: по словам; если хоть одно слово неизвестно — не показываем (лучше ничего, чем с пропусками)
+let enTrMap = null;
+function trWord(w) {
+  if (isIt()) return (typeof IT_TRX !== 'undefined' && IT_TRX[w]) || '';
+  if (typeof EN_TRX !== 'undefined' && EN_TRX[w]) return EN_TRX[w];
+  if (!enTrMap) { enTrMap = {}; if (typeof EN_TR !== 'undefined') Object.values(EN_PACK.WORDS).forEach(x => { const k = x.en.toLowerCase(); if (EN_TR[x.id] && !k.includes(' ')) enTrMap[k] = EN_TR[x.id]; }); }
+  return enTrMap[w] || '';
+}
+function sentTr(text) {
+  const parts = String(text || '').replace(/[’‘]/g, "'").toLowerCase().match(/[a-zàèéìòóù]+(?:'[a-zàèéìòóù]+)*|\d+/g);
+  if (!parts) return '';
+  const out = [];
+  for (const p of parts) { if (/^\d+$/.test(p)) { out.push(p); continue; } const r = trWord(p); if (!r) return ''; out.push(r); }
+  return out.join(' ');
+}
+const trWrap = r => (isIt() ? r : '[' + r + ']');
+const sentTrHtml = text => { const r = sentTr(text); return r ? `<span class="strn">${trWrap(r)}</span>` : ''; };
+const sentTrSmall = text => { const r = sentTr(text); return r ? `<small class="otr">${trWrap(r)}</small>` : ''; };
 const trHtml = id => { const r = trOf(id); return r ? `<div class="trn">${isIt() ? 'читается: ' + r : '[' + r + ']'}</div>` : ''; };
 const dNorm = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ё/g, 'е').replace(/[’'?!.,]/g, ' ').replace(/\s+/g, ' ').trim();
 let dictQ = '', dictL = null;
@@ -2098,12 +2146,114 @@ function dictScreen(back) {
   $('dl').onclick = e => { const el = e.target.closest('[data-say]'); if (el) speak(WORDS[el.dataset.say].en); };
 }
 
+/* ---------- «Слова из слов» и «Исправь ошибку» ---------- */
+const COMP = () => (isIt() ? (typeof IT_COMP !== 'undefined' ? IT_COMP : []) : (typeof EN_COMP !== 'undefined' ? EN_COMP : []));
+// длинное слово собираем из двух слов: sun + glasses = sunglasses
+function compGame(ctx, items, cb) {
+  const all = COMP(); let i = 0;
+  const ask = () => {
+    if (i >= items.length) return cb();
+    const c = items[i]; let pos = 0, wrong = 0;
+    const others = shuffle([...new Set(all.filter(x => x !== c).flatMap(x => x.p))].filter(p => !c.p.includes(p))).slice(0, 2);
+    frame(ctx, `<div class="card center"><div class="prog">${items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
+      <h3>🔗 Собери слово из двух слов</h3><div class="bigemoji">${c.e}</div><p class="ru">${c.ru}</p>
+      <div class="cparts"><span class="cslot" id="c0">?</span><b>+</b><span class="cslot" id="c1">?</span></div>
+      <div id="msg" class="msg">Какие два слова спрятались внутри?</div>
+      <div class="tiles">${shuffle(c.p.concat(others)).map(p => `<button class="tile wt" data-p="${esc(p)}">${esc(p)}</button>`).join('')}</div></div>`);
+    app.querySelectorAll('.tile').forEach(b => b.onclick = () => {
+      if (pos >= 2) return;
+      if (b.dataset.p === c.p[pos]) {
+        $('c' + pos).textContent = c.p[pos]; $('c' + pos).classList.add('f'); b.disabled = true; sfx('ok'); speak(c.p[pos]); pos++;
+        if (pos < 2) return;
+        ctx.asked++; if (!wrong) ctx.ok++; logQ(!wrong); save();
+        $('msg').innerHTML = `<b>${esc(c.p[0])}</b> (${c.pr[0]}) + <b>${esc(c.p[1])}</b> (${c.pr[1]}) = <b>${esc(c.w)}</b> — ${c.ru}<span class="strn">${trWrap(c.tr)}</span>`;
+        setTimeout(() => speak(c.w), 700); i++; waitSpeech(3000, ask, 7000);
+      } else {
+        wrong++; b.classList.add('bad'); sfx('bad'); setTimeout(() => b.classList.remove('bad'), 450);
+        $('msg').textContent = pos ? 'Не подходит. Какое слово идёт второе? 💡' : 'Не подходит. С какого слова начинается? 💡';
+        if (wrong >= 2) { const h = [...app.querySelectorAll('.tile')].find(x => !x.disabled && x.dataset.p === c.p[pos]); if (h) h.classList.add('hint'); }
+      }
+    });
+  };
+  ask();
+}
+// слово с одной ошибкой: переставлены, пропущена, лишняя или не та гласная
+const typoOk = id => !!WORDS[id] && /^[A-Za-zàèéìòóù]{3,12}$/.test(WORDS[id].en);
+function typoOf(w) {
+  const V = 'aeiou', lw = w.toLowerCase(), real = new Set(Object.values(WORDS).map(x => x.en.toLowerCase()));
+  for (let n = 0; n < 40; n++) {
+    const k = Math.floor(Math.random() * 4), i = Math.floor(Math.random() * w.length);
+    let r = null;
+    if (k === 0 && w.length >= 4 && i < w.length - 1 && lw[i] !== lw[i + 1]) r = w.slice(0, i) + w[i + 1] + w[i] + w.slice(i + 2);
+    else if (k === 1 && w.length >= 4 && i > 0) r = w.slice(0, i) + w.slice(i + 1);
+    else if (k === 2) r = w.slice(0, i + 1) + w[i] + w.slice(i + 1);
+    else if (k === 3 && V.includes(lw[i])) { const o = V.replace(lw[i], ''); r = w.slice(0, i) + o[Math.floor(Math.random() * o.length)] + w.slice(i + 1); }
+    if (r && r.toLowerCase() !== lw && !real.has(r.toLowerCase())) return r;
+  }
+  return null;
+}
+function typoGame(ctx, ids, cb) {
+  const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].concat(isIt() ? ['àèéìòù'] : []);
+  let i = 0;
+  const ask = () => {
+    if (i >= ids.length) return cb();
+    const w = WORDS[ids[i]], right = w.en, bad = typoOf(right);
+    if (!bad) { i++; return ask(); }
+    let typed = '', wrong = 0, done = false;
+    frame(ctx, `<div class="card center"><div class="prog">${ids.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
+      <h3>✏️ Исправь ошибку</h3><div class="bigemoji">${w.e}</div><p class="ru">${w.ru}</p>
+      <p>Робот написал с ошибкой: <span class="typo">${esc(bad)}</span> <button class="btn small sec" id="sp">🔊</button></p>
+      <p>Напиши правильно:</p><div class="tbox" id="tb">&nbsp;</div><div class="thint" id="th"></div>
+      <div id="msg" class="msg">&nbsp;</div>
+      <div class="lkeys">${rows.map(r => `<div class="lrow">${[...r].map(ch => `<button class="btn sec kp" data-k="${ch}">${ch}</button>`).join('')}</div>`).join('')}
+        <div class="lrow"><button class="btn sec" data-k="⌫">⌫ Стереть</button><button class="btn gold" id="tok">Проверить ✓</button></div></div></div>`);
+    const show = () => { $('tb').textContent = typed || '\u00a0'; };
+    $('sp').onclick = () => speak(right);
+    app.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { if (done) return; const k = b.dataset.k; if (k === '⌫') typed = typed.slice(0, -1); else if (typed.length < 16) typed += k; show(); });
+    $('tok').onclick = () => {
+      if (done || !typed) return;
+      const low = s => s.toLowerCase(), plain = s => low(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (plain(typed) === plain(right)) {
+        done = true; ctx.asked++; if (!wrong) ctx.ok++; logQ(!wrong); srs(w.id, !wrong); save(); sfx('ok'); speak(right);
+        $('tb').classList.add('ok'); $('tb').innerHTML = `${esc(right)} ✅${trSmall(w.id)}`;
+        $('msg').textContent = low(typed) === low(right) ? praise() : 'Верно! Только не забудь значок над буквой: ' + right;
+        i++; waitSpeech(1800, ask, 6000);
+      } else {
+        wrong++; sfx('bad');
+        let p = 0; while (p < typed.length && p < right.length && plain(typed[p]) === plain(right[p])) p++;
+        $('msg').textContent = p ? `Первые буквы верно (${p}), дальше ошибка — проверь 💪` : 'Пока не так. Посмотри на картинку и послушай слово 🔊';
+        if (wrong >= 2) $('th').textContent = 'Подсказка: ' + right;
+      }
+    };
+  };
+  ask();
+}
+// отдельные игры в «📚 Ещё»
+function practiceWords() {
+  const col = [...collectedSet()];
+  if (col.length >= 6) return col;
+  return [...new Set(col.concat(...WORLDS[0].lessons.slice(0, 3).map(l => l.words || [])))];
+}
+function wordGame(kind) {
+  if (tmGate()) return; tmInLesson = true;
+  const comp = kind === 'comp', items = comp ? sample(COMP(), 6) : sample(practiceWords().filter(typoOk), 6);
+  if (!items.length) { toast('Сначала пройди пару уроков'); return more(); }
+  const ctx = { L: { id: 'wg_' + kind, icon: comp ? '🔗' : '✏️', title: comp ? 'Слова из слов' : 'Исправь ошибку' }, asked: 0, ok: 0 };
+  ctx.steps = [[ctx.L.title, cb => (comp ? compGame(ctx, items, cb) : typoGame(ctx, items, cb))]];
+  runSteps(ctx, () => {
+    const em = Math.min(6, ctx.ok); S.emeralds += em; S.petXp += 1; save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>${ctx.L.icon} ${ctx.L.title}: готово!</h1><p>Верно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="ag">Ещё раз</button><button class="btn sec" id="mo">📚 Ещё</button></p></div>`;
+    $('ag').onclick = () => wordGame(kind); $('mo').onclick = more;
+  });
+}
+
 function more() {
   if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
-    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button></div></div>`;
-  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more);
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button><button class="btn" id="m6">🔗 Слова из слов</button><button class="btn" id="m7">✏️ Исправь ошибку</button></div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more); $('m6').onclick = () => wordGame('comp'); $('m7').onclick = () => wordGame('typo');
 }
 const PIN_KEY = 'engAdventure_pin';
 // сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
@@ -2703,6 +2853,9 @@ function parent(tab) {
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
     <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>`;
   // --- настройки ---
+  const vOpts = langVoices(), vNow = pickVoice();
+  const vSel = vOpts.length ? `<p>Голос (${LN().adj}): <select id="vsel" style="${sel};max-width:100%"><option value="">Автоматически${vNow && !voiceWish() ? ' — ' + esc(vNow.name) : ''}</option>${vOpts.map(v => `<option value="${esc(v.name)}" ${voiceWish() === v.name ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('')}</select></p>
+      <p><small>Голос берётся из самого планшета, поэтому на разных устройствах он разный. Выберите тот, что звучит естественнее, и нажмите «Проверить озвучку». Для английского лучше британский (en-GB) — как в учебнике Spotlight. Выбор запоминается на этом устройстве.</small></p>` : '';
   sec.set = `<div class="card"><h3>📲 Приложение и работа без интернета</h3><p id="offst">Проверяю…</p><p id="offper"></p><div id="offinst"></div>
       <details><summary>Как это работает</summary><ul class="offl">
         <li>При первом запуске с интернетом игра и дневник сохраняются на устройство. Дальше они открываются и без интернета.</li>
@@ -2710,11 +2863,11 @@ function parent(tab) {
         <li>Без интернета не работают облако (всё отправится само, когда интернет появится), озвучка через интернет и обновления игры.</li>
         <li>Когда интернет есть, игра при запуске сама берёт новую версию. Если приложение долго не закрывали — нажмите «Проверить обновление».</li></ul></details>
       <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p></div>
-    <div class="card"><h3>🔊 Озвучка</h3>
+    <div class="card"><h3>🔊 Озвучка</h3>${vSel}
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="${sel}">${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
-      <button class="btn small ${S.onlineTts ? 'red' : ''}" id="otts">${S.onlineTts ? '🌐 Озвучка через интернет: ВКЛ' : 'Озвучка через интернет: выкл'}</button>
-      <p><small>Включайте, только если на устройстве нет голоса для английского или итальянского. Слова озвучиваются онлайн-сервисом Google, нужен интернет.</small></p><p id="vm"></p></div>
+      <button class="btn small ${S.ttsAuto !== false ? 'gold' : 'sec'}" id="otts">${S.ttsAuto !== false ? '🌐 Если нет голоса — озвучка через интернет: ВКЛ' : 'Если нет голоса — озвучка через интернет: выкл'}</button>
+      <p><small>Если на планшете нет голоса для ${LN().gen}, слова читал бы русский голос — и звучали бы неправильно (max — «мах»). Тогда игра сама берёт британский голос Google через интернет. Без интернета — встроенный голос.${noLangVoice() ? ' <b>Сейчас на этом устройстве голоса нет — слова читаются через интернет.</b>' : ''}</small></p><p id="vm"></p></div>
     <div class="card"><h3>💾 Копия прогресса</h3>
       <details><summary>Перенести прогресс вручную (без облака)</summary><p>Скопируйте текст и вставьте его на другом устройстве:</p><textarea id="ex">${esc(JSON.stringify(S))}</textarea><button class="btn small" id="im">Загрузить из текста</button></details></div>
     <div class="card"><h3>⚠️ Сброс</h3><button class="btn small red" id="rs">Сбросить весь прогресс игрока «${nm}»</button></div>`;
@@ -2731,7 +2884,7 @@ function parent(tab) {
   on('sch', () => { S.schoolChild = $('sch').value; save(); parent(); }, 'onchange');
   on('dpar', () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; });
   on('strict', () => { S.strict = !S.strict; save(); parent(); });
-  on('otts', () => { S.onlineTts = !S.onlineTts; save(); parent(); });
+  on('otts', () => { S.ttsAuto = S.ttsAuto === false; if (S.ttsAuto === false) S.onlineTts = false; save(); parent(); });
   on('offupd', () => {
     if (!navigator.onLine) { toast('Нет интернета — обновление проверим, когда он появится'); return; }
     toast('Проверяю обновление…'); save();
@@ -2771,7 +2924,9 @@ function parent(tab) {
       : '❌ Голос для языка «' + LN().adj + '» не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом или установите голос этого языка в настройках системы (Windows: Параметры → Время и язык → Язык → Добавить язык).';
   };
   vstat();
-  on('vc', () => { speak(LNOW === LANGINFO.it ? 'Ciao! Sono un robot.' : 'Hello! I am a robot.'); vstat(); });
+  const vTest = () => speak(LNOW === LANGINFO.it ? 'Ciao! Mi chiamo Marco. Ho un gatto.' : 'Hello! My name is Max. I have got a dog.');
+  on('vc', () => { vTest(); vstat(); });
+  on('vsel', e => { voiceWish(e.target.value); enVoice = null; pickVoice(); vTest(); vstat(); }, 'onchange');
   on('dgp', diagIntro);
   on('ua', () => { S.unlockAll = !S.unlockAll; save(); parent(); });
   on('rs', () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } });
@@ -3249,7 +3404,7 @@ function listenPick(ctx, items, cb) {
     frame(ctx, `<div class="card center"><div class="prog">${items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
       <h3>Что ты услышал?</h3><p><button class="speak" id="sp">🔊</button></p><p><button class="btn small sec" id="slow">🐢 Медленнее</button></p>
       <div id="msg" class="msg">&nbsp;</div>
-      <div class="opts gapo long">${shuffle(it.opts).map(x => `<button class="opt gapb" data-v="${x.replace(/"/g, '&quot;')}"><span class="ot">${x}</span></button>`).join('')}</div></div>`);
+      <div class="opts gapo long">${shuffle(it.opts).map(x => `<button class="opt gapb" data-v="${x.replace(/"/g, '&quot;')}"><span class="ot">${x}</span>${sentTrSmall(x)}</button>`).join('')}</div></div>`);
     $('sp').onclick = () => speak(it.say);
     $('slow').onclick = () => speakP(it.say, .5);
     speakLater(it.say, 400);
@@ -3270,7 +3425,7 @@ function listenPick(ctx, items, cb) {
 function playAudio(a) {
   const ctx = { L: Object.assign({}, a, { story: 'Вот текст, который ты слушал(а). Прочитай и сравни со своим пониманием!', nextLabel: 'Готово ➜' }), asked: 0, ok: 0 };
   ctx.steps = [['Слушаем', cb => listenCard(ctx, a, cb)],
-    ['Вопросы', cb => gapQuiz({ ctx, counted: true, title: 'Ответь по рассказу', items: a.qs }, cb)],
+    ['Вопросы', cb => gapQuiz({ ctx, counted: true, title: 'Ответь по рассказу', items: a.qs, tr: true }, cb)],
     ['Что услышал', cb => listenPick(ctx, a.pick, cb)],
     ['Текст', cb => readCard(ctx, cb)]];
   runSteps(ctx, () => {
@@ -3395,10 +3550,10 @@ function playDialog(d) {
     const log = hist.map(h => `<div class="bub npc"><span class="av">${d.npc.e}</span><p>${h.en}</p></div><div class="bub me"><p>${h.ans}</p><span class="av">${hero(34)}</span></div>`).join('');
     app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Диалоги</button><div class="stepname">${d.icon} ${d.title} · ${i + 1}/${d.turns.length}</div></div>
       <div class="card"><div class="chat">${log}
-        <div class="bub npc"><span class="av">${d.npc.e}</span><p>${t.en}${showRu ? `<br><small>${t.ru}</small>` : ''}</p><button class="btn small sec" id="sp">🔊</button></div></div>
+        <div class="bub npc"><span class="av">${d.npc.e}</span><p>${t.en}${sentTrHtml(t.en)}${showRu ? `<small>${t.ru}</small>` : ''}</p><button class="btn small sec" id="sp">🔊</button></div></div>
         <p class="center"><button class="btn small sec" id="tr">${showRu ? 'Скрыть перевод' : '🇷🇺 Показать перевод'}</button></p>
         <div id="msg" class="msg center">Выбери ответ:</div>
-        <div class="opts gapo long">${shuffle(t.opts).map(x => `<button class="opt gapb" data-v="${x.replace(/"/g, '&quot;')}"><span class="ot">${x}</span></button>`).join('')}</div></div>`;
+        <div class="opts gapo long">${shuffle(t.opts).map(x => `<button class="opt gapb" data-v="${x.replace(/"/g, '&quot;')}"><span class="ot">${x}</span>${sentTrSmall(x)}</button>`).join('')}</div></div>`;
     $('exit').onclick = () => { stopAll(); dialogs(); };
     $('sp').onclick = () => speak(t.en);
     $('tr').onclick = () => { showRu = !showRu; render(); };
@@ -3572,9 +3727,12 @@ function diag() {
 }
 
 /* ---------- старт ---------- */
+const famLink = (/[#&]family=([A-Za-z0-9]{6,12})/.exec(location.hash) || [])[1] || '';
+if (famLink) try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
 applyTheme();
 syncSoon(true);
 cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
-if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается
+if (famLink && !cloudOn() && cloudUrl()) cloudScreen(() => (PR.list.length ? players() : welcome()), famLink);
+else if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается
 else S.name ? map() : welcome();
 })();
