@@ -796,6 +796,17 @@ async function cloudPin() {
 // Если локальный игрок без привязки к облаку совпадает по имени с игроком в облаке — прогресс сливается (ничего не теряется), перед этим делается копия
 // «пустой» игрок: ничего не пройдено, нет изумрудов и опыта (обычно двойник, созданный по ошибке)
 const emptySt = st => !Object.values(st.lessons || {}).some(x => x && x.done) && !(st.emeralds > 0) && !(st.xp > 0) && !Object.keys(st.words || {}).length;
+// скачать одного игрока из облака на это устройство (если его ещё нет)
+async function cloudImportOne(c) {
+  let p = PR.list.find(x => x.cid === c.id); if (p) return p;
+  const r = await api('pull', { id: c.id });
+  if (!r.state) throw new Error('в облаке нет данных игрока «' + (c.name || '?') + '»');
+  JSON.parse(r.state); // проверка, что данные целые
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  p = { id, name: r.name || c.name || 'Игрок', key: KEY + '_' + id, cid: c.id };
+  localStorage.setItem(p.key, r.state); // если не поместится — ошибка будет видна на экране
+  PR.list.push(p); savePR(); return p;
+}
 let autoP = null, autoOk = false;
 function cloudAuto() {
   if (!cloudOn()) return Promise.resolve(false);
@@ -808,7 +819,8 @@ async function cloudAutoRun() {
   try {
     const list = (await api('join', {})).players.filter(x => !String(x.id).startsWith('__'));
     const nm = x => String(x || '').trim().toLowerCase(), skip = CL.skip || [];
-    for (const c of list) {
+    const errs = [];
+    for (const c of list) try {
       if (PR.list.some(x => x.cid === c.id) || skip.includes(c.id)) continue;
       const r = await api('pull', { id: c.id }); if (!r.state) continue;
       if (PR.list.some(x => nm(x.name) === nm(c.name)) && emptySt(JSON.parse(r.state))) { CL.skip = (CL.skip || []).concat(c.id); saveCL(); continue; } // пустой двойник не создаём
@@ -822,19 +834,20 @@ async function cloudAutoRun() {
         loc.cid = c.id; savePR(); cloudDirty();
       } else {
         const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+        localStorage.setItem(KEY + '_' + id, r.state);
         PR.list.push({ id, name: r.name || c.name || 'Игрок', key: KEY + '_' + id, cid: c.id });
-        try { localStorage.setItem(KEY + '_' + id, r.state); } catch (e) {}
         savePR();
       }
       changed = true;
-    }
+    } catch (e) { errs.push((c.name || '?') + ': ' + String(e.message || e)); }
+    if (errs.length) { CL.err = 'не загрузились: ' + errs.join('; '); saveCL(); }
     for (const p of PR.list.filter(x => !x.cid && x.id !== PR.cur)) { // игроки только с этого устройства — отправляем в облако
       const st = loadState(p.key); if (!st.name) continue;
       p.cid = newCid(); savePR();
       await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
     }
-    autoOk = true;
-  } catch (e) {}
+    autoOk = !errs.length;
+  } catch (e) { CL.err = String(e.message || e); saveCL(); }
   return changed;
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && needPush) cloudSync(false); });
@@ -842,8 +855,9 @@ window.addEventListener('online', () => { if (needPush) cloudSync(false); });
 
 function cloudScreen(back, autoCode) {
   epoch++; newScreen();
-  let msg = '', cloudPlayers = null;
+  let msg = '', cloudPlayers = null, gone = false; // gone — уже ушли на другой экран (к игрокам), больше не перерисовываем облако
   const draw = () => {
+    if (gone) return;
     const urlBlock = cloudUrl() ? '' : '<p>1) Вставьте ссылку на облако (её выдаёт тот, кто настраивал, см. cloud/НАСТРОЙКА.md):</p><input type="text" id="cu" placeholder="https://script.google.com/macros/s/.../exec">';
     let body;
     if (!cloudOn()) {
@@ -854,15 +868,18 @@ function cloudScreen(back, autoCode) {
       const have = new Set(PR.list.map(x => x.cid).filter(Boolean));
       const remote = (cloudPlayers || []).map(c => `<p><b>${esc(c.name)}</b> ${have.has(c.id) ? '(уже на этом устройстве)' : ''} <button class="btn small gold" data-dl="${c.id}">${have.has(c.id) ? 'Играть' : 'Загрузить сюда'}</button></p>`).join('') || '<p>В облаке пока нет игроков.</p>';
       const up = PR.list.filter(x => !x.cid).map(x => `<p>${esc(x.name)} <button class="btn small" data-up="${x.id}">Отправить в облако</button></p>`).join('');
+      const missing = (cloudPlayers || []).filter(c => !have.has(c.id));
+      const dlAll = missing.length ? `<p><button class="btn gold" id="cdla">⬇️ Загрузить ${missing.length > 1 ? 'всех игроков (' + missing.length + ')' : 'игрока'} на это устройство</button></p>` : '';
+      const none = cloudPlayers && !cloudPlayers.length ? `<p class="story"><b>Для кода ${esc(CL.code)} в облаке нет игроков.</b> Проверьте код на старом устройстве: «🔒 Родителям» → «☁️ Связь». Если код другой — нажмите «Выйти с этого устройства» и введите правильный.</p>` : '';
       body = `<p>Семейный код: <b style="font-size:1.6rem;letter-spacing:3px">${esc(CL.code)}</b></p><p><small>${esc(cloudStatus())}</small></p>
-        <h3>Игроки в облаке</h3>${remote}${up ? '<h3>Только на этом устройстве</h3>' + up : ''}
+        ${none}${dlAll}<h3>Игроки в облаке</h3>${remote}${up ? '<h3>Только на этом устройстве</h3>' + up : ''}
         <h3>📲 Подключить новое устройство</h3><p>Откройте эту ссылку на новом планшете или в другом браузере — вход по семейному коду произойдёт сам, игроки появятся.</p>
         <p><input type="text" id="clink" readonly value="${esc(location.href.split('#')[0].split('?')[0] + '#family=' + CL.code)}"> <button class="btn small gold" id="clk">📋 Скопировать</button></p>
         <p><small>Или на новом устройстве на первом экране нажмите «☁️ Войти по семейному коду» и введите код.</small></p>
         <p><button class="btn small" id="cs">🔄 Синхронизировать сейчас</button> <button class="btn small red" id="co">Выйти с этого устройства</button></p>`;
     }
     app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>☁️ Облако</h2>${body}<p class="pmsg">${esc(msg)}</p></div>`;
-    $('bk').onclick = back;
+    $('bk').onclick = () => { gone = true; (PR.list.length && back === welcome ? players : back)(); }; // игроки уже есть — к ним, а не к вводу нового имени
     const run = async (fn) => { let pr; try { pr = fn(); } catch (e) { pr = Promise.reject(e); } msg = 'Подождите...'; draw(); const my = screenId; try { await pr; msg = ''; } catch (e) { msg = 'Не получилось: ' + String(e.message || e); } if (screenId === my) draw(); };
     const readUrl = () => { if ($('cu')) { const u = $('cu').value.trim(); if (u) { CL.url = u; saveCL(); } } if (!cloudUrl()) throw new Error('вставьте ссылку на облако'); };
     const login = async (code, create) => {
@@ -875,7 +892,19 @@ function cloudScreen(back, autoCode) {
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
       await cloudAuto();
     };
-    const afterJoin = () => { if (PR.list.length && cloudOn()) { toast('☁️ Устройство подключено к семье'); players(); } };
+    const importAll = async () => {
+      const list = (cloudPlayers || []).filter(c => !PR.list.some(x => x.cid === c.id)), errs = [];
+      for (let k = 0; k < list.length; k++) {
+        msg = `Загружаю: ${list[k].name} (${k + 1} из ${list.length})…`; draw();
+        try { await cloudImportOne(list[k]); } catch (e) { errs.push(list[k].name + ': ' + String(e.message || e)); }
+      }
+      if (errs.length) throw new Error('не загрузились — ' + errs.join('; '));
+    };
+    const afterJoin = async () => {
+      if (cloudOn() && cloudPlayers && cloudPlayers.length) await importAll();
+      if (PR.list.length && cloudOn()) { gone = true; toast('☁️ Игроки загружены из облака'); players(); }
+    };
+    if ($('cdla')) $('cdla').onclick = () => run(afterJoin);
     if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false).then(afterJoin); });
     if ($('cc') && autoCode) { $('cc').value = autoCode; const c = autoCode; autoCode = ''; run(() => login(c, false).then(afterJoin)); return; }
     if ($('clk')) $('clk').onclick = () => {
@@ -895,14 +924,9 @@ function cloudScreen(back, autoCode) {
     }));
     app.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => run(async () => {
       const cid = b.dataset.dl;
-      let p = PR.list.find(x => x.cid === cid);
-      if (!p) {
-        const r = await api('pull', { id: cid }); if (!r.state) throw new Error('данные не найдены');
-        const id = 'p' + Date.now().toString(36);
-        p = { id, name: r.name || 'Игрок', key: KEY + '_' + id, cid };
-        PR.list.push(p); try { localStorage.setItem(p.key, r.state); } catch (e) {}
-      }
-      newPlayerFrom = null; savePR(); useProfile(p.id);
+      const c = (cloudPlayers || []).find(x => x.id === cid) || { id: cid, name: '' };
+      const p = await cloudImportOne(c);
+      newPlayerFrom = null; savePR(); gone = true; useProfile(p.id);
     }));
   };
   draw();
@@ -914,6 +938,8 @@ function welcome() {
   let hue = S.hue;
   app.innerHTML = `<div class="card center">
     <h1>🎒 Школьный ассистент 🤖</h1>
+    ${cloudOn() && !PR.list.some(x => x.cid) ? `<div class="story famjoin"><p><b>☁️ Устройство подключено к семье</b> (код ${esc(CL.code)}).</p>
+      <p><button class="btn gold" id="clw">⬇️ Загрузить игроков из облака</button></p></div>` : ''}
     ${cloudUrl() && !cloudOn() ? `<div class="story famjoin"><p><b>Уже занимаетесь на другом устройстве?</b> Войдите по семейному коду — все игроки и их прогресс появятся здесь.</p>
       <p><button class="btn gold" id="clw">☁️ Войти по семейному коду</button></p><p><small>Код есть на старом устройстве: «🔒 Родителям» → «☁️ Связь».</small></p></div>` : ''}
     <p>Вместе с роботом учим английский и итальянский, считаем, пишем, изучаем мир и рисуем. Злой Забывака украл знания, и только ты можешь их вернуть!</p>
