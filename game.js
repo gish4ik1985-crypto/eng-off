@@ -146,6 +146,50 @@ function rareFor(achId) {
   return out;
 }
 const HEROES = [0, 140, 260];
+// ---- вещи «за знания»: купить можно, только когда пройдено нужное число уроков предмета (need: [предмет, уроков]; '*' — число разных предметов) ----
+// [ключ, слот, картинка, название, цена, предмет, уроков, доп. (линия питомца или фон)]
+const KNOW_LIST = [
+  ['k_eng_h', 'hat', '💂', 'Шапка гвардейца', 14, 'eng', 3], ['k_eng_i', 'hand', '☂️', 'Лондонский зонт', 12, 'eng', 8],
+  ['k_eng_b', 'back', '🚌', 'Красный автобус', 22, 'eng', 15], ['k_eng_t', 'theme', '', 'Лондон', 30, 'eng', 20, 'linear-gradient(#b0c4de,#6d8fb3 65%,#c0392b 65%)'],
+  ['k_eng_ti', 'title', '🎡', 'Знаток английского', 25, 'eng', 30],
+  ['k_it_i', 'hand', '🍝', 'Тарелка пасты', 10, 'it', 3], ['k_it_b', 'back', '🛵', 'Мотороллер', 20, 'it', 8],
+  ['k_it_t', 'theme', '', 'Венеция', 30, 'it', 12, 'linear-gradient(#ffcc80,#ffab91 45%,#4fc3f7 45%,#0277bd)'], ['k_it_ti', 'title', '🏛️', 'Синьор итальянский', 25, 'it', 20],
+  ['k_math_i', 'hand', '📐', 'Угольник', 8, 'math', 2], ['k_math_h', 'hat', '🧠', 'Большой мозг', 14, 'math', 5],
+  ['k_math_b', 'back', '🧮', 'Счёты', 18, 'math', 10], ['k_math_p', 'pet', '', 'Числовой зверёк', 40, 'math', 15, ['🥚', '🔢', '➕', '✖️', '🧮', '♾️']],
+  ['k_math_t', 'theme', '', 'Тетрадь в клетку', 30, 'math', 25, 'repeating-linear-gradient(0deg,transparent 0 23px,#bcd7f5 23px 24px),repeating-linear-gradient(90deg,#f4f9ff 0 23px,#bcd7f5 23px 24px)'],
+  ['k_ru_i', 'hand', '✒️', 'Перо', 8, 'ru', 2], ['k_ru_b', 'back', '📜', 'Свиток правил', 14, 'ru', 5],
+  ['k_ru_i2', 'hand', '🖋️', 'Золотая ручка', 20, 'ru', 10], ['k_ru_ti', 'title', '✍️', 'Каллиграф', 20, 'ru', 15],
+  ['k_ru_t', 'theme', '', 'Пропись', 25, 'ru', 20, 'repeating-linear-gradient(0deg,#fffdf0 0 30px,#9ec5e8 30px 31px)'],
+  ['k_ow_h', 'hat', '🌻', 'Подсолнух', 8, 'ow', 2], ['k_ow_i', 'hand', '🔍', 'Лупа', 12, 'ow', 5],
+  ['k_ow_b', 'back', '🦔', 'Ёжик', 16, 'ow', 8], ['k_ow_p', 'pet', '', 'Северный друг', 45, 'ow', 12, ['🥚', '🐧', '🦭', '🦌', '🐋', '🌌']],
+  ['k_ow_t', 'theme', '', 'Северное сияние', 35, 'ow', 20, 'linear-gradient(#0b3d2e,#1de9b6 55%,#7c4dff)'],
+  ['k_izo_i', 'hand', '🖍️', 'Восковой мелок', 8, 'izo', 2], ['k_izo_h', 'hat', '🎨', 'Шляпа-палитра', 14, 'izo', 5],
+  ['k_izo_b', 'back', '🖼️', 'Картина в раме', 18, 'izo', 10], ['k_izo_t', 'theme', '', 'Мастерская', 30, 'izo', 15, 'linear-gradient(135deg,#ffcdd2,#fff59d,#b3e5fc,#e1bee7)'],
+  ['k_izo_ti', 'title', '🌈', 'Юный художник', 20, 'izo', 25],
+  ['k_pdd_i', 'hand', '🛑', 'Знак «Стоп»', 8, 'pdd', 2], ['k_pdd_h', 'hat', '🚨', 'Мигалка', 12, 'pdd', 4],
+  ['k_pdd_b', 'back', '🚲', 'Велосипед', 18, 'pdd', 6], ['k_pdd_ti', 'title', '🦺', 'Безопасный пешеход', 15, 'pdd', 8],
+  ['k_pdd_p', 'pet', '', 'Машинка', 45, 'pdd', 12, ['🥚', '🛴', '🚲', '🛵', '🚗', '🚒']],
+  ['k_pdd_t', 'theme', '', 'Город', 30, 'pdd', 18, 'linear-gradient(#90caf9 0 62%,#757575 62% 64%,#9e9e9e 64%)'],
+  ['k_lit_i', 'hand', '🪶', 'Гусиное перо', 8, 'lit', 3], ['k_lit_b', 'back', '📚', 'Стопка книг', 14, 'lit', 6],
+  ['k_lit_p', 'pet', '', 'Сказочный друг', 45, 'lit', 10, ['🥚', '🐸', '🦢', '🐺', '🦊', '🐉']],
+  ['k_lit_t', 'theme', '', 'Сказочный лес', 30, 'lit', 15, 'linear-gradient(#a5d6a7,#2e7d32 60%,#4a148c)'], ['k_lit_ti', 'title', '📜', 'Сказитель', 20, 'lit', 20],
+  ['k_logic_i', 'hand', '♟️', 'Пешка', 8, 'logic', 2], ['k_logic_h', 'hat', '🧩', 'Шапка-пазл', 14, 'logic', 5],
+  ['k_logic_b', 'back', '🎲', 'Игральный кубик', 16, 'logic', 8], ['k_logic_ti', 'title', '🤔', 'Мыслитель', 20, 'logic', 12],
+  ['k_logic_t', 'theme', '', 'Шахматная доска', 30, 'logic', 18, 'repeating-conic-gradient(#f0d9b5 0 25%,#b58863 0 50%) 0 0/96px 96px'],
+  ['k_att_h', 'hat', '🎯', 'Мишень', 8, 'att', 2], ['k_att_f', 'face', '👀', 'Зоркие глаза', 12, 'att', 4],
+  ['k_att_b', 'back', '🛰️', 'Спутник', 16, 'att', 7], ['k_att_p', 'pet', '', 'Сова-наблюдатель', 40, 'att', 10, ['🥚', '🐥', '🐤', '🦉', '🦅', '🌠']],
+  ['k_att_t', 'theme', '', 'Тихая гавань', 25, 'att', 12, 'linear-gradient(#e0f7fa,#b2dfdb)'],
+  ['k_all_i', 'hand', '🌐', 'Глобус', 12, '*', 3], ['k_all_h', 'hat', '🪐', 'Сатурн на голове', 20, '*', 5],
+  ['k_all_b', 'back', '🎓', 'Диплом знатока', 25, '*', 7], ['k_all_t', 'theme', '', 'Вселенная знаний', 40, '*', 9, 'linear-gradient(#0b1030,#3a1c71 50%,#d76d77 80%,#ffaf7b)']
+];
+const KNOW = {}; // ключ магазина → { it, tab }
+KNOW_LIST.forEach(([k, slot, e, n, p, subj, cnt, x]) => {
+  const need = [subj, cnt];
+  if (slot === 'pet') { PET_LINES[k] = { n, p, need, line: x }; KNOW['pet_' + k] = { it: PET_LINES[k], tab: 'pet' }; return; }
+  if (slot === 'theme') { THEMES[k] = { n, p, need, bg: x }; KNOW[k] = { it: THEMES[k], tab: 'theme' }; return; }
+  const src = { hat: HATS, face: FACES, back: BACKS, hand: HANDS, title: TITLES }[slot];
+  src[k] = { e, n, p, need }; if (slot !== 'title') ITEMS[k] = src[k]; KNOW[k] = { it: src[k], tab: slot };
+});
 // цены в 6 раз выше (с округлением до 5): копить на мечту несколько дней — это интереснее, чем покупать всё сразу
 (function scalePrices() {
   const sc = o => { if (o && o.p > 0 && o.p < 999) o.p = Math.max(5, Math.round(o.p * 6 / 5) * 5); };
@@ -202,16 +246,22 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 /* ---------- звук и озвучка ---------- */
 let ac;
 // планшеты (особенно iOS) включают звук и речь только после первого касания — «будим» их
-let audioUnlocked = false;
+// Важно: на планшете звук разрешается только по «настоящему» нажатию — когда палец отпущен (touchend/pointerup/click),
+// касание (touchstart/pointerdown) не считается. Поэтому будим на каждом нажатии, пока звук реально не заработает,
+// и снова — если планшет его усыпил (после сворачивания игры, блокировки экрана, звонка).
+let speechPrimed = false;
+try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {} // iPad: звуки игры слышны и при беззвучном режиме, как у видео
 function unlockAudio() {
-  if (audioUnlocked) return; audioUnlocked = true;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === 'suspended') ac.resume();
+    if (ac.state !== 'running') {
+      const r = ac.resume(); if (r && r.catch) r.catch(() => {});
+      const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); // тихий «щелчок» — так iOS открывает звук
+    }
   } catch (e) {}
-  try { if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } } catch (e) {}
+  if (!speechPrimed) try { if ('speechSynthesis' in window) { speechPrimed = true; const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } } catch (e) {}
 }
-['pointerdown', 'touchstart', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { once: false, passive: true }));
+['pointerup', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
 /* Речь: одно «состояние речи» на всё приложение.
    seq — номер последней фразы (старые фразы и их отложенные запуски отменяются),
    until — когда фраза должна закончиться по расчёту, ended — подтвердил ли браузер конец,
@@ -237,6 +287,7 @@ function tones(freqs, kind) {
   SPK.sfxUntil = Date.now() + freqs.length * 120 + 80;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state !== 'running') { const r = ac.resume(); if (r && r.catch) r.catch(() => {}); }
     freqs.forEach((f, k) => {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = S.focus ? 'sine' : 'square'; o.frequency.value = f; g.gain.value = S.focus ? .025 : .05;
@@ -1016,7 +1067,7 @@ let homeView = true;
 const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS], pdd: ['🚦', 'ПДД и ОБЖ', () => PWORLDS], lit: ['📖', 'Литературное чтение', () => LWORLDS], logic: ['🧩', 'Логика и шахматы', () => GWORLDS], att: ['🎯', 'Внимание', () => AWORLDS] };
 const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
 function mapTail() {
-  syncSoon(); writeSummary();
+  syncSoon(); writeSummary(); knowNews();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
 }
 const subjOn = k => !(S.off && S.off[k]);
@@ -1040,7 +1091,7 @@ function home() {
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
-    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
+    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин${(S.kNew || []).length ? ` <span class="knew">🔓${S.kNew.length}</span>` : ''}</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
   app.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => { S.subj = b.dataset.sj; homeView = false; save(); map(); });
@@ -1680,13 +1731,14 @@ function mathTraining() {
 
 /* ---------- магазин ---------- */
 const SHOP_TABS = [
+  { k: 'know', t: '📚 За знания' },
   { k: 'hat', t: '🎩 Шляпы', src: HATS, none: 'Без шляпы' }, { k: 'face', t: '😎 Лицо', src: FACES, none: 'Без украшения' },
   { k: 'back', t: '🧣 Спина', src: BACKS, none: 'Без украшения' }, { k: 'hand', t: '⛏️ В руке', src: HANDS, none: 'Пусто' },
   { k: 'hue', t: '🎨 Цвет' }, { k: 'pet', t: '🐾 Питомцы' }, { k: 'theme', t: '🗺️ Фон' },
   { k: 'title', t: '🏷️ Звание', src: TITLES, none: 'Без звания' },
   { k: 'up', t: '⚡ Улучшения' }, { k: 'cons', t: '🧪 Запасы' }
 ];
-let shopTab = 'up';
+let shopTab = 'know';
 // карточка редкого предмета: открыт, если получена нужная ачивка
 function rareCard(it, pic, key, on, onLabel, offLabel, extra = '') {
   const a = ACH.find(x => x.id === it.a);
@@ -1697,16 +1749,52 @@ function rareCard(it, pic, key, on, onLabel, offLabel, extra = '') {
 }
 const owns = (key, p) => p === 0 || S.owned.includes(key);
 
+/* ---------- магазин: вещи «за знания» и товар дня ---------- */
+const needCnt = s => (s === '*' ? subjStarted() : subjDone(s).length);
+const needVis = it => !it.need || it.need[0] === '*' || subjOn(it.need[0]);
+const needOk = it => !it.need || needCnt(it.need[0]) >= it.need[1];
+const urokW = n => (n % 10 === 1 && n % 100 !== 11 ? 'урок' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'урока' : 'уроков');
+const needTxt = (it, short) => { const r = Math.max(0, it.need[1] - needCnt(it.need[0])); return it.need[0] === '*' ? `Начни ещё ${r} ${r === 1 ? 'предмет' : r < 5 ? 'предмета' : 'предметов'}` : `Ещё ${r} ${urokW(r)}` + (short ? '' : ` · ${SUBJ_META[it.need[0]][0]} ${SUBJ_META[it.need[0]][1]}`); };
+const knowPic = (key, it) => KNOW[key] && KNOW[key].tab === 'theme' ? `<div class="swatch" style="background:${it.bg}"></div>` : KNOW[key] && KNOW[key].tab === 'pet' ? `<div class="ie">${it.line[3]}</div>` : `<div class="ie">${it.e}</div>`;
+function knowLock(key, it, short) {
+  const c = Math.min(needCnt(it.need[0]), it.need[1]);
+  return `<div class="item know lock">${knowPic(key, it)}<b>${it.n}</b><small>🔒 ${needTxt(it, short)}</small><div class="bar"><i style="width:${Math.round(c / it.need[1] * 100)}%"></i></div><small>${c} / ${it.need[1]}</small></div>`;
+}
+const knowOpen = () => Object.keys(KNOW).filter(k => needVis(KNOW[k].it) && needOk(KNOW[k].it));
+// после урока: сообщаем, что в магазине открылись новые вещи
+function knowNews() {
+  S.kSeen = S.kSeen || {}; S.kNew = S.kNew || [];
+  const nw = knowOpen().filter(k => !S.kSeen[k]); if (!nw.length) return;
+  nw.forEach(k => { S.kSeen[k] = 1; if (!S.kNew.includes(k)) S.kNew.push(k); }); save();
+  const sb = $('shop'); if (sb) { const c = sb.querySelector('.knew'); if (c) c.textContent = '🔓' + S.kNew.length; else sb.insertAdjacentHTML('beforeend', ` <span class="knew">🔓${S.kNew.length}</span>`); }
+  toast(nw.length === 1 ? `🔓 В магазине открылось: ${KNOW[nw[0]].it.e || '🎁'} ${KNOW[nw[0]].it.n}` : `🔓 В магазине открылось новых вещей: ${nw.length}! Загляни в «📚 За знания»`);
+}
+// товар дня: каждый день другой, скидка 40%
+const DEAL_SRC = () => [['hat', HATS], ['face', FACES], ['back', BACKS], ['hand', HANDS], ['theme', THEMES]];
+function dealOf() {
+  const all = []; // полный список не зависит от покупок — товар дня не меняется в течение дня, пока его не купили
+  DEAL_SRC().forEach(([tab, src]) => Object.keys(src).forEach(k => { if (!src[k].a && src[k].p > 0) all.push([k, tab, src[k]]); }));
+  let h = 0; for (const ch of today() + (S.name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (let i = 0; i < all.length; i++) {
+    const [k, tab, it] = all[(h + i) % all.length];
+    if (needVis(it) && needOk(it) && !S.owned.includes(k)) return { k, tab, it, p: Math.max(5, Math.round(it.p * .6 / 5) * 5) };
+  }
+  return null;
+}
 function shop() {
   if (tmGate()) return; tmInLesson = false;
   const tab = SHOP_TABS.find(t => t.k === shopTab) || SHOP_TABS[0];
-  const btn = (own, on, key, p, onLabel, offLabel) => own
+  const deal = dealOf();
+  const btn = (own, on, key, p0, onLabel, offLabel) => { const p = deal && deal.k === key ? deal.p : p0; return own
     ? `<button class="btn small ${on ? 'gold' : 'sec'}" data-eq="${key}">${on ? onLabel : offLabel}</button>`
-    : `<button class="btn small ${S.emeralds >= p ? '' : 'sec'}" data-buy="${key}" data-p="${p}">💎 ${p}</button>${S.emeralds >= p ? '' : `<button class="btn small ${S.goal && S.goal.k === key ? 'gold' : 'sec'}" data-goal="${key}" data-p="${p}" title="Копить на это">🎯</button>`}`;
+    : `${p !== p0 ? `<small>🔥 Товар дня: <s>${p0}</s></small>` : ''}<button class="btn small ${S.emeralds >= p ? '' : 'sec'}" data-buy="${key}" data-p="${p}">💎 ${p}</button>${S.emeralds >= p ? '' : `<button class="btn small ${S.goal && S.goal.k === key ? 'gold' : 'sec'}" data-goal="${key}" data-p="${p}" title="Копить на это">🎯</button>`}`; };
+  const byNeed = (src, a, b) => (needOk(src[a]) ? 0 : 1) - (needOk(src[b]) ? 0 : 1) || src[a].p - src[b].p;
   let cards = '', head = '';
   if (tab.src) {
-    cards = Object.keys(tab.src).sort((a, b) => tab.src[a].p - tab.src[b].p).map(k => {
+    cards = Object.keys(tab.src).sort((a, b) => byNeed(tab.src, a, b)).map(k => {
       const it = tab.src[k];
+      if (!needVis(it)) return '';
+      if (!needOk(it)) return knowLock(k, it);
       if (it.a) return rareCard(it, `<div class="ie">${it.e}</div>`, k, S[tab.k] === k, 'Надето ✓', 'Надеть');
       const pk = perkOf(it);
       return `<div class="item"><div class="ie">${it.e}</div>${it.n}${pk ? `<br><small>⚡ +${pk}% 💎</small>` : ''}<br>${btn(owns(k, 0) && S.owned.includes(k), S[tab.k] === k, k, it.p, 'Надето ✓', 'Надеть')}</div>`;
@@ -1735,22 +1823,41 @@ function shop() {
     }).join('');
   } else if (tab.k === 'pet') {
     head = `<p>Имя питомца: <input type="text" id="pn" maxlength="12" value="${(S.petName || 'Кубик').replace(/"/g, '&quot;')}" style="max-width:220px"></p>`;
-    cards = Object.keys(PET_LINES).sort((a, b) => PET_LINES[a].p - PET_LINES[b].p).map(k => {
+    cards = Object.keys(PET_LINES).sort((a, b) => byNeed(PET_LINES, a, b)).map(k => {
       const p = PET_LINES[k], key = 'pet_' + k;
+      if (!needVis(p)) return '';
+      if (!needOk(p)) return knowLock(key, p);
       if (p.a) return rareCard(p, `<div class="ie">${p.line[3]}</div>`, k, S.pet === k, 'Мой питомец ✓', 'Выбрать', `<small>${p.line.slice(1).join(' ')}</small><br>`);
       return `<div class="item"><div class="ie">${p.line[3]}</div>${p.n}<br><small>${p.line.slice(1).join(' ')}</small><br>${btn(owns(key, p.p), S.pet === k, key, p.p, 'Мой питомец ✓', 'Выбрать')}</div>`;
     }).join('');
+  } else if (tab.k === 'know') {
+    S.kNew = []; save();
+    head = '<p>Эти вещи открываются за учёбу: пройди уроки по предмету — и вещь можно купить. Чем больше знаешь, тем больше открыто!</p>';
+    cards = Object.keys(SUBJ_META).concat('*').filter(s => s === '*' || subjOn(s)).map(s => {
+      const keys = Object.keys(KNOW).filter(k => KNOW[k].it.need[0] === s); if (!keys.length) return '';
+      const nm = s === '*' ? '🌈 Все предметы' : SUBJ_META[s][0] + ' ' + SUBJ_META[s][1], c = needCnt(s);
+      return `<h3 class="kh">${nm} <small>${s === '*' ? 'предметов начато: ' : 'пройдено: '}${c}</small></h3>` + keys.map(k => {
+        const { it, tab: tb } = KNOW[k];
+        if (!needOk(it)) return knowLock(k, it, true);
+        const own = S.owned.includes(k);
+        return `<div class="item know">${knowPic(k, it)}<b>${it.n}</b><small>${own ? '✅ Уже есть' : '🔓 Открыто!'}</small><button class="btn small ${own ? 'sec' : 'gold'}" data-gotab="${tb}">${own ? 'Надеть ➜' : '💎 ' + (deal && deal.k === k ? deal.p : it.p) + ' ➜'}</button></div>`;
+      }).join('');
+    }).join('');
   } else {
-    cards = Object.keys(THEMES).sort((a, b) => THEMES[a].p - THEMES[b].p).map(k => {
+    cards = Object.keys(THEMES).sort((a, b) => byNeed(THEMES, a, b)).map(k => {
       const t = THEMES[k];
+      if (!needVis(t)) return '';
+      if (!needOk(t)) return knowLock(k, t);
       if (t.a) return rareCard(t, `<div class="swatch" style="background:${t.bg}"></div>`, k, S.theme === k, 'Выбран ✓', 'Выбрать');
       return `<div class="item"><div class="swatch" style="background:${t.bg}"></div>Фон: ${t.n}<br>${btn(owns(k, t.p) || S.owned.includes(k), S.theme === k, k, t.p, 'Выбран ✓', 'Выбрать')}</div>`;
     }).join('');
   }
   app.innerHTML = `<div class="card top"><button class="btn small sec" id="bk">⬅ Карта</button><div class="grow center">${hero(90)} <span class="pet">${petE(petStage())}</span></div><span class="chip">💎 ${S.emeralds}</span></div>
     <div class="card"><div class="center">${SHOP_TABS.map(t => `<button class="btn small ${t.k === tab.k ? 'gold' : 'sec'}" data-tab="${t.k}">${t.t}</button>`).join('')}</div>
+      ${deal ? `<div class="deal">🔥 <b>Товар дня</b> (только сегодня, −40%): ${deal.it.e || '🗺️'} ${deal.it.n} — <s>${deal.it.p}</s> <b>${deal.p} 💎</b> ${deal.tab === tab.k ? '' : `<button class="btn small gold" data-gotab="${deal.tab}">Посмотреть ➜</button>`}</div>` : ''}
       ${head}<div class="shop" style="margin-top:12px">${cards}</div></div>`;
   $('bk').onclick = map;
+  app.querySelectorAll('[data-gotab]').forEach(b => b.onclick = () => { shopTab = b.dataset.gotab; shop(); window.scrollTo(0, 0); });
   app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { shopTab = b.dataset.tab; shop(); });
   if ($('pn')) $('pn').oninput = e => { S.petName = e.target.value.trim() || 'Кубик'; save(); };
   const equip = key => {

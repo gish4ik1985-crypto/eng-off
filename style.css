@@ -279,3 +279,7 @@ details summary{cursor:pointer}
 .node{container-type:inline-size}
 .node .t{font-size:min(.85rem,11.5cqi);overflow-wrap:break-word}
 #app{padding-bottom:max(72px,env(safe-area-inset-bottom))}
+/* магазин: за знания, товар дня */
+.deal{margin:10px 0 4px;padding:8px 12px;background:#ffe9a8;border:3px dashed #e65100;border-radius:10px;text-align:center}
+.item.know{background:#eef7ff;border-color:#1565c0}.item.know.lock{background:#e4e4e4;border-color:#999}.item.know.lock .ie,.item.know.lock .swatch{filter:grayscale(1);opacity:.55}
+.shop .kh{grid-column:1/-1;margin:10px 0 0}.knew{display:inline-block;background:#e53935;color:#fff;border-radius:10px;padding:0 7px;font-size:.9rem;margin-left:4px}
