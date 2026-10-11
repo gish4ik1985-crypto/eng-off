@@ -6835,7 +6835,7 @@ async function cloudAutoRun() {
       if (PR.list.some(x => x.cid === c.id) || skip.includes(c.id)) continue;
       const r = await api('pull', { id: c.id }); if (!r.state) continue;
       if (PR.list.some(x => nm(x.name) === nm(c.name)) && emptySt(JSON.parse(r.state))) { CL.skip = (CL.skip || []).concat(c.id); saveCL(); continue; } // пустой двойник не создаём
-      const loc = PR.list.find(x => !x.cid && nm(x.name) === nm(c.name));
+      const loc = PR.list.find(x => (!x.cid || !raw.some(r2 => r2.id === x.cid)) && nm(x.name) === nm(c.name)); // свой игрок без привязки к этой семье — сливаем, а не делаем двойника
       if (loc) {
         const cur = loc.id === PR.cur, mine = cur ? S : loadState(loc.key);
         try { localStorage.setItem(loc.key + '_backup_' + today(), JSON.stringify(mine)); } catch (e) {}
@@ -6852,9 +6852,10 @@ async function cloudAutoRun() {
       changed = true;
     } catch (e) { errs.push((c.name || '?') + ': ' + String(e.message || e)); }
     if (errs.length) { CL.err = 'не загрузились: ' + errs.join('; '); saveCL(); }
-    for (const p of PR.list.filter(x => !x.cid && x.id !== PR.cur)) { // игроки только с этого устройства — отправляем в облако
-      const st = loadState(p.key); if (!st.name) continue;
-      p.cid = newCid(); savePR();
+    // игроки этого устройства, которых нет в облаке этой семьи (новые или привязанные к прежнему семейному коду), — отправляем в облако
+    for (const p of PR.list.filter(x => !x.cid || !raw.some(c => c.id === x.cid))) {
+      const st = p.id === PR.cur ? S : loadState(p.key); if (!st.name) continue;
+      if (!p.cid) { p.cid = newCid(); savePR(); }
       await api('push', { id: p.cid, name: st.name, ts: st._ts || Date.now(), state: JSON.stringify(st) });
     }
     autoOk = !errs.length;
