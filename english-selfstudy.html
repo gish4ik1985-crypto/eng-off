@@ -6683,6 +6683,7 @@ const CK = 'engAdventure_cloud';
 let CL = { url: '', code: '', last: 0, err: '' };
 try { const r = JSON.parse(localStorage.getItem(CK)); if (r) CL = Object.assign(CL, r); } catch (e) {}
 const saveCL = () => { try { localStorage.setItem(CK, JSON.stringify(CL)); } catch (e) {} };
+if (CL.code && CL.code.length !== 6) { CL.code = ''; CL.err = ''; saveCL(); } // ошибочно введённый код (семейный код всегда из 6 знаков) — сбрасываем, чтобы можно было ввести правильный
 const cloudUrl = () => CL.url || (typeof CLOUD_URL === 'string' ? CLOUD_URL : '');
 const cloudOn = () => !!(cloudUrl() && CL.code);
 const cloudStatus = () => CL.err ? 'Нет связи с облаком (' + CL.err + '). Данные сохранены на устройстве и отправятся позже.' : CL.last ? 'Последняя синхронизация: ' + new Date(CL.last).toLocaleString('ru-RU') + '.' : 'Ещё не синхронизировалось.';
@@ -6868,8 +6869,10 @@ function cloudScreen(back, autoCode) {
     const login = async (code, create) => {
       readUrl();
       CL.code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      const r = await api('init', {});
-      if (!create && r.created) { CL.code = ''; throw new Error('такого кода нет'); }
+      // вход по коду — только «join»: он ничего не создаёт в таблице (раньше «init» с ошибочным кодом заводил пустую семью)
+      let r;
+      if (create) r = await api('init', {});
+      else try { r = await api('join', {}); } catch (e) { CL.code = ''; throw new Error(/нет/i.test(String(e.message)) ? 'такого семейного кода нет. Проверьте код на старом устройстве: «🔒 Родителям» → «☁️ Связь»' : String(e.message || e)); }
       if (create && !r.created) { CL.code = ''; throw new Error('код занят, попробуйте ещё раз'); }
       CL.err = ''; saveCL(); cloudPlayers = r.players.filter(x => !String(x.id).startsWith('__'));
       if (r.pin) { try { localStorage.setItem(PIN_KEY, r.pin); } catch (e) {} } else await cloudPin();
@@ -6888,7 +6891,11 @@ function cloudScreen(back, autoCode) {
       if (PR.list.length && cloudOn()) { gone = true; toast('☁️ Игроки загружены из облака'); players(); }
     };
     if ($('cdla')) $('cdla').onclick = () => run(afterJoin);
-    if ($('cj')) $('cj').onclick = () => run(() => { const c = $('cc').value.trim(); if (c.length < 6) throw new Error('код из 6 знаков'); return login(c, false).then(afterJoin); });
+    if ($('cj')) $('cj').onclick = () => run(() => {
+      const c = $('cc').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (c.length !== 6) throw new Error(`семейный код — ровно 6 знаков (латинские буквы и цифры, например K7MP3Q), а введено ${c.length}. Возможно, это пароль родителя, а не код. Код показан на старом устройстве: «🔒 Родителям» → «☁️ Связь» → облако.`);
+      return login(c, false).then(afterJoin);
+    });
     if ($('cc') && autoCode) { $('cc').value = autoCode; const c = autoCode; autoCode = ''; run(() => login(c, false).then(afterJoin)); return; }
     if ($('clk')) $('clk').onclick = () => {
       const v = $('clink').value, ok = () => toast('📋 Ссылка скопирована — отправьте её себе и откройте на новом устройстве');
