@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 <title>Школьный ассистент</title>
-<link rel="stylesheet" href="style.css?v=20261009120241">
+<link rel="stylesheet" href="style.css?v=20261011143338">
 </head>
 <body>
 <div id="app"></div>
@@ -6043,7 +6043,7 @@ function weakItems() {
 function weakCount() { const w = weakItems(); return w.words.length + w.gaps.length; }
 function warmupWords(L) {
   return Object.keys(S.words)
-    .filter(id => !L.words.includes(id) && S.words[id].due <= today() && S.words[id].seen > 0)
+    .filter(id => WORDS[id] && !L.words.includes(id) && S.words[id].due <= today() && S.words[id].seen > 0) // только слова текущего языка (английский и итальянский учатся в одном профиле)
     .sort((a, b) => S.words[b].miss - S.words[a].miss).slice(0, 4);
 }
 
@@ -6892,7 +6892,7 @@ function intro(ctx, cb) {
 
 function distract(id, n, ctx) {
   let pool = ctx.L.words.filter(x => x !== id);
-  const seen = Object.keys(S.words).filter(x => x !== id && !pool.includes(x));
+  const seen = Object.keys(S.words).filter(x => WORDS[x] && x !== id && !pool.includes(x));
   pool = shuffle(pool).concat(shuffle(seen));
   if (pool.length < n) pool = pool.concat(shuffle(Object.keys(WORDS).filter(x => x !== id && !pool.includes(x))));
   return pool.slice(0, n);
@@ -7693,7 +7693,7 @@ function parentGate() {
     ${have ? '<p><button class="btn small sec" id="fg">Забыли пароль?</button></p>' : ''}</div>`;
   $('bk').onclick = map;
   if ($('fg')) $('fg').onclick = pinReset;
-  if (have) pinEntry($('pbox'), parent); else pinForm($('pbox'), parent);
+  if (have) pinEntry($('pbox'), () => parent('main')); else pinForm($('pbox'), () => parent('main'));
 }
 
 function diaryLinkHtml() {
@@ -7999,122 +7999,148 @@ function concHtml() {
     <p><b>По дням недели</b> (верно / заданий):</p><table><tr>${wrow}</tr></table>
     ${best ? `<p>💡 Лучше всего получается: <b>${best.nm}</b> (${best.pct}%).${worst && worst.pct < best.pct - 8 ? ` Хуже всего: ${worst.nm} (${worst.pct}%): сложное лучше не ставить на это время.` : ''}</p>` : ''}<p><small>Точность считается по первым попыткам. Данные накапливаются с момента обновления игры.</small></p>`;
 }
-function parent() {
-  const rows = EN_PACK.WORLDS.concat(IT_PACK.WORLDS, MWORLDS, RWORLDS, OWORLDS, IWORLDS, PWORLDS, LWORLDS, GWORLDS, AWORLDS).map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, k) => {
-    const r = S.lessons[l.id] || {};
-    return `<tr><td>${k + 1}. ${l.icon} ${l.title}${l.type === 'gram' ? ' (грамматика)' : l.type === 'read' ? ' (чтение)' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`;
-  }).join('')).join('');
-  const wk = weakItems();
-  const weak = wk.words.slice(0, 12)
-    .map(id => `<tr><td>${WORDS[id].e} ${WORDS[id].en}</td><td>${WORDS[id].ru}</td><td>ошибок: ${S.words[id].miss}</td></tr>`).join('')
-    + wk.gaps.slice(0, 8).map(k => `<tr><td colspan="2">${GAPIDX[k].en.replace('___', '<b>' + GAPIDX[k].ans + '</b>')}</td><td>ошибок: ${S.gr[k].miss}</td></tr>`).join('');
-  const learned = Object.keys(S.words).filter(id => S.words[id].seen > 0).length;
+// экран родителей разбит на разделы (вкладки), чтобы не листать одну длинную страницу
+let parentTab = 'main';
+const PARENT_TABS = [['main', '🏠', 'Главное'], ['kid', '👦', 'Ученик'], ['stats', '📊', 'Успехи'], ['time', '⏰', 'Время и пароль'], ['link', '☁️', 'Связь'], ['set', '⚙️', 'Настройки']];
+function parent(tab) {
+  if (tab) parentTab = tab;
+  if (!PARENT_TABS.some(x => x[0] === parentTab)) parentTab = 'main';
+  const sel = 'font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px';
+  const nm = esc(S.name);
+  const sec = {};
+  // --- главное ---
+  const learned = Object.keys(S.words).filter(id => WORDS[id] && S.words[id].seen > 0).length;
   const wkStart = addDays(today(), -6);
   const fam = PR.list.length > 1 ? `<div class="card"><h3>👨‍👩‍👧 Все игроки (последние 7 дней)</h3><table><tr><th>Игрок</th><th>Минут</th><th>Верно</th><th>Локаций</th><th>Серия</th></tr>${PR.list.map(pl => {
-    const st = pl.id === PR.cur ? S : loadState(pl.key); let sec = 0, q = 0, ok = 0;
-    Object.keys(st.log || {}).forEach(d => { if (d >= wkStart) { const x = st.log[d]; sec += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } });
-    return `<tr><td>${esc(pl.name)}</td><td>${Math.round(sec / 60)}</td><td>${q ? Math.round(100 * ok / q) + '%' : '—'}</td><td>${Object.values(st.lessons || {}).filter(x => x.done).length}</td><td>${st.streak || 0}</td></tr>`;
-  }).join('')}</table><p><small>Подробный отчёт по каждому: выберите игрока на экране «Кто занимается?», затем «Родителям».</small></p></div>` : '';
-  app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><button class="btn small gold" id="frp">📊 Семейный отчёт</button><button class="btn small gold" id="rpt">📊 Отчёт по английскому</button>${location.protocol === 'file:' ? '' : '<button class="btn small gold" id="dpar">📓 Дневник (править)</button>'}<h2>Для родителей</h2>
-    <p>Выучено слов: <b>${learned}</b> из ${Object.keys(WORDS).length}. Серия: <b>${shownStreak()}</b> дн. Изумрудов: ${S.emeralds}.</p>
-    <p>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</p></div>
-    ${fam}<div class="card"><h3>Прогресс по локациям</h3><table>${rows}</table></div>
-    <div class="card"><h3>Слабые места (слова и правила; уходят после 3 верных ответов подряд)</h3>${weak ? `<table>${weak}</table><p>Совет: повторите их без экрана — покажите предмет и попросите назвать, спрячьте карточки по комнате, сыграйте «Покажи и назови».</p>` : '<p>Пока нет данных — всё идёт хорошо!</p>'}</div>
-    <div class="card"><h3>🧮 Математика по темам</h3>${mathTopicsHtml()}</div>
+    const st = pl.id === PR.cur ? S : loadState(pl.key); let s = 0, q = 0, ok = 0;
+    Object.keys(st.log || {}).forEach(d => { if (d >= wkStart) { const x = st.log[d]; s += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } });
+    return `<tr><td>${esc(pl.name)}</td><td>${Math.round(s / 60)}</td><td>${q ? Math.round(100 * ok / q) + '%' : '—'}</td><td>${Object.values(st.lessons || {}).filter(x => x.done).length}</td><td>${st.streak || 0}</td></tr>`;
+  }).join('')}</table><p><small>Настройки и отчёты ниже — для игрока «${nm}». Другого игрока выберите на экране «Кто занимается?» (👤).</small></p></div>` : '';
+  const wk7 = (() => { let s = 0, q = 0, ok = 0, act = 0; for (let i = 0; i < 7; i++) { const x = (S.log || {})[addDays(today(), -i)]; if (x && (x.sec || x.q)) { act++; s += x.sec || 0; q += x.q || 0; ok += x.ok || 0; } } return { min: Math.round(s / 60), q, pct: q ? Math.round(100 * ok / q) : null, act }; })();
+  sec.main = `<div class="card"><h3>Коротко про «${nm}»</h3>
+      <div class="pstats"><div><b>${wk7.min}</b><small>минут за 7 дней</small></div><div><b>${wk7.act}</b><small>дней с занятиями</small></div><div><b>${wk7.pct === null ? '—' : wk7.pct + '%'}</b><small>верно с первой попытки</small></div><div><b>${shownStreak()}</b><small>дней подряд</small></div></div>
+      <p>Пройдено локаций: <b>${Object.values(S.lessons || {}).filter(x => x.done).length}</b>. Выучено слов (${LN().adj}): <b>${learned}</b> из ${Object.keys(WORDS).length}. Изумрудов: ${S.emeralds}.</p>
+      <p><button class="btn small gold" id="frp">📊 Семейный отчёт за неделю</button><button class="btn small gold" id="rpt">📊 Отчёт по ${S.subj === 'it' ? 'итальянскому' : 'английскому'}</button>${location.protocol === 'file:' ? '' : '<button class="btn small gold" id="dpar">📓 Дневник (править)</button>'}</p>
+      <p><small>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</small></p></div>${fam}
+    <div class="card"><h3>Быстрые переходы</h3><div class="ptiles">
+      <button class="ptile" data-go="kid">📚 Предметы ученика</button><button class="ptile" data-go="kid">🧘 Спокойный фокус ${S.focus ? '✅' : ''}</button><button class="ptile" data-go="kid">📅 «Мой день» ${S.plan && S.plan.on ? '✅' : ''}</button>
+      <button class="ptile" data-go="stats">📊 Недели и концентрация</button><button class="ptile" data-go="time">⏰ Таймер ${TM.on ? '✅ ' + (TM.min + (TM.extra || 0)) + ' мин' : ''}</button><button class="ptile" data-go="link">☁️ Облако ${cloudOn() ? '✅' : ''}</button></div></div>`;
+  // --- ученик ---
+  sec.kid = `<div class="card"><h3>📚 Предметы ученика «${nm}»</h3>
+      <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется.</p>
+      <div class="subjcols">${Object.keys(SUBJ_META).map(k => `<label class="subjopt"><input type="checkbox" data-so="${k}" ${subjOn(k) ? 'checked' : ''}> ${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</label>`).join('')}</div>
+      <p id="som"></p></div>
+    <div class="card"><h3>🧘 Спокойный фокус</h3>
+      <p>Для детей, которым трудно удерживать внимание (например, при СДВГ).</p>
+      <button class="btn small ${S.focus ? 'red' : 'gold'}" id="focus">${S.focus ? '🧘 Спокойный фокус: ВКЛ (нажмите, чтобы выключить)' : 'Включить спокойный фокус'}</button>
+      <details><summary>Что меняется</summary><p><small>Задания идут короткими блоками (не больше 5 подряд); каждые 1,5–2 минуты — минутка движения; без мигающих анимаций и серий «🔥»; звуки тише, ошибка без звука; за пройденный урок не меньше двух звёзд; вверху крупная полоска «где я в уроке»; если ребёнок надолго замер над заданием, игра мягко напоминает про подсказку. Это игровая помощь в учёбе, а не лечение.</small></p></details></div>
+    <div class="card"><h3>🎯 Что подтянуть</h3>
+      <p>Темы, которые советуют учитель, врач или психолог. Игра добавит их в «Тренировку» и задания дня.</p>
+      ${[['math', 'Математика'], ['ru', 'Русский язык'], ['eng', 'Английский'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО']].map(([k, n]) => `<p>${n}: <input type="text" data-wi="${k}" maxlength="120" placeholder="например: ${k === 'math' ? 'умножение, задачи на время' : k === 'ru' ? 'безударные гласные, словарные слова' : k === 'eng' ? 'цвета, числа, to be' : k === 'ow' ? 'времена года, части растения' : 'цветовой круг'}" value="${esc(((S.wish || []).find(x => x.subj === k) || {}).text || '')}"></p>`).join('')}<p id="wim" class="pmsg">&nbsp;</p></div>
+    <div class="card"><h3>📅 «Мой день»</h3>
+      <p>Утренний и вечерний план в картинках: ребёнок отмечает сделанное, за весь план — 5 💎.</p>
+      <button class="btn small ${S.plan && S.plan.on ? 'red' : 'gold'}" id="pln">${S.plan && S.plan.on ? '📅 «Мой день»: ВКЛ (нажмите, чтобы выключить)' : 'Включить «Мой день»'}</button>
+      <details ${S.plan && S.plan.on ? 'open' : ''}><summary>Пункты плана</summary>
+      ${['morning', 'evening'].map(pt => `<h4>${pt === 'morning' ? '🌅 Утро' : '🌙 Вечер'}</h4>${PLAN_DEF[pt].map(x => `<label class="subjopt"><input type="checkbox" data-ph="${x[0]}" ${!((S.plan || {}).hide || {})[x[0]] ? 'checked' : ''}> ${x[1]} ${x[2]}</label>`).join('')}${((S.plan || {}).own || []).filter(o => o.part === pt).map(o => `<label class="subjopt">${o.e || '✅'} ${esc(o.t)} <button class="btn small sec" data-pdel="${o.id}">✖</button></label>`).join('')}`).join('')}
+      <p>Добавить пункт: <select id="pnp" style="${sel}"><option value="morning">Утро</option><option value="evening">Вечер</option></select> <input type="text" id="pne" maxlength="2" style="width:3em" placeholder="🙂"> <input type="text" id="pnt" maxlength="40" placeholder="Что сделать"> <button class="btn small gold" id="pna">Добавить</button></p></details></div>
     <div class="card"><h3>🎁 Семейные призы</h3>
-      <p>Договоритесь с ребёнком о награде в жизни за получение наград в игре (например, «поход в кино» или «выбрать мультфильм»). Ребёнок увидит их на экране «Награды».</p>
-      ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${(p.text || '').replace(/"/g, '&quot;')}"></p>`).join('')}</div>
-    <div class="card"><h3>☁️ Синхронизация между устройствами</h3>
+      <p>Договоритесь о награде в жизни за награды в игре (например, «поход в кино»). Ребёнок увидит их на экране «Награды».</p>
+      ${(S.prizes || []).map((p, k) => `<p>За <b>${p.need}</b> наград: <input type="text" data-pz="${k}" maxlength="50" placeholder="Например: мороженое" value="${esc(p.text || '')}"></p>`).join('')}</div>
+    <div class="card"><h3>🎓 Уровень и порядок уроков</h3>
+      <button class="btn small ${S.strict ? 'red' : ''}" id="strict">${S.strict ? '🔒 Строгий режим: ВКЛ (без подсказок и щита)' : 'Строгий режим: выкл'}</button>
+      <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
+      <button class="btn small" id="dgp">🔎 Разведка (определить уровень в английском)</button></div>`;
+  // --- успехи ---
+  const wk = weakItems();
+  const weak = wk.words.slice(0, 12).map(id => `<tr><td>${WORDS[id].e} ${WORDS[id].en}</td><td>${WORDS[id].ru}</td><td>ошибок: ${S.words[id].miss}</td></tr>`).join('')
+    + wk.gaps.slice(0, 8).map(k => `<tr><td colspan="2">${GAPIDX[k].en.replace('___', '<b>' + GAPIDX[k].ans + '</b>')}</td><td>ошибок: ${S.gr[k].miss}</td></tr>`).join('');
+  const prog = Object.keys(SUBJ_META).map(k => {
+    const ws = SUBJ_META[k][2](), [d, n] = subjProgress(k);
+    const rows = ws.map(wd => `<tr><th colspan="2">${wd.name}</th></tr>` + wd.lessons.map((l, i) => { const r = S.lessons[l.id] || {}; return `<tr><td>${i + 1}. ${l.icon} ${l.title}${l.bonus ? ' <small>(бонус)</small>' : ''}</td><td>${r.done ? '⭐'.repeat(r.stars) : '—'}</td></tr>`; }).join('')).join('');
+    return `<details class="pdet"><summary>${SUBJ_META[k][0]} ${SUBJ_META[k][1]} — пройдено ${d} из ${n}${subjOn(k) ? '' : ' <small>(скрыт)</small>'}</summary><table>${rows}</table></details>`;
+  }).join('');
+  sec.stats = `<div class="card"><h3>📊 Недели: время и точность</h3>${weekHtml()}</div>
+    <div class="card"><h3>📈 Когда занимается лучше всего</h3>${concHtml()}</div>
+    <div class="card"><h3>💪 Слабые места (${LN().adj}: слова и правила)</h3>${weak ? `<table>${weak}</table><p><small>Уходят после 3 верных ответов подряд. Повторите их без экрана: покажите предмет и попросите назвать.</small></p>` : '<p>Пока нет данных — всё идёт хорошо!</p>'}</div>
+    <div class="card"><h3>🧮 Темы математики, русского и других предметов</h3>${mathTopicsHtml()}</div>
+    <div class="card"><h3>🗺️ Прогресс по предметам</h3><p><small>Нажмите на предмет, чтобы раскрыть список уроков.</small></p>${prog}</div>`;
+  // --- время и пароль ---
+  sec.time = `<div class="card"><h3>⏰ Таймер игры</h3>
+      <p>Ограничивает время в день на этом устройстве. Когда время выйдет, ребёнок доделает текущее упражнение, а при выходе из него программа закроется и откроется только по вашему паролю.</p>
+      <button class="btn small ${TM.on ? 'red' : 'gold'}" id="tmon">${TM.on ? '⏰ Таймер: ВКЛ (нажмите, чтобы выключить)' : 'Включить таймер'}</button>
+      <p>Времени в день: <select id="tmmin" style="${sel}">${[10, 15, 20, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${TM.min === n ? 'selected' : ''}>${n} мин</option>`).join('')}</select></p>
+      <p>Сегодня использовано: <b>${Math.round(TM.used / 60)}</b> мин из ${TM.min + (TM.extra || 0)}. <button class="btn small sec" id="tmrs">Обнулить сегодня</button></p>
+      <p><small>Считается только время, пока ребёнок что-то нажимает. Таймер общий для всех игроков на этом устройстве; на другом устройстве его нужно включить отдельно.</small></p></div>
+    <div class="card"><h3>🔑 Пароль родителей</h3><p>Сейчас: ${/^\d{4}$/.test(getPin()) ? 'PIN-код из 4 цифр' : 'пароль'}. Можно задать любой свой — от 4 до 20 знаков.</p>
+      <button class="btn small" id="chpin">Сменить пароль</button></div>`;
+  // --- связь ---
+  sec.link = `<div class="card"><h3>☁️ Синхронизация между устройствами</h3>
       <p>${cloudOn() ? 'Включена. Семейный код: <b>' + esc(CL.code) + '</b>. ' + esc(cloudStatus()) : 'Не включена: прогресс хранится только на этом устройстве.'}</p>
       <button class="btn small gold" id="clp">Настроить / войти по коду</button></div>
     <div class="card"><h3>📓 Связь с дневником</h3>${diaryLinkHtml()}</div>
-    <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>
-    <div class="card"><h3>📚 Предметы ученика «${esc(S.name)}»</h3>
-      <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется — их можно включить обратно.</p>
-      ${Object.keys(SUBJ_META).map(k => `<label class="subjopt"><input type="checkbox" data-so="${k}" ${subjOn(k) ? 'checked' : ''}> ${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</label>`).join('')}
-      <p id="som"></p></div>
-    <div class="card"><h3>🧘 Спокойный фокус для «${esc(S.name)}»</h3>
-      <p>Режим для детей, которым трудно удерживать внимание (например, при СДВГ). Включается отдельно для каждого ученика.</p>
-      <button class="btn small ${S.focus ? 'red' : 'gold'}" id="focus">${S.focus ? '🧘 Спокойный фокус: ВКЛ (нажмите, чтобы выключить)' : 'Включить спокойный фокус'}</button>
-      <p><small>Что меняется: задания идут короткими блоками (не больше 5 подряд); каждые 1,5–2 минуты — минутка движения; без мигающих анимаций и серий «🔥»; звуки тише; вверху крупная полоска «где я в уроке»; полоса оставшегося времени (если включён таймер); если ребёнок надолго замер над заданием, игра мягко напоминает про подсказку. Это игровая помощь в учёбе, а не лечение: основное — рекомендации вашего врача и психолога.</small></p></div>
-
-    <div class="card"><h3>🎯 Что подтянуть: «${esc(S.name)}»</h3>
-      <p>Впишите темы, которые советуют подтянуть учитель, врач или психолог (по одной-двум фразам на предмет). Игра добавит эти темы в «Тренировку» и в задания дня. Пример: «таблица умножения», «безударные гласные», «времена года».</p>
-      ${[['math', 'Математика'], ['ru', 'Русский язык'], ['eng', 'Английский'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО']].map(([k, n]) => `<p>${n}: <input type="text" data-wi="${k}" maxlength="120" placeholder="например: ${k === 'math' ? 'умножение, задачи на время' : k === 'ru' ? 'безударные гласные, словарные слова' : k === 'eng' ? 'цвета, числа, to be' : k === 'ow' ? 'времена года, части растения' : 'цветовой круг'}" value="${esc(((S.wish || []).find(x => x.subj === k) || {}).text || '')}"></p>`).join('')}</div>
-    <div class="card"><h3>📊 Недели «${esc(S.name)}»: время и точность</h3>${weekHtml()}</div>
-    <div class="card"><h3>📈 Когда «${esc(S.name)}» занимается лучше всего</h3>${concHtml()}</div>
-    <div class="card"><h3>📅 «Мой день» для «${esc(S.name)}»</h3>
-      <p>Утренний и вечерний план в картинках: ребёнок отмечает сделанное, за весь план — 5 💎. Снимите галочки с лишних пунктов или добавьте свои.</p>
-      <button class="btn small ${S.plan && S.plan.on ? 'red' : 'gold'}" id="pln">${S.plan && S.plan.on ? '📅 «Мой день»: ВКЛ (нажмите, чтобы выключить)' : 'Включить «Мой день»'}</button>
-      ${['morning', 'evening'].map(pt => `<h4>${pt === 'morning' ? '🌅 Утро' : '🌙 Вечер'}</h4>${PLAN_DEF[pt].map(x => `<label class="subjopt"><input type="checkbox" data-ph="${x[0]}" ${!((S.plan || {}).hide || {})[x[0]] ? 'checked' : ''}> ${x[1]} ${x[2]}</label>`).join('')}${((S.plan || {}).own || []).filter(o => o.part === pt).map(o => `<label class="subjopt">${o.e || '✅'} ${esc(o.t)} <button class="btn small sec" data-pdel="${o.id}">✖</button></label>`).join('')}`).join('')}
-      <p>Добавить пункт: <select id="pnp"><option value="morning">Утро</option><option value="evening">Вечер</option></select> <input type="text" id="pne" maxlength="2" style="width:3em" placeholder="🙂"> <input type="text" id="pnt" maxlength="40" placeholder="Что сделать"> <button class="btn small gold" id="pna">Добавить</button></p></div>
-    <div class="card"><h3>⏰ Таймер игры</h3>
-      <p>Ограничивает время в день на этом устройстве. Когда время выйдет, ребёнок доделает текущее упражнение, а при выходе из него программа закроется и откроется только по вашему паролю.</p>
-      <button class="btn small ${TM.on ? 'red' : 'gold'}" id="tmon">${TM.on ? '⏰ Таймер: ВКЛ (нажмите, чтобы выключить)' : 'Включить таймер'}</button>
-      <p>Времени в день: <select id="tmmin" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${[10, 15, 20, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${TM.min === n ? 'selected' : ''}>${n} мин</option>`).join('')}</select></p>
-      <p>Сегодня использовано: <b>${Math.round(TM.used / 60)}</b> мин из ${TM.min + (TM.extra || 0)}. <button class="btn small sec" id="tmrs">Обнулить сегодня</button></p>
-      <p><small>Считается только время, пока ребёнок что-то нажимает; когда вкладка закрыта или он отошёл, время стоит. Настройки таймера хранятся на этом устройстве.</small></p>
-      <hr><h3>🔑 Пароль родителей</h3><p>Сейчас: ${/^\d{4}$/.test(getPin()) ? 'PIN-код из 4 цифр' : 'пароль'}. Можно задать любой свой — от 4 до 20 знаков.</p>
-      <button class="btn small" id="chpin">Сменить пароль</button></div>
-    <div class="card"><h3>Настройки</h3>
+    <div class="card"><h3>📷 Фото учебников</h3>${booksHtml()}</div>`;
+  // --- настройки ---
+  sec.set = `<div class="card"><h3>🔊 Озвучка</h3>
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
-      <p>Скорость речи робота: <select id="rt" style="font:inherit;font-size:1.1rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">
-        ${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
-      <button class="btn small" id="dgp">🔎 Разведка (определить уровень)</button>
-      <button class="btn small ${S.strict ? 'red' : ''}" id="strict">${S.strict ? '🔒 Строгий режим: ВКЛ (без подсказок и щита)' : 'Строгий режим: выкл'}</button>
+      <p>Скорость речи робота: <select id="rt" style="${sel}">${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
       <button class="btn small ${S.onlineTts ? 'red' : ''}" id="otts">${S.onlineTts ? '🌐 Озвучка через интернет: ВКЛ' : 'Озвучка через интернет: выкл'}</button>
-      <p><small>Включайте, только если на устройстве нет голоса для английского или итальянского. Слова озвучиваются онлайн-сервисом Google, нужен интернет.</small></p>
-      <button class="btn small gold" id="ua">${S.unlockAll ? 'Закрыть уроки по порядку' : 'Открыть все уроки'}</button>
-      <button class="btn small red" id="rs">Сбросить всё</button>
-      <p id="vm"></p>
-      <p>Копия прогресса (скопируйте текст, чтобы перенести на планшет, и вставьте там):</p>
-      <textarea id="ex">${JSON.stringify(S)}</textarea>
-      <button class="btn small" id="im">Загрузить из текста</button></div>`;
-  $('bk').onclick = map;
-  $('rpt').onclick = weeklyReport;
-  $('frp').onclick = familyReport;
-  if ($('sch')) $('sch').onchange = () => { S.schoolChild = $('sch').value; save(); parent(); };
-  if ($('dpar')) $('dpar').onclick = () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; };
-  $('strict').onclick = () => { S.strict = !S.strict; save(); parent(); };
-  $('otts').onclick = () => { S.onlineTts = !S.onlineTts; save(); parent(); };
+      <p><small>Включайте, только если на устройстве нет голоса для английского или итальянского. Слова озвучиваются онлайн-сервисом Google, нужен интернет.</small></p><p id="vm"></p></div>
+    <div class="card"><h3>💾 Копия прогресса</h3>
+      <details><summary>Перенести прогресс вручную (без облака)</summary><p>Скопируйте текст и вставьте его на другом устройстве:</p><textarea id="ex">${esc(JSON.stringify(S))}</textarea><button class="btn small" id="im">Загрузить из текста</button></details></div>
+    <div class="card"><h3>⚠️ Сброс</h3><button class="btn small red" id="rs">Сбросить весь прогресс игрока «${nm}»</button></div>`;
+
+  app.innerHTML = `<div class="card ptop"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🔒 Для родителей: ${nm}</h2>
+      <div class="ptabs">${PARENT_TABS.map(([k, e, n]) => `<button class="ptab ${k === parentTab ? 'on' : ''}" data-tab="${k}">${e} ${n}</button>`).join('')}</div></div>${sec[parentTab]}`;
+  window.scrollTo(0, 0);
+  const on = (id, fn, ev = 'onclick') => { const e = $(id); if (e) e[ev] = fn; };
+  app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => parent(b.dataset.tab));
+  app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => parent(b.dataset.go));
+  on('bk', map);
+  on('rpt', weeklyReport);
+  on('frp', familyReport);
+  on('sch', () => { S.schoolChild = $('sch').value; save(); parent(); }, 'onchange');
+  on('dpar', () => { try { sessionStorage.setItem('school-off:edit', String(Date.now())); } catch (e) {} location.href = 'school/index.html'; });
+  on('strict', () => { S.strict = !S.strict; save(); parent(); });
+  on('otts', () => { S.onlineTts = !S.onlineTts; save(); parent(); });
   app.querySelectorAll('[data-so]').forEach(c => c.onchange = () => {
     S.off = S.off || {}; S.off[c.dataset.so] = !c.checked;
     if (!Object.keys(SUBJ_META).some(subjOn)) { S.off[c.dataset.so] = false; c.checked = true; $('som').textContent = 'Должен остаться хотя бы один предмет.'; return; }
     if (!subjOn(S.subj)) S.subj = Object.keys(SUBJ_META).find(subjOn);
     save(); $('som').textContent = 'Сохранено ✅';
   });
-  $('pln').onclick = () => { S.plan = S.plan || {}; S.plan.on = !S.plan.on; save(); parent(); };
+  on('pln', () => { S.plan = S.plan || {}; S.plan.on = !S.plan.on; save(); parent(); });
   app.querySelectorAll('[data-ph]').forEach(c => c.onchange = () => { S.plan = S.plan || {}; S.plan.hide = S.plan.hide || {}; S.plan.hide[c.dataset.ph] = !c.checked; save(); });
   app.querySelectorAll('[data-pdel]').forEach(b => b.onclick = () => { S.plan.own = (S.plan.own || []).filter(o => o.id !== b.dataset.pdel); save(); parent(); });
-  $('pna').onclick = () => { const tx = $('pnt').value.replace(/[<>&"]/g, '').trim(); if (!tx) return; S.plan = S.plan || {}; S.plan.own = (S.plan.own || []).concat({ id: 'o' + Date.now().toString(36), part: $('pnp').value, e: $('pne').value.trim() || '✅', t: tx }); save(); parent(); };
-  app.querySelectorAll('[data-wi]').forEach(i => i.oninput = () => { S.wish = (S.wish || []).filter(x => x.subj !== i.dataset.wi); if (i.value.trim()) S.wish.push({ subj: i.dataset.wi, text: i.value.trim() }); save(); });
-  $('focus').onclick = () => { S.focus = !S.focus; save(); applyTheme(); parent(); };
-  $('tmon').onclick = () => { TM.on = !TM.on; tmRoll(); tmNoted = false; tmWarn = false; tmSave(); parent(); };
-  $('tmmin').onchange = e => { TM.min = +e.target.value; tmNoted = false; tmWarn = false; tmSave(); parent(); };
-  $('tmrs').onclick = () => { TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); parent(); };
-  $('chpin').onclick = () => {
+  on('pna', () => { const tx = $('pnt').value.replace(/[<>&"]/g, '').trim(); if (!tx) return; S.plan = S.plan || {}; S.plan.own = (S.plan.own || []).concat({ id: 'o' + Date.now().toString(36), part: $('pnp').value, e: $('pne').value.trim() || '✅', t: tx }); save(); parent(); });
+  app.querySelectorAll('[data-wi]').forEach(i => i.oninput = () => { S.wish = (S.wish || []).filter(x => x.subj !== i.dataset.wi); if (i.value.trim()) S.wish.push({ subj: i.dataset.wi, text: i.value.trim() }); save(); if ($('wim')) $('wim').textContent = 'Сохранено ✅'; });
+  on('focus', () => { S.focus = !S.focus; save(); applyTheme(); parent(); });
+  on('tmon', () => { TM.on = !TM.on; tmRoll(); tmNoted = false; tmWarn = false; tmSave(); parent(); });
+  on('tmmin', e => { TM.min = +e.target.value; tmNoted = false; tmWarn = false; tmSave(); parent(); }, 'onchange');
+  on('tmrs', () => { TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); parent(); });
+  on('chpin', () => {
     app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Назад</button><h2>🔑 Новый пароль</h2><div id="pbox"></div></div>`;
-    $('bk').onclick = parent; pinForm($('pbox'), () => { toast('Пароль сохранён ✅'); parent(); });
-  };
-  $('clp').onclick = () => cloudScreen(parent);
+    $('bk').onclick = () => parent(); pinForm($('pbox'), () => { toast('Пароль сохранён ✅'); parent(); });
+  });
+  on('clp', () => cloudScreen(() => parent()));
   booksInit();
-  $('rt').onchange = e => { S.rate = +e.target.value; save(); speak('Hello! I am a robot.'); };
+  on('rt', e => { S.rate = +e.target.value; save(); speak(LNOW === LANGINFO.it ? 'Ciao! Sono un robot.' : 'Hello! I am a robot.'); }, 'onchange');
   app.querySelectorAll('[data-pz]').forEach(i => i.oninput = () => { S.prizes[+i.dataset.pz].text = i.value; save(); });
   const vstat = () => {
+    if (!$('vm')) return;
     let list = ''; try { list = speechSynthesis.getVoices().map(v => v.name + ' (' + v.lang + ')').join('; '); } catch (e) {}
     $('vm').innerHTML = hasEnVoice()
       ? '✅ Голос найден (' + LN().adj + '): ' + esc(enVoice ? enVoice.name : '') + '. Если звука нет — проверьте громкость.'
-      : '❌ Голос для языка «' + LN().adj + '» не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом (там есть «Google US English») или установите английский голос в настройках системы.';
+      : '❌ Голос для языка «' + LN().adj + '» не найден' + (list ? ' (есть только: ' + esc(list) + ')' : '') + '. Слова читаются русским голосом и звучат непонятно. Откройте игру в Google Chrome с интернетом или установите голос этого языка в настройках системы (Windows: Параметры → Время и язык → Язык → Добавить язык).';
   };
   vstat();
-  $('vc').onclick = () => { speak('Hello! I am a robot.'); vstat(); };
-  $('dgp').onclick = diagIntro;
-  $('ua').onclick =() => { S.unlockAll = !S.unlockAll; save(); parent(); };
-  $('rs').onclick = () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } };
-  $('im').onclick = () => {
+  on('vc', () => { speak(LNOW === LANGINFO.it ? 'Ciao! Sono un robot.' : 'Hello! I am a robot.'); vstat(); });
+  on('dgp', diagIntro);
+  on('ua', () => { S.unlockAll = !S.unlockAll; save(); parent(); });
+  on('rs', () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } });
+  on('im', () => {
     try { S = Object.assign(defState(), JSON.parse($('ex').value)); save(); applyTheme(); toast('Прогресс загружен ✅'); map(); }
     catch (e) { toast('Не получилось прочитать текст ❌'); }
-  };
+  });
 }
 
 /* ---------- награды и ачивки ---------- */
@@ -8175,6 +8201,7 @@ const ACH = [
 const tierOf = a => (a.r >= 25 ? 'gold' : a.r >= 10 ? 'silver' : 'bronze');
 
 function checkAch() {
+  if (tmLocked || tmFree || (tmInLesson && $('msg'))) return; // не всплываем поверх задания, экрана родителей или замка — проверим при следующем заходе на карту
   S.maxEm = Math.max(S.maxEm || 0, S.emeralds);
   const got = [];
   ACH.forEach(a => {
@@ -8404,7 +8431,7 @@ function familyReport() {
     <div class="card"><h2>📊 Семейный отчёт</h2><p>${fmtDate(days[0])} — ${fmtDate(t0)}. Открывайте раз в неделю, например в воскресенье вечером.</p></div>${cards}
     <div class="card noprint"><button class="btn small" id="cp">📋 Скопировать</button>${navigator.share ? '<button class="btn small gold" id="sh">📤 Отправить</button>' : ''}<a class="btn small" id="ml" href="mailto:?subject=${encodeURIComponent('Семейный отчёт за неделю')}&body=${encodeURIComponent(text)}">✉️ Письмом</a><button class="btn small sec" id="pr">🖨 Печать</button>
       <textarea id="rt" readonly>${esc(text)}</textarea></div>`;
-  $('bk').onclick = parent;
+  $('bk').onclick = () => parent();
   $('cp').onclick = () => { const t = $('rt'); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) { document.execCommand('copy'); } toast('Скопировано'); };
   if ($('sh')) $('sh').onclick = () => navigator.share({ title: 'Семейный отчёт за неделю', text }).catch(() => {});
   $('pr').onclick = () => window.print();
@@ -8468,7 +8495,7 @@ function weeklyReport() {
       <p><small>Статистика копится с момента обновления игры; время считается по касаниям экрана.</small></p></div>
     <div class="card noprint"><button class="btn small" id="cp">📋 Скопировать отчёт текстом</button><button class="btn small sec" id="pr">🖨 Печать</button>
       <textarea id="rt" readonly>${text}</textarea></div>`;
-  $('bk').onclick = parent;
+  $('bk').onclick = () => parent();
   $('pr').onclick = () => window.print();
   $('cp').onclick = () => {
     const ta = $('rt'); ta.select();
