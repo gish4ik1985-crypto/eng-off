@@ -1259,7 +1259,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
-  const extra = skind() === 'math' ? '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
+  const extra = skind() === 'math' ? '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button><button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'ru' || skind() === 'ow' ? '<button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -1274,6 +1274,7 @@ function map() {
   if ($('gal')) $('gal').onclick = izoGallery;
   $('trn').onclick = isGen() ? mathTraining : training;
   if ($('more')) $('more').onclick = more;
+  if ($('srt')) $('srt').onclick = () => sortGame(skind());
   if ($('col')) $('col').onclick = () => colGame(); if ($('tfm')) $('tfm').onclick = () => tfGame('math');
   if ($('dict')) $('dict').onclick = () => dictScreen(map);
   $('play').onclick = () => {
@@ -2614,12 +2615,274 @@ function colGame(size) {
   });
 }
 
+/* ---------- общий финал для мини-игр ---------- */
+function gameEnd(ctx, title, line, em, again, backTo) {
+  S.emeralds += em; S.petXp += 1; addXp(2 + ctx.ok); save(); sfx('win');
+  app.innerHTML = `<div class="card center"><h1>${title}</h1><p>${line}</p><p class="chip">+${em} 💎</p>
+    <p><button class="btn gold" id="ag">Ещё раз</button><button class="btn sec" id="mo">${backTo === map ? '🗺️ На карту' : '📚 Ещё'}</button></p></div>`;
+  $('ag').onclick = again; $('mo').onclick = backTo;
+}
+const langPool = (min, ok) => { // пройденные слова (или первые уроки), подходящие под условие
+  let p = practiceWords().filter(id => WORDS[id] && ok(WORDS[id]));
+  if (p.length < min) p = [...new Set(p.concat(Object.keys(WORDS).filter(id => ok(WORDS[id]))))].slice(0, Math.max(min, 12));
+  return p;
+};
+
+/* ---------- «Лови слово»: падают слова, ловим перевод ---------- */
+function catchGame() {
+  if (tmGate()) return; tmInLesson = true;
+  const pool = langPool(6, w => w.e && w.en.length <= 12);
+  if (pool.length < 4) { toast('Сначала пройди пару уроков'); return more(); }
+  const calm = !!S.focus, LIMIT = 60, GOAL = 12;
+  let target = '', score = 0, hearts = 5, endAt = 0, spawnT = 0, tickT = 0, over = false, live = 0;
+  const ctx = { L: { id: 'catch', icon: '🫧', title: 'Лови слово' }, asked: 0, ok: 0 };
+  const step = cb => {
+    frame(ctx, `<div class="card center catchcard">
+      <div class="tftop">${calm ? `<div class="prog">${Array.from({ length: GOAL }, () => '<i></i>').join('')}</div>` : '<div class="bar tfbar"><i id="tft"></i></div>'}<span class="chip">⭐ <b id="csc">0</b></span>${calm ? '' : '<span class="chip" id="chs">❤️❤️❤️❤️❤️</span>'}</div>
+      <div class="ctarget" id="ctg"></div>
+      <div class="arena" id="ar"></div><div id="msg" class="msg">Лови пузырь с нужным словом, остальные пропускай 🙂</div></div>`);
+    live = screenId;
+    const ar = $('ar'), H = () => ar.clientHeight;
+    const pick = () => { let n; do n = pool[Math.floor(Math.random() * pool.length)]; while (n === target && pool.length > 1); target = n; const w = WORDS[n]; $('ctg').innerHTML = `Лови: <span class="ce">${w.e}</span> <b>${esc(w.ru)}</b>`; };
+    const finish = () => { if (over) return; over = true; clearInterval(tickT); clearTimeout(spawnT); ar.querySelectorAll('.bub2').forEach(x => x.remove()); setTimeout(cb, 600); };
+    const lose = why => {
+      if (calm) { $('msg').textContent = why; return; }
+      hearts--; $('chs').textContent = '❤️'.repeat(Math.max(0, hearts)) + '🤍'.repeat(5 - Math.max(0, hearts)); $('msg').textContent = why;
+      if (hearts <= 0) { $('msg').textContent = 'Сердечки закончились — отличная попытка!'; finish(); }
+    };
+    const spawn = () => {
+      if (over || screenId !== live) return;
+      const want = Math.random() < .45 || !ar.querySelector(`[data-id="${target}"]`) && Math.random() < .6;
+      let id = target;
+      if (!want) { const others = pool.filter(x => x !== target && WORDS[x].e !== WORDS[target].e); id = others[Math.floor(Math.random() * others.length)]; }
+      const lane = Math.floor(Math.random() * 3), el = document.createElement('button');
+      el.className = 'bub2'; el.dataset.id = id; el.textContent = WORDS[id].en; ar.appendChild(el);
+      { const aw = ar.clientWidth, bw = el.offsetWidth; el.style.left = Math.min(aw - bw / 2 - 4, Math.max(bw / 2 + 4, aw * [.2, .5, .8][lane])) + 'px'; } // пузырь целиком внутри поля
+      const dur = Math.max(2600, (calm ? 7000 : 5200) - score * 120);
+      const a = el.animate([{ transform: 'translate(-50%,-70px)' }, { transform: `translate(-50%,${H() + 10}px)` }], { duration: dur, easing: 'linear', fill: 'forwards' });
+      a.onfinish = () => { if (!el.isConnected) return; el.remove(); if (!over && el.dataset.id === target && screenId === live) lose(`Упустил «${WORDS[target].en}» 😮`); };
+      el.onpointerdown = e => {
+        e.preventDefault(); if (over || el.classList.contains('hit')) return;
+        ctx.asked++;
+        if (el.dataset.id === target) {
+          el.classList.add('hit'); a.pause(); score++; ctx.ok++; logQ(true); sfx('ok'); speak(WORDS[target].en);
+          $('csc').textContent = score; $('msg').innerHTML = `${praise()} <b>${esc(WORDS[target].en)}</b> — ${esc(WORDS[target].ru)}`;
+          if (calm) { const ps = app.querySelectorAll('.prog i'); if (ps[score - 1]) ps[score - 1].className = 'd'; }
+          setTimeout(() => el.remove(), 300);
+          if (calm && score >= GOAL) return finish();
+          pick();
+        } else {
+          logQ(false); sfx('bad'); el.classList.add('miss'); setTimeout(() => el.classList.remove('miss'), 400);
+          lose(`Это «${WORDS[el.dataset.id].en}» — ${WORDS[el.dataset.id].ru}. А нужно: ${WORDS[target].ru}`);
+        }
+      };
+      spawnT = setTimeout(spawn, Math.max(700, (calm ? 1700 : 1300) - score * 30));
+    };
+    pick();
+    if (!calm) { endAt = Date.now() + LIMIT * 1000; tickT = setInterval(() => { if (screenId !== live) return clearInterval(tickT); const el = $('tft'); if (el) el.style.width = Math.max(0, (endAt - Date.now()) / (LIMIT * 1000) * 100) + '%'; if (Date.now() >= endAt) finish(); }, 200); }
+    spawn();
+  };
+  ctx.steps = [['Лови слово', step]];
+  runSteps(ctx, () => gameEnd(ctx, '🫧 Отличный улов!', `Поймано слов: <b>${score}</b>`, Math.min(10, Math.round(score * .7)), catchGame, more));
+}
+
+/* ---------- «Найди слова» (филворд): слова спрятаны по строкам и столбцам ---------- */
+function wsGame() {
+  if (tmGate()) return; tmInLesson = true;
+  const N = 8, ok = w => /^[a-z]{3,7}$/i.test(w.en);
+  const ids = [...new Set(sample(langPool(8, ok), 12))].filter((id, k, a) => a.findIndex(x => WORDS[x].en.toLowerCase() === WORDS[id].en.toLowerCase()) === k);
+  if (ids.length < 4) { toast('Сначала пройди пару уроков'); return more(); }
+  const grid = Array.from({ length: N }, () => Array(N).fill('')), placed = [];
+  for (const id of ids) {
+    if (placed.length >= 6) break;
+    const w = WORDS[id].en.toLowerCase();
+    for (let tr = 0; tr < 120; tr++) {
+      const down = Math.random() < .5, r = Math.floor(Math.random() * (down ? N - w.length + 1 : N)), c = Math.floor(Math.random() * (down ? N : N - w.length + 1));
+      const cells = [...w].map((_, k) => down ? [r + k, c] : [r, c + k]);
+      if (cells.every(([y, x], k) => !grid[y][x] || grid[y][x] === w[k])) { cells.forEach(([y, x], k) => { grid[y][x] = w[k]; }); placed.push({ id, w, cells }); break; }
+    }
+  }
+  const ABC = isIt() ? 'abcdefghilmnopqrstuvz' : 'abcdefghijklmnopqrstuvwxyz';
+  grid.forEach(row => row.forEach((v, x) => { if (!v) row[x] = ABC[Math.floor(Math.random() * ABC.length)]; }));
+  const ctx = { L: { id: 'ws', icon: '🔍', title: 'Найди слова' }, asked: 0, ok: 0 };
+  const step = cb => {
+    frame(ctx, `<div class="card center"><h3>🔍 Найди слова в сетке</h3><p class="wshint">Проведи пальцем по буквам слова — или нажми на первую и последнюю букву. Слова идут вправо ➡️ и вниз ⬇️</p>
+      <div class="wsl">${placed.map((p, k) => `<span class="wsw" data-k="${k}">${WORDS[p.id].e} ${esc(p.w)}</span>`).join('')}</div>
+      <div class="wsg" id="wsg" style="--n:${N}">${grid.map((row, y) => row.map((ch, x) => `<span class="wsc" data-y="${y}" data-x="${x}">${ch}</span>`).join('')).join('')}</div>
+      <div id="msg" class="msg">&nbsp;</div><p><button class="btn small sec" id="wsh">💡 Подсказка</button></p></div>`);
+    const gEl = $('wsg'), cellAt = (y, x) => gEl.querySelector(`[data-y="${y}"][data-x="${x}"]`);
+    let start = null, anchor = null, sel = [], found = 0, hints = 0;
+    const line = (a, b) => {
+      if (a.y === b.y) { const s = Math.sign(b.x - a.x) || 1; return Array.from({ length: Math.abs(b.x - a.x) + 1 }, (_, k) => ({ y: a.y, x: a.x + k * s })); }
+      if (a.x === b.x) { const s = Math.sign(b.y - a.y) || 1; return Array.from({ length: Math.abs(b.y - a.y) + 1 }, (_, k) => ({ y: a.y + k * s, x: a.x })); }
+      return null;
+    };
+    const show = cells => { gEl.querySelectorAll('.wsc.sel').forEach(c => c.classList.remove('sel')); (cells || []).forEach(p => cellAt(p.y, p.x).classList.add('sel')); };
+    const pos = el => el && el.classList.contains('wsc') ? { y: +el.dataset.y, x: +el.dataset.x } : null;
+    const check = cells => {
+      show(null); if (!cells || cells.length < 2) return false;
+      const s = cells.map(p => grid[p.y][p.x]).join(''), key = cells.map(p => p.y + ',' + p.x);
+      const k = placed.findIndex(p => !p.done && (s === p.w || [...s].reverse().join('') === p.w) && p.cells.every(([y, x]) => key.includes(y + ',' + x)));
+      if (k < 0) { if (cells.length >= 3) { sfx('bad'); $('msg').textContent = `«${s}» — такого слова в списке нет. Ищи ещё!`; } return true; }
+      const p = placed[k]; p.done = true; found++; ctx.asked++; ctx.ok++; logQ(true); sfx('ok'); speak(p.w);
+      p.cells.forEach(([y, x]) => cellAt(y, x).classList.add('f', 'f' + (k % 6)));
+      app.querySelector(`.wsw[data-k="${k}"]`).classList.add('done');
+      $('msg').innerHTML = `${praise()} <b>${esc(p.w)}</b> — ${esc(WORDS[p.id].ru)}`;
+      if (found >= placed.length) setTimeout(cb, 1500);
+      return true;
+    };
+    gEl.onpointerdown = e => {
+      const p = pos(e.target.closest('.wsc')); if (!p) return; e.preventDefault();
+      start = p; sel = [p]; show(sel);
+    };
+    gEl.onpointermove = e => {
+      if (!start) return;
+      const p = pos(document.elementFromPoint(e.clientX, e.clientY)); if (!p) return;
+      const l = line(start, p); if (l) { sel = l; show(sel); }
+    };
+    const up = () => {
+      if (!start) return; const cells = sel; start = null;
+      if (cells.length >= 2) { anchor = null; check(cells); return; }
+      // нажатие на одну букву: первая — запомнили, вторая — слово от первой до второй
+      if (!anchor) { anchor = cells[0]; show([anchor]); $('msg').textContent = 'Теперь нажми на последнюю букву слова'; return; }
+      const l = line(anchor, cells[0]); anchor = null;
+      if (!l) { show(null); $('msg').textContent = 'Слово должно идти по строке или по столбцу'; return; }
+      check(l);
+    };
+    gEl.onpointerup = up; gEl.onpointercancel = () => { start = null; show(null); };
+    $('wsh').onclick = () => {
+      const p = placed.find(x => !x.done); if (!p) return; hints++;
+      const [y, x] = p.cells[0], c = cellAt(y, x); c.classList.add('hl'); setTimeout(() => c.classList.remove('hl'), 2500);
+      $('msg').textContent = `💡 Слово «${p.w}» начинается здесь`;
+    };
+  };
+  ctx.steps = [['Найди слова', step]];
+  runSteps(ctx, () => gameEnd(ctx, '🔍 Все слова найдены!', `Слов: ${ctx.ok}`, Math.min(8, 2 + ctx.ok), wsGame, more));
+}
+
+/* ---------- «Разложи по корзинам» ---------- */
+function sortGame(kind) {
+  if (tmGate()) return; tmInLesson = true;
+  const lang = kind === 'lang', back = lang ? more : map;
+  let title, baskets, items;
+  if (lang) {
+    const by = new Map();
+    Object.keys(WORDS).forEach(id => { const w = WORDS[id], c = w.e && sortCatOf(w.ru); if (c) { if (!by.has(c)) by.set(c, []); by.get(c).push(id); } });
+    const known = new Set(practiceWords());
+    const cats = shuffle([...by.keys()].filter(c => by.get(c).length >= 4)).sort((a, b) => by.get(b).filter(x => known.has(x)).length - by.get(a).filter(x => known.has(x)).length).slice(0, 4);
+    const two = shuffle(cats).slice(0, 2);
+    if (two.length < 2) { toast('Сначала пройди пару уроков'); return more(); }
+    title = 'Разложи слова по корзинам'; baskets = two.map(c => [c.n, c.e]);
+    items = shuffle(two.flatMap((c, k) => sample(by.get(c).sort((a, b) => known.has(b) - known.has(a)).slice(0, 8), 5).map(id => ({ html: `<span class="se">${WORDS[id].e}</span><b>${esc(WORDS[id].en)}</b>`, say: WORDS[id].en, b: k, why: `${WORDS[id].en} — ${WORDS[id].ru}` }))));
+  } else {
+    const set = SORT_SETS[kind][Math.floor(Math.random() * SORT_SETS[kind].length)];
+    title = set.t; baskets = set.b;
+    const raw = set.gen ? Array.from({ length: 10 }, set.gen) : sample(set.w, Math.min(10, set.w.length));
+    items = raw.map(([s, b]) => { const txt = set.strip ? s.split(set.strip).join('') : s; return { html: `<b>${esc(txt)}</b>`, b, why: set.strip ? s : '' }; });
+  }
+  const ctx = { L: { id: 'sort_' + kind, icon: '🧺', title: 'Разложи' }, asked: 0, ok: 0 };
+  const step = cb => {
+    let i = 0, tries = 0;
+    frame(ctx, `<div class="card center"><h3>🧺 ${esc(title)}</h3><div class="prog" id="sp">${items.map(() => '<i></i>').join('')}</div>
+      <div class="scard" id="sc"></div><div class="baskets b${baskets.length}">${baskets.map(([n, e], k) => `<button class="basket" data-b="${k}"><span class="be">${e}</span><span class="bn">${esc(n)}</span><span class="bin" id="bin${k}"></span></button>`).join('')}</div>
+      <div id="msg" class="msg">Нажми на корзину, куда положить карточку</div></div>`);
+    const my = screenId;
+    const show = () => {
+      if (i >= items.length) return setTimeout(cb, 700);
+      tries = 0; const it = items[i]; $('sc').innerHTML = it.html; $('sc').className = 'scard in'; if (it.say) speak(it.say);
+      app.querySelectorAll('.basket').forEach(b => b.classList.remove('hint', 'bad'));
+    };
+    app.querySelectorAll('.basket').forEach(bt => bt.onclick = () => {
+      if (screenId !== my || i >= items.length || $('sc').classList.contains('go')) return;
+      const it = items[i], k = +bt.dataset.b;
+      if (k === it.b) {
+        ctx.asked++; if (!tries) ctx.ok++; logQ(!tries); sfx('ok');
+        const mini = document.createElement('span'); mini.innerHTML = it.html; $('bin' + k).appendChild(mini);
+        $('sc').className = 'scard go'; app.querySelectorAll('#sp i')[i].className = 'd';
+        $('msg').innerHTML = it.why ? `${praise()} <small>${esc(it.why)}</small>` : praise();
+        i++; setTimeout(() => { if (screenId === my) show(); }, 450);
+      } else {
+        tries++; sfx('bad'); bt.classList.add('bad'); setTimeout(() => bt.classList.remove('bad'), 450);
+        $('msg').textContent = tries >= 2 ? 'Подсказка: правильная корзина светится 💡' : 'Не сюда. Подумай ещё 💪';
+        if (tries >= 2) app.querySelector(`.basket[data-b="${it.b}"]`).classList.add('hint');
+      }
+    });
+    show();
+  };
+  ctx.steps = [['Разложи', step]];
+  runSteps(ctx, () => gameEnd(ctx, '🧺 Всё разложено!', `С первого раза: ${ctx.ok} из ${ctx.asked}`, Math.min(8, 1 + Math.round(ctx.ok * .7)), () => sortGame(kind), back));
+}
+
+/* ---------- «Какой звук?» (английский): первая буква и одинаковый звук ---------- */
+function phonGame() {
+  if (tmGate()) return; tmInLesson = true;
+  const has = id => WORDS[id] && WORDS[id].e;
+  const ipa = id => (typeof EN_TR !== 'undefined' && EN_TR[id]) || '';
+  // в группе — только слова, где звук действительно есть (по транскрипции)
+  const groups = PHONICS.map(gr => ({ ...gr, list: gr.list.filter(id => has(id) && ipa(id).includes(gr.s)) })).filter(gr => gr.list.length >= 3);
+  const noSound = (id, s) => ipa(id) && !ipa(id).includes(s.replace('ː', '')); // неверный вариант точно без этого звука (chicken не годится к pig)
+  const firsts = Object.keys(WORDS).filter(id => has(id) && /^[a-z]/.test(WORDS[id].en) && !PHON_SKIP.has(id) && WORDS[id].en.length <= 9);
+  if (groups.length < 3 || firsts.length < 6) { toast('Это упражнение для английского'); return more(); }
+  const qs = Array.from({ length: 8 }, (_, k) => {
+    if (k % 2 === 0) {
+      const id = firsts[Math.floor(Math.random() * firsts.length)], L0 = WORDS[id].en[0].toLowerCase();
+      const pool = [...'bcdfghjklmnprstvwyz' + 'aeiou'].filter(c => c !== L0);
+      return { kind: 'first', id, ans: L0, opts: shuffle([L0, ...sample(pool, 2)]) };
+    }
+    const gr = groups[Math.floor(Math.random() * groups.length)], key = gr.list[0];
+    const right = sample(gr.list.filter(x => x !== key), 1)[0];
+    const others = shuffle([...new Set(groups.filter(o => o !== gr).flatMap(o => o.list))].filter(x => !gr.list.includes(x) && noSound(x, gr.s))).slice(0, 2);
+    return { kind: 'sound', gr, key, ans: right, opts: shuffle([right, ...others]) };
+  });
+  const ctx = { L: { id: 'phon', icon: '🔤', title: 'Какой звук?' }, asked: 0, ok: 0 };
+  const step = cb => {
+    let i = 0;
+    const ask = () => {
+      if (i >= qs.length) return cb();
+      const q = qs[i]; let tries = 0, locked = false;
+      const head = `<div class="prog">${qs.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+      if (q.kind === 'first') {
+        const w = WORDS[q.id];
+        frame(ctx, `<div class="card center">${head}<h3>🔤 С какой буквы начинается слово?</h3><div class="bigemoji">${w.e}</div>
+          <div class="en" id="pw">? ${'_ '.repeat(w.en.length - 1)}</div><p><button class="btn sec" id="pl">🔊 Послушать</button></p>
+          <div class="opts phl">${q.opts.map(c => `<button class="opt" data-v="${c}"><span class="ot">${c}</span></button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+        $('pl').onclick = () => speak(w.en); speak(w.en, 300);
+      } else {
+        frame(ctx, `<div class="card center">${head}<h3>👂 Найди слово с таким же звуком</h3>
+          <p class="phkey"><span class="ce">${WORDS[q.key].e}</span> <b>${esc(WORDS[q.key].en)}</b> — звук <b class="phs">[${q.gr.s}]</b><br><small>${esc(q.gr.hint)}</small></p>
+          <p><button class="btn sec" id="pl">🔊 Послушать все</button></p>
+          <div class="opts see">${q.opts.map(id => `<button class="opt" data-v="${id}"><span class="oe">${WORDS[id].e}</span><span class="ot">${esc(WORDS[id].en)}</span>${trSmall(id)}</button>`).join('')}</div><div id="msg" class="msg">Нажми на картинку — робот прочитает слово</div></div>`);
+        const all = async () => { const my = screenId; for (const x of [q.key, ...q.opts]) { if (screenId !== my) return; await speakP(WORDS[x].en, .75); await new Promise(r => setTimeout(r, 250)); } };
+        $('pl').onclick = all; setTimeout(all, 300);
+      }
+      const my = screenId;
+      app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        if (locked) return;
+        const v = b.dataset.v; if (q.kind === 'sound') speak(WORDS[v].en);
+        if (v === q.ans) {
+          locked = true; b.classList.add('good'); ctx.asked++; if (!tries) ctx.ok++; logQ(!tries); sfx('ok');
+          if (q.kind === 'first') { $('pw').textContent = WORDS[q.id].en; speak(WORDS[q.id].en); $('msg').innerHTML = `${praise()} <b>${esc(WORDS[q.id].en)}</b> — ${esc(WORDS[q.id].ru)}`; }
+          else $('msg').innerHTML = `${praise()} В <b>${esc(WORDS[q.key].en)}</b> и <b>${esc(WORDS[v].en)}</b> один звук [${q.gr.s}]`;
+          i++; setTimeout(() => { if (screenId === my) ask(); }, 1800);
+        } else {
+          tries++; sfx('bad'); b.classList.add('bad'); b.disabled = true;
+          $('msg').textContent = q.kind === 'first' ? 'Послушай ещё раз первый звук 👂' : `В «${WORDS[v].en}» другой звук. Послушай ещё 👂`;
+          if (tries >= 2) { const r = app.querySelector(`.opt[data-v="${q.ans}"]`); if (r) r.classList.add('hint'); }
+        }
+      });
+    };
+    ask();
+  };
+  ctx.steps = [['Какой звук?', step]];
+  runSteps(ctx, () => gameEnd(ctx, '🔤 Ушки на макушке!', `С первого раза: ${ctx.ok} из ${ctx.asked}`, Math.min(8, 2 + ctx.ok), phonGame, more));
+}
+
 function more() {
   if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
-    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button><button class="btn" id="m6">🔗 Слова из слов</button><button class="btn" id="m7">✏️ Исправь ошибку</button><button class="btn" id="m8">🎤 Скажи сам</button><button class="btn" id="m9">⚡ Правда или нет?</button></div></div>`;
-  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more); $('m6').onclick = () => wordGame('comp'); $('m7').onclick = () => wordGame('typo'); $('m8').onclick = sayGame; $('m9').onclick = () => tfGame('word');
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button><button class="btn" id="m6">🔗 Слова из слов</button><button class="btn" id="m7">✏️ Исправь ошибку</button><button class="btn" id="m8">🎤 Скажи сам</button><button class="btn" id="m9">⚡ Правда или нет?</button><button class="btn" id="m10">🫧 Лови слово</button><button class="btn" id="m11">🔍 Найди слова</button><button class="btn" id="m12">🧺 Разложи</button>${isIt() ? '' : '<button class="btn" id="m13">🔤 Какой звук?</button>'}</div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more); $('m6').onclick = () => wordGame('comp'); $('m7').onclick = () => wordGame('typo'); $('m8').onclick = sayGame; $('m9').onclick = () => tfGame('word'); $('m10').onclick = catchGame; $('m11').onclick = wsGame; $('m12').onclick = () => sortGame('lang'); if ($('m13')) $('m13').onclick = phonGame;
 }
 const PIN_KEY = 'engAdventure_pin';
 // сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
