@@ -609,6 +609,10 @@ body.calm .bpet{animation:none}
 #buddy.inl .bbub{position:static;display:none;max-width:none;width:auto;min-width:0;font-size:.85rem;padding:5px 10px;border-radius:14px 4px 14px 14px;opacity:1;transform:none;transition:none}
 #buddy.inl .bbub.show{display:block;animation:pop .3s}
 .topline:has(#buddy.inl .bbub.show) .stepname{display:none}
+/* пауза для отдыха */
+.rsrow{border-top:2px dashed rgba(120,120,160,.25);padding-top:6px;margin-top:6px}
+.rsrow .btn.small{margin:3px}
+.rsmsg{font-size:1.25rem;font-weight:800;background:#fff7d6;border-radius:14px;padding:8px 12px;color:#5a3d00}
 
 </style>
 </head>
@@ -7264,7 +7268,7 @@ function players() {
   }).join('');
   app.innerHTML = `<div class="card top">${S.name ? '<button class="btn small sec" id="bk">⬅ Карта</button>' : ''}<div class="grow center"><h2>👤 Кто занимается?</h2></div></div>
     <div class="card"><div class="shop">${cards}<div class="item"><div class="ie">➕</div><b>Новый игрок</b><br><button class="btn small gold" id="np">Добавить</button></div></div>
-      <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button></p>
+      <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button>${cloudOn() ? ' <button class="btn small sec" id="rsg">😴 Пауза для отдыха (родителям)</button>' : ''}</p>
       <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. ${cloudOn() ? 'Прогресс синхронизируется с облаком.' : 'Данные хранятся на этом устройстве.'}</small></p></div>`;
   if ($('bk')) $('bk').onclick = map;
   const dupes = PR.list.filter(p => { const st = p.id === PR.cur ? S : loadState(p.key); return emptySt(st) && PR.list.some(q => q !== p && String(q.name).trim().toLowerCase() === String(p.name).trim().toLowerCase() && !emptySt(q.id === PR.cur ? S : loadState(q.key))); });
@@ -7284,6 +7288,7 @@ function players() {
   }
   { const my = screenId; cloudAuto().then(ch => { if (ch && screenId === my) players(); }); }
   $('cl').onclick = () => cloudScreen(players);
+  if ($('rsg')) $('rsg').onclick = () => parentGate('time');
   $('np').onclick = addPlayer;
   app.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => useProfile(b.dataset.pl));
   app.querySelectorAll('[data-ren]').forEach(b => b.onclick = () => {
@@ -7454,7 +7459,8 @@ async function cloudAutoRun() {
   let changed = false; autoOk = false;
   flushDel();
   try {
-    let raw = (await api('join', {})).players;
+    const jr = await api('join', {}); let raw = jr.players;
+    if (jr.pin && !getPin()) { try { localStorage.setItem(PIN_KEY, jr.pin); } catch (e) {} }
     if (raw.some(x => x.id === '__moved')) { // семья сменила код на другом устройстве — переходим следом
       const mv = await api('pull', { id: '__moved' }); const to = mv.state ? JSON.parse(mv.state).to : '';
       if (to && codeOk(to) && to !== CL.code) { CL.code = to; saveCL(); toast('☁️ Семейный код изменён на ' + to); raw = (await api('join', {})).players; }
@@ -9512,7 +9518,7 @@ const tmRoll = () => { if (TM.day !== today()) { TM.day = today(); TM.used = 0; 
 const tmLimit = () => (TM.min + (TM.extra || 0)) * 60;
 const tmUp = () => { tmRoll(); return !!TM.on && !!getPin() && TM.used >= tmLimit(); };
 // вызывается в начале экранов: если время вышло — закрываем программу (экран под замком не меняется)
-function tmGate() { if (!tmUp()) return false; tmShowLock(); return true; }
+function tmGate() { if (restNow()) { restShowLock(); return true; } if (!tmUp()) return false; tmShowLock(); return true; }
 function pinEntry(box, ok) {
   const have = getPin(), num = /^\d{4}$/.test(have); let cur = '';
   const draw = msg => {
@@ -9580,6 +9586,147 @@ function tmChip() {
   el.style.display = ''; el.textContent = '⏰ ' + (left > 0 ? m + ' мин' : 'время вышло'); el.classList.toggle('low', left <= 300);
   { const pc = S.focus ? Math.max(0, Math.min(100, Math.round(left / tmLimit() * 100))) : 0; el.style.background = S.focus ? `linear-gradient(90deg, ${left <= 300 ? '#ffb3a7' : '#c8f0d0'} ${pc}%, #fff ${pc}%)` : ''; }
 }
+/* ---------- пауза для отдыха: родитель включает её с любого устройства семьи (через облако) ---------- */
+// в облаке запись «__rest»: { L: { '*' (все дети) | cid игрока: { u: до какого момента (мс), m: сообщение ребёнку, at: когда поставлена } } }
+// на устройстве — последняя известная копия (пауза держится и без интернета, и после перезапуска)
+const RS_KEY = 'engAdventure_rest', RS_PDEV = 'engAdventure_parentDev', RS_FOREVER = 9e15;
+let RS = (() => { try { const r = JSON.parse(localStorage.getItem(RS_KEY)); if (r && r.L) return r; } catch (e) {} return { L: {} }; })();
+const rsSave = () => { try { localStorage.setItem(RS_KEY, JSON.stringify(RS)); } catch (e) {} };
+// устройство родителя: пауза на нём не включается (null — ещё не спрашивали)
+const rsParentDev = v => { try { if (v === undefined) { const x = localStorage.getItem(RS_PDEV); return x === null ? null : x === '1'; } localStorage.setItem(RS_PDEV, v ? '1' : '0'); } catch (e) {} return null; };
+let rsShown = false, rsGrace = 0, rsBusy = false, rsPolledAt = 0;
+const rsActive = x => x && x.u > Date.now() && (x.at || 0) > (RS.ovr || 0); // ovr — родитель снял паузу на этом устройстве без интернета
+// пауза, которая сейчас касается этого устройства и игрока (или null)
+function restNow() {
+  if (rsParentDev()) return null;
+  const p = curPlayer();
+  return ['*', p && p.cid].filter(Boolean).map(k => RS.L[k]).filter(rsActive).sort((a, b) => b.u - a.u)[0] || null;
+}
+const rsUntil = d => { const n = new Date(); return d === 'inf' ? RS_FOREVER : d === 'am' ? +new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 7, 0) : Date.now() + d * 60000; };
+const rsWhen = u => { if (u >= RS_FOREVER) return 'пока не разрешите'; const d = new Date(u), hm = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); return (d.toDateString() === new Date().toDateString() ? 'до ' : 'до завтра, ') + hm; };
+async function restPoll() {
+  if (!cloudOn() || rsBusy) return;
+  rsBusy = true;
+  try {
+    const r = await api('pull', { id: '__rest' }), ovr = RS.ovr;
+    RS = r.state ? JSON.parse(r.state) : { L: {} }; RS.L = RS.L || {}; if (ovr) RS.ovr = ovr;
+    rsSave(); rsPolledAt = Date.now(); restTick();
+  } catch (e) {}
+  rsBusy = false;
+}
+// записать паузу (val) или снять её (val = null) для ключей keys; extra — дополнительные изменения поверх
+async function restSet(keys, val, extra) {
+  const r = await api('pull', { id: '__rest' });
+  const cur = r.state ? JSON.parse(r.state) : { L: {} }; cur.L = cur.L || {};
+  keys.forEach(k => { if (val) cur.L[k] = val; else delete cur.L[k]; });
+  if (extra) extra(cur.L);
+  Object.keys(cur.L).forEach(k => { if (!(cur.L[k].u > Date.now())) delete cur.L[k]; }); // закончившиеся убираем
+  cur._ts = Date.now();
+  await api('push', { id: '__rest', name: '__rest', ts: cur._ts, state: JSON.stringify(cur) });
+  const ovr = RS.ovr; RS = cur; if (ovr) RS.ovr = ovr; rsSave(); rsPolledAt = Date.now();
+}
+const restHome = () => (S.name ? home() : PR.list.length ? players() : welcome());
+function restHide(ended) {
+  const ov = $('rslock'); if (ov) ov.remove();
+  rsShown = false; tmLocked = false; tmInLesson = false; rsGrace = 0;
+  if (ended) toast('🌞 Перерыв закончился — можно заниматься!');
+  restHome();
+}
+// раз в секунду: показать или убрать паузу
+function restTick() {
+  const r = restNow();
+  if (rsShown) { if (!r) restHide(true); return; }
+  if (!r) { rsGrace = 0; return; }
+  if (tmFree || tmLocked) return; // открыт экран родителей или уже закрыто таймером
+  if (tmInLesson && $('msg')) { // идёт задание — даём спокойно доделать (не дольше 2 минут)
+    if (!rsGrace) { rsGrace = Date.now() + 120000; toast('😴 Родители просят отдохнуть. Доделай это задание — и перерыв!'); }
+    if (Date.now() < rsGrace) return;
+  }
+  restShowLock();
+}
+function restShowLock() {
+  if (rsShown || tmLocked || !restNow()) return;
+  rsShown = true; tmLocked = true; hardStop(); budHide(); app.innerHTML = ''; // под замком ничего не видно; после паузы откроется главный экран
+  const ov = document.createElement('div'); ov.id = 'rslock'; ov.className = 'tmlock'; document.body.appendChild(ov);
+  const chip = $('tmchip'); if (chip) chip.style.display = 'none';
+  const kidStage = () => {
+    const r = restNow() || { u: 0 }, w = rsWhen(r.u); // «до 19:30» или «до завтра, 07:00»
+    ov.innerHTML = `<div class="card pinbox tmcard"><div class="bigem">😴</div><h2>Время отдохнуть!</h2>
+      ${r.m ? `<p class="rsmsg">💬 ${esc(r.m)}</p>` : '<p>Родители просят сделать перерыв.</p>'}
+      <p>${r.u >= RS_FOREVER ? 'Когда родители разрешат, игра откроется сама.' : `Игра откроется сама ${w.startsWith('до завтра') ? 'завтра в ' + w.slice(11) : 'в ' + w.slice(3)}.`}</p>
+      <p>Подвигайся, попей воды, поиграй с игрушками или выгляни в окно 🌤️</p>
+      <hr><p><button class="btn small sec" id="rsp">🔒 Для родителей</button></p></div>`;
+    $('rsp').onclick = pinStage;
+  };
+  const pinStage = () => {
+    ov.innerHTML = `<div class="card pinbox tmcard"><h2>🔒 Для родителей</h2><div id="lkbox"></div><p><button class="btn small sec" id="rsb">⬅ Назад</button></p></div>`;
+    $('rsb').onclick = kidStage;
+    if (getPin()) pinEntry($('lkbox'), okStage);
+    else $('lkbox').innerHTML = '<p>На этом устройстве ещё нет пароля родителей. Снимите паузу там, где её включили: «🔒 Родителям» → «⏰ Время и пароль».</p>';
+  };
+  const okStage = () => {
+    ov.innerHTML = `<div class="card pinbox tmcard"><h2>🔓 Родитель</h2>
+      <p><button class="btn gold" id="rso">▶️ Снять паузу — можно заниматься</button></p>
+      <p><button class="btn sec" id="rsd">📱 Это моё устройство — на нём паузу не включать</button></p>
+      <p class="pmsg" id="rsm">&nbsp;</p><p><button class="btn small sec" id="rsb">⬅ Назад</button></p></div>`;
+    $('rsb').onclick = kidStage;
+    $('rsd').onclick = () => { rsParentDev(true); toast('📱 Это устройство родителя: пауза на нём больше не включается'); restHide(); };
+    $('rso').onclick = async () => {
+      const p = curPlayer(), keys = ['*', p && p.cid].filter(Boolean);
+      $('rsm').textContent = 'Подождите…';
+      try {
+        const star = RS.L['*'];
+        // общую паузу для всех снимаем только с этого ребёнка: остальным дети её сохраняют
+        await restSet(keys, null, L => { if (rsActive(star) && p && p.cid) PR.list.filter(x => x.cid && x.cid !== p.cid).forEach(x => { if (!rsActive(L[x.cid])) L[x.cid] = star; }); });
+        toast('▶️ Пауза снята');
+      } catch (e) { RS.ovr = Date.now(); rsSave(); toast('📴 Нет связи с облаком — пауза снята только на этом устройстве'); }
+      restHide();
+    };
+  };
+  kidStage();
+}
+setInterval(restTick, 1000);
+setInterval(() => { if (document.visibilityState === 'visible') restPoll(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - rsPolledAt > 15000) restPoll(); });
+window.addEventListener('online', () => restPoll());
+// карточка для родителя (вкладка «Время и пароль»)
+function restCardHtml() {
+  if (!cloudOn()) return `<div class="card" id="rscard"><h3>😴 Пауза для отдыха — удалённо</h3><p>Чтобы включать паузу со своего телефона, подключите облако (семейный код) и на телефоне, и на планшете ребёнка.</p><button class="btn small gold" data-go="link">☁️ Настроить облако</button></div>`;
+  const kids = PR.list.filter(x => x.cid), all = RS.L['*'];
+  const row = (k, nm) => {
+    const own = RS.L[k], eff = [own, k === '*' ? null : all].filter(rsActive).sort((a, b) => b.u - a.u)[0];
+    return `<div class="rsrow"><p><b>${nm}</b> — ${eff ? `😴 отдыхает ${rsWhen(eff.u)}${!rsActive(own) ? ' <small>(пауза для всех)</small>' : ''}` : '✅ можно заниматься'}</p>
+      <p>${[[15, '15 мин'], [30, '30 мин'], [60, '1 час'], ['am', 'до утра'], ['inf', 'пока не разрешу']].map(([d, n]) => `<button class="btn small" data-rs="${k}|${d}">${n}</button>`).join('')}${eff ? `<button class="btn small gold" data-rsoff="${k}">▶️ Разрешить</button>` : ''}</p></div>`;
+  };
+  return `<div class="card" id="rscard"><h3>😴 Пауза для отдыха — удалённо</h3>
+    <p>Включите паузу с этого или любого другого устройства семьи — игра на планшете ребёнка закроется (текущее задание он спокойно доделает) и откроется сама, когда время выйдет или когда вы разрешите.</p>
+    <p>Сообщение ребёнку (необязательно): <input type="text" id="rsmsg" maxlength="80" placeholder="Например: Пора ужинать 🍲" value="${esc(RS.lastMsg || '')}"></p>
+    ${kids.length > 1 ? row('*', '👨‍👩‍👧 Все дети') : ''}${kids.map(x => row(x.cid, esc(x.name))).join('') || row('*', 'Все игроки')}
+    <p><label class="subjopt"><input type="checkbox" id="rsdev" ${rsParentDev() ? 'checked' : ''}> 📱 Это моё устройство (родителя) — на нём пауза не включается</label></p>
+    <p class="pmsg" id="rsst">&nbsp;</p>
+    <p><small>Пауза доходит до планшета в течение минуты, если на нём есть интернет. Без интернета планшет узнает о паузе, как только подключится. ${rsPolledAt ? 'Обновлено в ' + new Date(rsPolledAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) + '.' : ''}</small></p></div>`;
+}
+function restCardBind() {
+  if (!$('rscard')) return;
+  if (cloudOn() && Date.now() - rsPolledAt > 20000) { const my = screenId; restPoll().then(() => { if (screenId === my && $('rscard') && rsPolledAt) parent(); }); }
+  const busy = async (fn, ok) => { const st = $('rsst'); if (st) st.textContent = 'Подождите…'; try { await fn(); toast(ok); parent(); } catch (e) { if ($('rsst')) $('rsst').textContent = 'Не получилось: ' + String(e.message || e) + '. Проверьте интернет.'; } };
+  app.querySelectorAll('[data-rs]').forEach(b => b.onclick = () => {
+    const [k, d] = b.dataset.rs.split('|'), m = ($('rsmsg').value || '').replace(/[<>&"]/g, '').trim();
+    if (rsParentDev() === null && confirm('Это ваш телефон (а не планшет ребёнка)?\n\nОК — на этом устройстве игра не будет закрываться паузой.\nОтмена — это устройство ребёнка, пауза включится и здесь.')) rsParentDev(true);
+    else if (rsParentDev() === null) rsParentDev(false);
+    RS.lastMsg = m; rsSave();
+    const u = rsUntil(d === 'am' || d === 'inf' ? d : +d);
+    busy(() => restSet([k], { u, m, at: Date.now() }), `😴 Пауза включена: ${rsWhen(u)}`);
+  });
+  app.querySelectorAll('[data-rsoff]').forEach(b => b.onclick = () => {
+    const k = b.dataset.rsoff, star = RS.L['*'];
+    busy(() => restSet(k === '*' ? Object.keys(RS.L) : [k], null, L => {
+      if (k !== '*' && rsActive(star)) { delete L['*']; PR.list.filter(x => x.cid && x.cid !== k).forEach(x => { if (!rsActive(L[x.cid])) L[x.cid] = star; }); } // снимаем общую паузу только с этого ребёнка
+    }), '▶️ Пауза снята');
+  });
+  $('rsdev').onchange = e => { rsParentDev(e.target.checked); toast(e.target.checked ? '📱 На этом устройстве пауза не включается' : 'Пауза будет включаться и на этом устройстве'); };
+}
+
 /* ---------- полноэкранный режим (убирает вкладки и адресную строку браузера) ---------- */
 const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 const fsCan = () => { const e = document.documentElement; return !!(e.requestFullscreen || e.webkitRequestFullscreen); };
@@ -9672,14 +9819,14 @@ setInterval(() => {
 }, 1000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tmLast = Date.now(); if (!tmInLesson && tmUp()) tmShowLock(); } });
 
-function parentGate() {
+function parentGate(tab) {
   epoch++; newScreen(); tmFree = true; // в настройках родителей время не считается
   const have = getPin();
   app.innerHTML = `<div class="card pinbox"><button class="btn small sec" id="bk">⬅ Карта</button><h2>🔒 Для родителей</h2><div id="pbox"></div>
     ${have ? '<p><button class="btn small sec" id="fg">Забыли пароль?</button></p>' : ''}</div>`;
   $('bk').onclick = map;
   if ($('fg')) $('fg').onclick = pinReset;
-  if (have) pinEntry($('pbox'), () => parent('main')); else pinForm($('pbox'), () => parent('main'));
+  if (have) pinEntry($('pbox'), () => parent(tab || 'main')); else pinForm($('pbox'), () => parent(tab || 'main'));
 }
 
 function diaryLinkHtml() {
@@ -10010,7 +10157,7 @@ function parent(tab) {
       <p><small>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</small></p></div>${fam}
     <div class="card"><h3>Быстрые переходы</h3><div class="ptiles">
       <button class="ptile" data-go="kid">📚 Предметы ученика</button><button class="ptile" data-go="kid">🧘 Спокойный фокус ${S.focus ? '✅' : ''}</button><button class="ptile" data-go="kid">📅 «Мой день» ${S.plan && S.plan.on ? '✅' : ''}</button>
-      <button class="ptile" data-go="stats">📊 Недели и концентрация</button><button class="ptile" data-go="time">⏰ Таймер ${TM.on ? '✅ ' + (TM.min + (TM.extra || 0)) + ' мин' : ''}</button><button class="ptile" data-go="link">☁️ Облако ${cloudOn() ? '✅' : ''}</button></div></div>`;
+      <button class="ptile" data-go="stats">📊 Недели и концентрация</button><button class="ptile" data-go="time">⏰ Таймер ${TM.on ? '✅ ' + (TM.min + (TM.extra || 0)) + ' мин' : ''}</button><button class="ptile" data-go="time">😴 Пауза для отдыха ${Object.values(RS.L).some(rsActive) ? '✅' : ''}</button><button class="ptile" data-go="link">☁️ Облако ${cloudOn() ? '✅' : ''}</button></div></div>`;
   // --- ученик ---
   sec.kid = `<div class="card"><h3>📚 Предметы ученика «${nm}»</h3>
       <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется.</p>
@@ -10051,7 +10198,7 @@ function parent(tab) {
     <div class="card"><h3>🧮 Темы математики, русского и других предметов</h3>${mathTopicsHtml()}</div>
     <div class="card"><h3>🗺️ Прогресс по предметам</h3><p><small>Нажмите на предмет, чтобы раскрыть список уроков.</small></p>${prog}</div>`;
   // --- время и пароль ---
-  sec.time = `<div class="card"><h3>⏰ Таймер игры</h3>
+  sec.time = `${restCardHtml()}<div class="card"><h3>⏰ Таймер игры</h3>
       <p>Ограничивает время в день на этом устройстве. Когда время выйдет, ребёнок доделает текущее упражнение, а при выходе из него программа закроется и откроется только по вашему паролю.</p>
       <button class="btn small ${TM.on ? 'red' : 'gold'}" id="tmon">${TM.on ? '⏰ Таймер: ВКЛ (нажмите, чтобы выключить)' : 'Включить таймер'}</button>
       <p>Времени в день: <select id="tmmin" style="${sel}">${[10, 15, 20, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${TM.min === n ? 'selected' : ''}>${n} мин</option>`).join('')}</select></p>
@@ -10121,6 +10268,7 @@ function parent(tab) {
   on('pna', () => { const tx = $('pnt').value.replace(/[<>&"]/g, '').trim(); if (!tx) return; S.plan = S.plan || {}; S.plan.own = (S.plan.own || []).concat({ id: 'o' + Date.now().toString(36), part: $('pnp').value, e: $('pne').value.trim() || '✅', t: tx }); save(); parent(); });
   app.querySelectorAll('[data-wi]').forEach(i => i.oninput = () => { S.wish = (S.wish || []).filter(x => x.subj !== i.dataset.wi); if (i.value.trim()) S.wish.push({ subj: i.dataset.wi, text: i.value.trim() }); save(); if ($('wim')) $('wim').textContent = 'Сохранено ✅'; });
   on('focus', () => { S.focus = !S.focus; save(); applyTheme(); parent(); });
+  restCardBind();
   on('tmon', () => { TM.on = !TM.on; tmRoll(); tmNoted = false; tmWarn = false; tmSave(); parent(); });
   on('tmmin', e => { TM.min = +e.target.value; tmNoted = false; tmWarn = false; tmSave(); parent(); }, 'onchange');
   on('tmrs', () => { TM.used = 0; TM.extra = 0; tmNoted = false; tmWarn = false; tmSave(); parent(); });
@@ -10946,7 +11094,7 @@ function diag() {
 const famLink = (/[#&]family=([A-Za-z0-9]{6,12})/.exec(location.hash) || [])[1] || '';
 if (famLink) try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
 applyTheme();
-syncSoon(true);
+syncSoon(true); restPoll();
 cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
 if (famLink && !cloudOn() && cloudUrl()) cloudScreen(() => (PR.list.length ? players() : welcome()), famLink);
 else if (PR.list.length > 1) players(); // на общем планшете сначала выбираем, кто занимается

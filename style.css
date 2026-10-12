@@ -591,3 +591,7 @@ body.calm .bpet{animation:none}
 #buddy.inl .bbub{position:static;display:none;max-width:none;width:auto;min-width:0;font-size:.85rem;padding:5px 10px;border-radius:14px 4px 14px 14px;opacity:1;transform:none;transition:none}
 #buddy.inl .bbub.show{display:block;animation:pop .3s}
 .topline:has(#buddy.inl .bbub.show) .stepname{display:none}
+/* пауза для отдыха */
+.rsrow{border-top:2px dashed rgba(120,120,160,.25);padding-top:6px;margin-top:6px}
+.rsrow .btn.small{margin:3px}
+.rsmsg{font-size:1.25rem;font-weight:800;background:#fff7d6;border-radius:14px;padding:8px 12px;color:#5a3d00}
