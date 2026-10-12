@@ -243,3 +243,89 @@ body.ro .drow { padding: 8px 14px; }
   body { background: #fff; }
   .dday { break-inside: avoid; box-shadow: none; }
 }
+
+/* ================= НОВОЕ ОФОРМЛЕНИЕ (как в игре): небо, мягкие карточки, объёмные кнопки ================= */
+:root{--ink:#2a2f4a;--card:#fffdf8;--paper:#fff;--soft:#f3f6fd;--muted:#6a7090;--line:#e2e8f6;--ld:#b7c4e4;--r:14px;
+  --g1:#7ee88f;--g2:#2fbf55;--gs:#1f9442;--y1:#ffe680;--y2:#ffbe2e;--ys:#d68f00;--ws:#c3cde6;--r1:#ffb3a6;--r2:#ff7a66;--rs:#cc4532;
+  --shadow:0 12px 28px rgba(35,55,120,.14)}
+body{font-family:"Nunito",ui-rounded,"Trebuchet MS","Segoe UI",system-ui,sans-serif;font-weight:600;
+  background:radial-gradient(ellipse 18% 7% at 14% 14%,rgba(255,255,255,.95) 60%,transparent 62%),radial-gradient(ellipse 11% 5% at 22% 11%,rgba(255,255,255,.95) 60%,transparent 62%),
+  radial-gradient(ellipse 16% 6% at 82% 24%,rgba(255,255,255,.9) 60%,transparent 62%),radial-gradient(ellipse 9% 4.5% at 88% 20.5%,rgba(255,255,255,.9) 60%,transparent 62%),
+  radial-gradient(circle at 94% 6%,#fff6b0 0 3%,rgba(255,236,120,.4) 3.5%,transparent 10%),linear-gradient(#5fb8ff,#9fd8ff 45%,#d9f2ff);background-attachment:fixed}
+body::before{content:"";position:fixed;left:0;right:0;bottom:0;height:30vh;z-index:-1;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath d='M0 140 C200 60 380 70 560 130 S900 200 1200 90 V300 H0Z' fill='%2391dc7e'/%3E%3Cpath d='M0 210 C180 150 340 160 520 205 S880 250 1200 170 V300 H0Z' fill='%2364c25a'/%3E%3Cpath d='M0 262 C260 225 520 240 760 262 S1060 280 1200 250 V300 H0Z' fill='%234aa847'/%3E%3C/svg%3E") bottom/100% 100% no-repeat}
+h2,h3,h4{font-weight:900}
+main>*{animation:rise .2s ease-out both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* шапка */
+.top{background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:0;box-shadow:0 4px 18px rgba(35,55,120,.15)}
+.brand{background:linear-gradient(#8a7cff,#5b4bdb);color:#fff;border:0;border-radius:999px;padding:6px 16px;box-shadow:0 4px 0 #3f31a8,0 6px 12px rgba(60,40,160,.3);text-shadow:0 1px 0 rgba(0,0,0,.2)}
+
+/* кнопки, вкладки, чипы: объёмные с бликом */
+.btn,.chip,.gear,.modebtn,.back,.tab,.hwst{--b1:#fff;--b2:#eef2fc;--bs:var(--ws);background:linear-gradient(var(--b1),var(--b2));border:2px solid var(--bs);border-radius:var(--r);
+  box-shadow:0 4px 0 var(--bs),0 7px 12px rgba(30,40,90,.12),inset 0 2px 0 rgba(255,255,255,.7);transition:transform .08s,box-shadow .08s,filter .15s}
+.btn:hover,.chip:hover,.gear:hover,.tab:hover{filter:brightness(1.04)}
+.gear:active,.modebtn:active,.btn:active,.chip:active,.back:active,.tab:active{transform:translateY(3px);box-shadow:0 1px 0 var(--bs)}
+.btn.primary{--b1:var(--g1);--b2:var(--g2);--bs:var(--gs);color:#123d1e}
+.btn.danger{--b1:var(--r1);--b2:var(--r2);--bs:var(--rs);color:#4a0d05}
+.chip.on,.tab.active,body:not(.ro) .modebtn{--b1:var(--y1);--b2:var(--y2);--bs:var(--ys);color:#4a2c00}
+.tab.active{transform:none;box-shadow:0 4px 0 var(--bs),0 0 0 4px rgba(255,201,60,.3)}
+.chip.ok,.btn.ok,.hwst.st-checked{--b1:#e2fbe8;--b2:#a9edbb;--bs:#5cc178}
+.hwst.st-done{--b1:#eef5ff;--b2:#cfe3ff;--bs:#8fb6ec}
+.tab{border-radius:999px;padding:7px 14px}
+.back{border-radius:50%}
+.link{color:#4f6ff0}
+
+/* карточки и панели */
+.card,section.empty,.item,.day,.dday,.tiles,.remind{background:linear-gradient(#fff,var(--card));border:2px solid var(--line);border-radius:22px;box-shadow:0 5px 0 var(--ld),var(--shadow)}
+.tabbody{background:rgba(255,255,255,.9);border-radius:24px;padding:16px;box-shadow:var(--shadow)}
+.tabbody .card,.tabbody .item,.tabbody .day,.tabbody .dday{box-shadow:0 4px 0 var(--ld),0 6px 14px rgba(30,40,90,.08)}
+.child-head{background:rgba(255,255,255,.9);border-radius:999px;padding:6px 10px;box-shadow:var(--shadow)}
+.avatar{border:0;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#dfe6ff);box-shadow:0 3px 0 var(--ld)}
+.child-head .avatar{width:44px;height:44px}
+.stats>div{border:2px solid var(--line);border-radius:16px;background:linear-gradient(#fff,#f3f6ff)}
+.stats .warn{background:linear-gradient(#fff,#ffeeea);border-color:#f6b8ac}
+.remind{background:linear-gradient(#fffbe8,#fff0bd);border-color:#f0d27a}
+.attention li{border:2px solid var(--line);border-left-width:8px;border-radius:12px}
+.attention .high{border-left-color:var(--high)}.attention .mid{border-left-color:var(--mid)}.attention .info{border-left-color:var(--info)}
+.item.st-overdue{border-left:8px solid var(--high)}.item.st-today{border-left:8px solid var(--mid)}.item.st-done{border-left:8px solid var(--info)}.item.st-checked{border-left:8px solid var(--ok)}
+.tag{border:0;border-radius:999px;padding:2px 10px;background:#eef1f8}
+.tag.bad{background:#ffe0da;color:#a3271a}.tag.good{background:#d6f6dd;color:#1b6b31}.tag.info{background:#dbe9ff;color:#1f4f9a}
+
+/* оценки — цветные «конфеты» */
+.grade,.dgr .roval,.totals .roval{border:0;border-radius:10px;box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 3px 0 rgba(0,0,0,.15);color:#2a2f4a}
+.g5,.dgr .roval.g5,.totals .roval.g5,.totals td.fc select.g5{background:linear-gradient(#a4f0a0,#55cf5c)}
+.g4,.dgr .roval.g4,.totals .roval.g4,.totals td.fc select.g4{background:linear-gradient(#e3f7a6,#b3e05a)}
+.g3,.dgr .roval.g3,.totals .roval.g3,.totals td.fc select.g3{background:linear-gradient(#ffe680,#ffbe2e)}
+.g2,.dgr .roval.g2,.totals .roval.g2,.totals td.fc select.g2{background:linear-gradient(#ffb3a6,#ff7a66)}
+
+/* поля ввода и окна */
+input,select,textarea{border:2px solid var(--ld);border-radius:12px;box-shadow:inset 0 2px 3px rgba(30,40,90,.06)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#7c9cf0;box-shadow:0 0 0 4px rgba(124,156,240,.25)}
+dialog{border:0;border-radius:24px;background:linear-gradient(#fff,var(--card));box-shadow:0 20px 50px rgba(20,30,80,.35)}
+dialog[open]{animation:pop .25s}
+@keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:none;opacity:1}}
+dialog::backdrop{background:rgba(25,30,70,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.valbtn span,.emoji span{border:2px solid var(--ld);border-radius:12px}
+.valbtn input:checked+span{box-shadow:0 0 0 4px #ffc93c}
+.emoji input:checked+span{background:linear-gradient(#ffe680,#ffbe2e);border-color:var(--ys)}
+#lightbox img{border:0;border-radius:16px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.thumb{border:2px solid var(--line);border-radius:12px}
+
+/* неделя, расписание, разворот дневника */
+.weeknav strong{border:2px solid var(--line);border-radius:999px;box-shadow:0 3px 0 var(--ld)}
+.day.today,.dday.today{background:linear-gradient(#fffbe8,#fff3c4)}
+.lessons li{border:2px solid var(--line);border-radius:12px}
+.lessons li b,.dnum{border:0;border-radius:50%;background:linear-gradient(#8a7cff,#5b4bdb);color:#fff;box-shadow:0 2px 0 #3f31a8}
+.sgrid,.subjects,.tscroll{border:2px solid var(--line);border-radius:16px;box-shadow:0 4px 0 var(--ld)}
+.sgrid th{border-bottom:2px solid var(--line);background:#f3f6fd}
+.sgrid th.today{background:linear-gradient(#ffe680,#ffcf4d)}
+.dday h4{background:linear-gradient(#8de89b,#3fc566);border-bottom:0;color:#123d1e;padding:10px 14px}
+.dday h4 small{color:#1b4d2a}
+.dday.today h4{background:linear-gradient(#ffe680,#ffbe2e);color:#4a2c00}
+.dday.today h4 small{color:#5e3a00}
+.drow{border-bottom:2px dashed var(--line)}
+.totals thead th{border-bottom:2px solid var(--line);background:#f3f6fd}
+.totals .sname,.totals td.tot{background:#f3f6fd}
+.mini{border:2px dashed var(--ld);border-radius:8px}

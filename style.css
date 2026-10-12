@@ -477,3 +477,32 @@ body.calm .btn.play::after{display:none}
 @media (max-width:560px){.map{padding:12px 2px;border-radius:20px}.card{border-radius:18px}}
 @media (orientation:landscape) and (max-height:820px){.map{--rg:10px}}
 body.dark #app>h1,body.dark #app>h2,body.dark #app>h3,body.dark #app>p,body.dark #app>.center>h3,body.dark #app>.center>p,body.dark .sjhint{color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.45)}
+/* --- шрифт и детали оформления --- */
+body{font-family:"Nunito",ui-rounded,"Trebuchet MS","Segoe UI",sans-serif;font-weight:800}
+h1,h2,h3,.btn,.opt .ot,.en,.tile,.mq{font-weight:900}
+.ru,small,.story,.msg,.rule,.rtext,.mex,.bub p{font-weight:700}
+/* шапка главного экрана: робот на «подиуме» */
+.card.top{background:radial-gradient(circle at 92% 10%,rgba(255,214,90,.28) 0 60px,transparent 61px),radial-gradient(circle at 80% 120%,rgba(124,156,240,.2) 0 90px,transparent 91px),linear-gradient(#fff,#f6f4ff)}
+.card.top>div:first-child{display:grid;place-items:center;width:112px;height:112px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 50% 40%,#fff 0 45%,#e7e3ff 70%,#cfc8ff);box-shadow:inset 0 -6px 0 rgba(91,75,219,.15),0 6px 14px rgba(60,40,160,.18)}
+.card.top h2{font-size:1.6rem;color:#3b2f8f}
+/* плитки предметов: значок в кружке */
+.sjt .te{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:inset 0 -4px 0 rgba(0,0,0,.05),0 4px 8px rgba(30,40,90,.1)}
+.sjt.cur .te{background:#fff}
+/* экран победы: вращающиеся лучи за звёздами */
+.stars{position:relative;display:inline-block;padding:18px 34px;margin:4px 0 6px;isolation:isolate}
+.stars::before{content:"";position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;z-index:-1;border-radius:50%;
+  background:repeating-conic-gradient(rgba(255,200,40,.32) 0 10deg,transparent 10deg 22deg);
+  -webkit-mask:radial-gradient(circle,#000 25%,transparent 68%);mask:radial-gradient(circle,#000 25%,transparent 68%);animation:spin 14s linear infinite}
+.stars span:nth-child(2){font-size:1.3em;position:relative;top:-.18em}
+@keyframes spin{to{transform:rotate(360deg)}}
+.card.center:has(>.stars){overflow:hidden;background:radial-gradient(circle at 50% 18%,#fff8d6 0,#fff 45%),#fff}
+.card.center:has(>.stars) .chip{font-size:1.15rem;padding:6px 16px}
+body.calm .stars::before{animation:none}
+@media (prefers-reduced-motion:reduce){.stars::before{animation:none}}
+/* кнопка «назад» и верхняя строка урока */
+.topline{background:rgba(255,255,255,.75);border-radius:999px;padding:4px 8px;box-shadow:0 4px 14px rgba(35,55,120,.12)}
+.topline .stepname{border:0;background:transparent}
+.toprow h2{color:#3b2f8f}
+.soff{font-style:normal;filter:grayscale(1) brightness(1.25);opacity:.4}
+.chip,.toprow .btn{white-space:nowrap}@media (max-width:560px){.toprow{gap:8px}.toprow .btn{font-size:.95rem;padding:8px 12px}.toprow h2{font-size:1.15rem}}

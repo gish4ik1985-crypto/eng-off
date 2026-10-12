@@ -1644,7 +1644,7 @@ function reward(ctx) {
   const extra = ctx.boss && first ? `<div class="cert"><h2>🏆 Сертификат героя 🏆</h2><p><b>${S.name}</b> ${wd.boss.cert ? wd.boss.cert + '<br>' + wd.name + '!' : 'победил(а) Забываку<br>и вернул(а) все слова: ' + wd.name + '!'}</p><p>${new Date().toLocaleDateString('ru-RU')}</p></div><p>${last ? 'Следующий мир — скоро!' : '🔓 Открыт следующий мир! Выбери его на карте.'}</p>` : '';
   const repNote = first ? '' : (times <= 2 ? '<p>🔁 Повторение: награда вдвое меньше, зато знания крепче!</p>' : '<p>🔁 Сегодня этот урок уже повторяли дважды: изумрудов за ещё один раз нет, лучше выбери другой урок или тренировку.</p>');
   app.innerHTML = `<div class="card center"><h1>${ctx.boss ? 'Босс побеждён! 🎉' : 'Урок пройден! 🎉'}</h1>
-    <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
+    <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '<i class="soff">⭐</i>'}</span>`).join('')}</div>
     <p>Правильных с первой попытки: ${ctx.ok} из ${ctx.asked}</p>
     <p class="chip">+${em} 💎</p> <span class="chip">⭐ +${Math.round(xpGain * (1 + upLv('brain') * .15))} опыта</span>
     ${cb ? `<p>🔥 Комбо ×${maxCombo}: +${cb} 💎</p>` : ''}
@@ -3538,7 +3538,7 @@ function playAudio(a) {
     const sk = touchStreak(), em = 2 * stars + (first ? 5 : 0) + sk.bonus;
     S.emeralds += em; S.petXp += 1; save(); sfx('win');
     app.innerHTML = `<div class="card center"><h1>Ты понял(а) рассказ! 🎧</h1>
-      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
+      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '<i class="soff">⭐</i>'}</span>`).join('')}</div>
       <p>Верно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>${sk.msg ? `<p>${sk.msg}</p>` : ''}
       ${stars < 3 ? '<p>Хочешь 3 звезды? Послушай ещё раз — со второго раза понятнее!</p>' : ''}
       <p><button class="btn gold" id="au">К аудированию ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
@@ -3611,7 +3611,7 @@ function playSong(s) {
     const sk = touchStreak(), em = 2 * stars + (first ? 5 : 0) + sk.bonus;
     S.emeralds += em; S.petXp += 1; save(); sfx('win');
     app.innerHTML = `<div class="card center"><h1>Отлично спел(а)! 🎤</h1>
-      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
+      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '<i class="soff">⭐</i>'}</span>`).join('')}</div>
       <p>Рифм с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>${sk.msg ? `<p>${sk.msg}</p>` : ''}
       <p>Спой рифмовку маме или папе — и она запомнится надолго!</p>
       <p><button class="btn gold" id="sg">К песенкам ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
@@ -3683,7 +3683,7 @@ function playDialog(d) {
     const sk = touchStreak(); const em = 2 * stars + (first ? 5 : 0) + sk.bonus;
     S.emeralds += em; S.petXp += 1; save(); sfx('win');
     app.innerHTML = `<div class="card center"><h1>Диалог пройден! 🎉</h1>
-      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '☆'}</span>`).join('')}</div>
+      <div class="stars">${[1, 2, 3].map(k => `<span style="animation-delay:${k * .25}s">${k <= stars ? '⭐' : '<i class="soff">⭐</i>'}</span>`).join('')}</div>
       <p>Верно с первой попытки: ${ok1} из ${n}</p><p class="chip">+${em} 💎</p>${sk.msg ? `<p>${sk.msg}</p>` : ''}
       <div class="chat" style="text-align:left">${d.turns.map(h => `<div class="bub npc"><span class="av">${d.npc.e}</span><p>${h.en}</p></div><div class="bub me"><p>${h.ans}</p><span class="av">${hero(34)}</span></div>`).join('')}</div>
       <p>Прочитай диалог вслух по ролям: сначала за ${d.npc.name}, потом за себя!</p>
