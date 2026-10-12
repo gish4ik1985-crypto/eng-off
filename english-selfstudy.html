@@ -6923,13 +6923,23 @@ function applyTheme() {
    Питомец никогда не болеет и не «умирает»: показатели медленно снижаются, но не ниже 15%, и он просто скучает.
    Вкусняшки 🍪 — только за учёбу (каждые 4 верных ответа), играть с ним — тоже через вопросы. */
 const PET_ACC = [[3, '🎀', 'Бантик'], [7, '🎩', 'Шляпа'], [14, '👑', 'Корона'], [30, '🌈', 'Радуга']];
+// желания питомца — всегда про учёбу. s — предмет (желание выпадает, только если предмет включён у ребёнка)
+const PET_SUBJ_TXT = { eng: 'по английскому', math: 'по математике', ru: 'по русскому языку', ow: 'по окружающему миру', lit: 'по чтению', pdd: 'по ПДД', logic: 'по логике', att: 'на внимание' };
 const PET_WISHES = [
-  { k: 'ok', n: 10, t: 'Ответь верно на 10 вопросов — я буду за тебя болеть!' },
-  { k: 'ok', n: 15, t: 'Хочу 15 верных ответов — тогда я станцую!' },
-  { k: 'ok', n: 20, t: 'Давай сегодня 20 верных ответов? Это будет праздник!' },
-  { k: 'feed', n: 2, t: 'Покорми меня два раза — я так люблю вкусняшки!' },
-  { k: 'play', n: 2, t: 'Поиграй со мной два раза в «вопросики»!' }
+  { k: 'ok', n: 15, t: 'Ответь верно на 15 вопросов в любых предметах — я буду за тебя болеть!' },
+  { k: 'ok', n: 25, t: 'Давай сегодня 25 верных ответов? Это будет праздник!' },
+  { k: 'lesson', n: 1, t: 'Пройди со мной один урок — новый или повтори старый!' },
+  { k: 'lesson', n: 2, t: 'Пройди два урока — я так люблю, когда ты учишься!' },
+  { k: 'subjs', n: 2, t: 'Позанимайся двумя разными предметами (в каждом — 3 верных ответа)!' },
+  { k: 'subjs', n: 3, t: 'Хочу три разных предмета сегодня (в каждом — 3 верных ответа)!' },
+  ...Object.keys(PET_SUBJ_TXT).map(s => ({ k: 'okS', s, n: s === 'math' || s === 'eng' ? 10 : 8, t: `Ответь верно на ${s === 'math' || s === 'eng' ? 10 : 8} вопросов ${PET_SUBJ_TXT[s]}!` }))
 ];
+const petSubj = () => (skind() === 'it' ? '' : skind()); // итальянский не считается — это язык для родителя
+const petWishOk = w => !w.s || (subjOn(w.s) && S.subj !== undefined && SUBJ_META[w.s]);
+function petPickWish(c, avoid) {
+  const pool = PET_WISHES.map((w, k) => k).filter(k => petWishOk(PET_WISHES[k]) && k !== avoid);
+  c.wish = pool[Math.floor(Math.random() * pool.length)]; c.wp = 0; c.wDone = false; c.dOk = c.dOk || {};
+}
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 function petC() {
   if (!S.petCare) S.petCare = { full: 80, joy: 80, clean: 80, t: Date.now(), treats: 2, okN: 0, day: '', wish: -1, wp: 0, wDone: false, streak: 0, lastWish: '', acc: '', pats: 0 };
@@ -6938,25 +6948,42 @@ function petC() {
     c.full = Math.max(15, c.full - h * 2); c.joy = Math.max(15, c.joy - h * 1.5); c.clean = Math.max(15, c.clean - h); c.t = now;
   }
   const day = todayKey();
-  if (c.day !== day) { // новый день: новое желание
-    c.day = day; c.wish = Math.floor(Math.random() * PET_WISHES.length); c.wp = 0; c.wDone = false; c.pats = 0;
+  if (c.day !== day || c.ver !== 2) { // новый день (или старые желания про еду/игру): новое желание про учёбу
+    if (c.day !== day) { c.pats = 0; c.bonus = 0; c.dOk = {}; c.dLess = 0; c.base = 0; c.baseS = {}; c.baseL = 0; }
+    c.day = day; c.ver = 2; petPickWish(c);
   }
   return c;
 }
 function petEarn() {
+  const sj = petSubj(); if (!sj) return;
   const c = petC(); c.okN = (c.okN || 0) + 1;
   if (c.okN % 4 === 0) c.treats = Math.min(30, (c.treats || 0) + 1);
-  petWishStep('ok');
+  c.dOk = c.dOk || {}; c.dOk[sj] = (c.dOk[sj] || 0) + 1;
+  petWishStep('ok', sj);
 }
-function petWishStep(k) {
-  const c = petC(), w = PET_WISHES[c.wish]; if (!w || c.wDone || w.k !== k) return;
-  c.wp++;
+// прогресс желания считается заново из дневных счётчиков — так он верен, даже если желание сменилось посреди дня
+function petWishStep(k, sj) {
+  const c = petC(), w = PET_WISHES[c.wish]; if (!w || c.wDone) return;
+  if (k === 'lesson') { if (!petSubj()) return; c.dLess = (c.dLess || 0) + 1; }
+  const d = c.dOk || {}, sum = Object.values(d).reduce((a, b) => a + b, 0);
+  const val = w.k === 'ok' ? sum - (c.base || 0) : w.k === 'okS' ? (d[w.s] || 0) - ((c.baseS || {})[w.s] || 0) : w.k === 'lesson' ? (c.dLess || 0) - (c.baseL || 0) : w.k === 'subjs' ? Object.values(d).filter(v => v >= 3).length : c.wp;
+  c.wp = Math.max(0, val);
   if (c.wp >= w.n) {
-    c.wDone = true; const y = new Date(Date.now() - 864e5), yk = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate();
-    c.streak = c.lastWish === yk ? (c.streak || 0) + 1 : 1; c.lastWish = c.day;
-    c.joy = 100; c.treats = Math.min(30, (c.treats || 0) + 3); S.emeralds += 10; save();
-    setTimeout(() => toast(`${petE(petStage())} Желание исполнено! +10 💎 +3 🍪`), 600);
+    c.wDone = true; const bonus = (c.bonus || 0) > 0;
+    if (!bonus) { const y = new Date(Date.now() - 864e5), yk = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate(); c.streak = c.lastWish === yk ? (c.streak || 0) + 1 : (c.lastWish === c.day ? c.streak : 1); c.lastWish = c.day; }
+    const em = bonus ? 5 : 10, tr = bonus ? 2 : 3;
+    c.joy = 100; c.treats = Math.min(30, (c.treats || 0) + tr); S.emeralds += em; save();
+    setTimeout(() => toast(`${petE(petStage())} Желание исполнено! +${em} 💎 +${tr} 🍪`), 600);
   }
+}
+// после исполненного желания можно взять ещё одно (до 2 в день, награда поменьше)
+function petBonusWish() {
+  const c = petC(); if (!c.wDone || (c.bonus || 0) >= 2) return false;
+  c.bonus = (c.bonus || 0) + 1; const d = c.dOk || {};
+  c.base = Object.values(d).reduce((a, b) => a + b, 0); c.baseS = { ...d }; c.baseL = c.dLess || 0;
+  const subjsDone = Object.values(d).filter(v => v >= 3).length;
+  for (let tr = 0; tr < 20; tr++) { petPickWish(c, c.wish); const w = PET_WISHES[c.wish]; if (w.k !== 'subjs' || w.n > subjsDone) break; }
+  save(); return true;
 }
 const petMoodOf = c => { const m = Math.min(c.full, c.joy, c.clean); return m >= 70 ? 2 : m >= 40 ? 1 : 0; };
 function petSay(c) {
@@ -6965,7 +6992,8 @@ function petSay(c) {
   if (c.clean < 40) return `${nm} испачкался — помой его 🛁`;
   if (c.joy < 40) return `${nm} скучает. Поиграй с ним 🎾`;
   if (w && !c.wDone) return `⭐ Желание дня: ${w.t}`;
-  return [`${nm} счастлив и гордится тобой!`, `${nm} ждёт тебя завтра 💕`, `${nm} хочет научиться ещё чему-нибудь!`][new Date().getMinutes() % 3];
+  if (c.wDone && (c.bonus || 0) < 2) return `Желание исполнено! Хочешь ещё одно? Загляни в домик ⭐`;
+  return [`${nm} счастлив и гордится тобой! Завтра будет новое желание`, `${nm} ждёт тебя завтра — будем учиться вместе 💕`, `${nm} говорит: ты молодец, что учишься!`][new Date().getMinutes() % 3];
 }
 function petHome(back) {
   if (tmGate()) return; tmInLesson = false;
@@ -6973,6 +7001,7 @@ function petHome(back) {
   const c = petC(), nm = esc(S.petName || 'Кубик'), st = petStage();
   const ownAcc = PET_ACC.filter(a => (c.best = Math.max(c.best || 0, c.streak || 0)) >= a[0]);
   const draw = msg => {
+    petWishStep('');
     const w = PET_WISHES[c.wish], mood = petMoodOf(c);
     const bar = (e, n, v, cls) => `<div class="pbar"><span>${e} ${n}</span><div class="bar ${cls}"><i style="width:${Math.round(v)}%"></i></div></div>`;
     const next = PET_ACC.find(a => (c.best || 0) < a[0]);
@@ -6985,12 +7014,13 @@ function petHome(back) {
         <div class="pacts"><button class="btn gold" id="pfd">🍎 Покормить <small>(🍪 ${c.treats || 0})</small></button><button class="btn" id="ppl">🎾 Поиграть</button><button class="btn sec" id="pwh">🛁 Помыть</button></div>
         <p class="phint">Погладь питомца — просто нажми на него 🤚</p>
       </div>
-      <div class="card"><h3>⭐ Желание дня</h3>${w ? `<p>${esc(w.t)}</p><div class="bar goal"><i style="width:${Math.min(100, Math.round(c.wp / w.n * 100))}%"></i></div><p><small>${c.wDone ? '✅ Исполнено! Завтра будет новое желание' : `${Math.min(c.wp, w.n)} из ${w.n} · награда: +10 💎 +3 🍪`}</small></p>` : ''}
+      <div class="card"><h3>⭐ Желание дня</h3>${w ? `<p>${esc(w.t)}</p><div class="bar goal"><i style="width:${Math.min(100, Math.round(c.wp / w.n * 100))}%"></i></div><p><small>${c.wDone ? ((c.bonus || 0) < 2 ? '✅ Исполнено!' : '✅ Исполнено! Завтра будет новое желание') : `${Math.min(c.wp, w.n)} из ${w.n} · награда: ${(c.bonus || 0) ? '+5 💎 +2 🍪' : '+10 💎 +3 🍪'}`}</small></p>${c.wDone && (c.bonus || 0) < 2 ? '<p><button class="btn gold" id="pbw">⭐ Ещё желание (+5 💎 +2 🍪)</button></p>' : ''}` : ''}
         <p>🔥 Желания подряд: <b>${c.streak || 0}</b> ${next ? `<small>· через ${next[0] - (c.best || 0)} дн. — подарок питомцу: ${next[1]} ${next[2]}</small>` : ''}</p>
         ${ownAcc.length ? `<p>Наряд: ${['', ...ownAcc.map(a => a[1])].map(e => `<button class="btn small ${c.acc === e ? 'gold' : 'sec'}" data-acc="${e}">${e || 'без наряда'}</button>`).join('')}</p>` : ''}
-        <p><small>🍪 Вкусняшки дают за учёбу: каждые 4 верных ответа в любом предмете.</small></p></div>`;
+        <p><small>🍪 Вкусняшки дают за учёбу: каждые 4 верных ответа в любом предмете. Желания питомца — тоже про учёбу.</small></p></div>`;
     $('bk').onclick = back || home;
     app.querySelectorAll('[data-acc]').forEach(b => b.onclick = () => { c.acc = b.dataset.acc; save(); draw(); });
+    if ($('pbw')) $('pbw').onclick = () => { if (petBonusWish()) { sfx('ok'); draw('Ура! Новое желание — я в тебя верю!'); } };
     const pet = $('pme');
     const fly = (txt, n) => { const r = pet.getBoundingClientRect(); for (let k = 0; k < n; k++) fxPiece(txt, { fontSize: '26px' }, [{ transform: `translate(${r.left + r.width / 2 + (Math.random() - .5) * 60}px,${r.top + 20}px)`, opacity: 1 }, { transform: `translate(${r.left + r.width / 2 + (Math.random() - .5) * 140}px,${r.top - 90}px)`, opacity: 0 }], 900, k * 90); };
     const bounce = () => { pet.classList.remove('hop'); void pet.offsetWidth; pet.classList.add('hop'); };
@@ -7003,7 +7033,7 @@ function petHome(back) {
     $('pfd').onclick = () => {
       if (!(c.treats > 0)) { $('pbub').textContent = 'Вкусняшек нет. Ответь верно на 4 вопроса в любом уроке — и я получу 🍪'; return; }
       if (c.full >= 98) { $('pbub').textContent = 'Я уже сыт, спасибо! 😋'; return; }
-      c.treats--; c.full = Math.min(100, c.full + 30); c.joy = Math.min(100, c.joy + 5); petWishStep('feed'); save();
+      c.treats--; c.full = Math.min(100, c.full + 30); c.joy = Math.min(100, c.joy + 5); save();
       const food = ['🍪', '🍎', '🍓', '🥕', '🍰', '🍌'][Math.floor(Math.random() * 6)];
       const b = $('pfd').getBoundingClientRect(), r = pet.getBoundingClientRect();
       fxPiece(food, { fontSize: '40px' }, [{ transform: `translate(${b.left + b.width / 2}px,${b.top}px)` }, { transform: `translate(${r.left + r.width / 2 - 20}px,${r.top + r.height / 2 - 20}px) scale(.4)`, opacity: .2 }], 600);
@@ -7029,7 +7059,7 @@ function petHome(back) {
 // игра с питомцем = 3 быстрых вопроса (слова пройденного языка или устный счёт)
 function petPlay(c, back) {
   epoch++; newScreen();
-  const lang = !isGen() && Object.keys(WORDS).length;
+  const lang = !isGen() && !isIt() && Object.keys(WORDS).length;
   const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   const mk = () => {
     if (lang) {
@@ -7045,7 +7075,7 @@ function petPlay(c, back) {
   let i = 0, ok = 0;
   const ask = () => {
     if (i >= 3) {
-      c.joy = Math.min(100, c.joy + 10 + ok * 8); petWishStep('play'); save(); sfx(ok >= 2 ? 'win' : 'ok');
+      c.joy = Math.min(100, c.joy + 10 + ok * 8); save(); sfx(ok >= 2 ? 'win' : 'ok');
       app.innerHTML = `<div class="card center"><div class="pme m2 hop" style="font-size:96px">${petE(petStage())}</div><h2>${ok === 3 ? 'Ура! Ты угадал всё!' : 'Было весело!'}</h2><p>${esc(S.petName || 'Кубик')} радуется: верно ${ok} из 3</p><p><button class="btn gold" id="pb">🏡 В домик</button><button class="btn sec" id="pa">🎾 Ещё раз</button></p></div>`;
       $('pb').onclick = back; $('pa').onclick = () => petPlay(c, back); return;
     }
@@ -8102,6 +8132,7 @@ function reward(ctx) {
   if (S.potionOn && base > 0) { em *= 2; potion = true; }
   if (S.potionOn && base > 0) S.potionOn = false;
   const sk = touchStreak(); em += sk.bonus;
+  petWishStep('lesson');
   const before = petStage(); S.petXp += first ? stars : (times <= 2 ? 1 : 0); const after = petStage();
   S.emeralds += em; save(); sfx('win');
   const wd = W();
