@@ -311,7 +311,37 @@ function tones(freqs, kind) {
     });
   } catch (e) {}
 }
-const sfx = k => tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 784, 1047, 1319] }[k], k);
+const sfx = k => { try { fx(k); } catch (e) {} return tones({ ok: [523, 659, 784], bad: [200, 160], win: [523, 659, 784, 1047, 1319] }[k], k); };
+// праздничные эффекты: искорки там, где ребёнок нажал верный ответ, и конфетти при победе (в спокойном режиме — нет)
+const FXP = { x: 0, y: 0, t: 0 };
+document.addEventListener('pointerdown', e => { FXP.x = e.clientX; FXP.y = e.clientY; FXP.t = Date.now(); }, true);
+function fxPiece(txt, css, frames, ms, delay) {
+  const el = document.createElement('div'); el.className = 'fx'; el.textContent = txt; Object.assign(el.style, css);
+  document.body.appendChild(el);
+  const a = el.animate ? el.animate(frames, { duration: ms, delay: delay || 0, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'both' }) : null;
+  setTimeout(() => el.remove(), ms + (delay || 0) + 60); return a;
+}
+function fx(k) {
+  if (S.focus || !document.body.animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  const W0 = innerWidth, H0 = innerHeight;
+  if (k === 'ok') {
+    const near = Date.now() - FXP.t < 2000, x = near ? FXP.x : W0 / 2, y = near ? FXP.y : H0 / 2;
+    const cols = ['#ffc400', '#ff6a9a', '#3fd06a', '#4f9fff', '#b06cff'];
+    for (let i = 0; i < 12; i++) {
+      const ang = i / 12 * Math.PI * 2 + Math.random() * .4, d = 46 + Math.random() * 46, dx = Math.cos(ang) * d, dy = Math.sin(ang) * d;
+      fxPiece(i % 3 ? '✦' : '★', { color: cols[i % cols.length], fontSize: (14 + Math.random() * 12) + 'px', textShadow: '0 1px 2px rgba(0,0,0,.25)' },
+        [{ transform: `translate(${x}px,${y}px) translate(-50%,-50%) scale(.3)`, opacity: 1 }, { transform: `translate(${x + dx}px,${y + dy}px) translate(-50%,-50%) scale(1.1) rotate(${dx > 0 ? 90 : -90}deg)`, opacity: 0 }], 650);
+    }
+  } else if (k === 'win') {
+    const cols = ['#ffc400', '#ff6a9a', '#3fd06a', '#4f9fff', '#b06cff', '#ff8a3d'];
+    for (let i = 0; i < 70; i++) {
+      const x = Math.random() * W0, dx = (Math.random() - .5) * 160, r = Math.random() * 720 - 360, w = 7 + Math.random() * 7;
+      fxPiece('', { width: w + 'px', height: (w * 1.6) + 'px', background: cols[i % cols.length], borderRadius: i % 4 ? '2px' : '50%' },
+        [{ transform: `translate(${x}px,-30px) rotate(0deg)`, opacity: 1 }, { transform: `translate(${x + dx}px,${H0 * .55}px) rotate(${r / 2}deg)`, opacity: 1, offset: .55 }, { transform: `translate(${x + dx * 1.6}px,${H0 + 30}px) rotate(${r}deg)`, opacity: .9 }],
+        1900 + Math.random() * 900, Math.random() * 500);
+    }
+  }
+}
 
 // say: говорит t (rate — скорость). Если уже что-то говорится, сначала останавливает, ждёт немного (иначе на Android
 // слово «съедается») и говорит новое. done вызывается, когда фраза закончилась или отменена.
@@ -567,6 +597,9 @@ function applyTheme() {
   document.body.style.background = S.theme === 'theme0' ? '' : t.bg;
   document.body.style.backgroundAttachment = 'fixed';
   document.body.classList.toggle('calm', !!S.focus);
+  document.body.classList.add('th-' + (THEMES[S.theme] ? S.theme : 'theme0'));
+  const hx = /#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(t.bg || ''); // тёмный фон — подписи вне карточек делаем светлыми
+  if (hx && parseInt(hx[1], 16) * .3 + parseInt(hx[2], 16) * .59 + parseInt(hx[3], 16) * .11 < 110) document.body.classList.add('dark');
 }
 
 /* ---------- каркас экранов ---------- */
@@ -1219,7 +1252,7 @@ function map() {
   const bossRec = S.lessons[BS.id] || {};
   items.push(`<div class="node ${bossRec.done ? 'done' : (bossOk ? 'cur' : 'lock')}" data-boss="1"><div class="blk"><span class="num">★</span>${bossOk ? BS.icon : '🔒'}</div><div class="t">${BS.title}</div><div class="st">${bossRec.done ? '⭐'.repeat(bossRec.stars) : '&nbsp;'}</div></div>`);
   let rows = '';
-  for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
+  for (let r = 0; r * 3 < items.length; r++) rows += `<div class="row ${r % 2 ? 'rev' : ''} n${items.slice(r * 3, r * 3 + 3).length}">${items.slice(r * 3, r * 3 + 3).join('')}</div>`;
   adaptLoad(); payHomework();
   const cur = nextI >= 0 ? WL[nextI] : null;
   const missionHtml = missionCard();
