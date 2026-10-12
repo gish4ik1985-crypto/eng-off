@@ -453,6 +453,7 @@ function logQn(n, okN) {
 let combo = 0, maxCombo = 0; // серия верных ответов подряд в текущем занятии
 function logQ(ok) {
   logQn(1, ok ? 1 : 0);
+  if (ok) petEarn();
   if (ok) { combo++; maxCombo = Math.max(maxCombo, combo); addXp(1); } else combo = 0;
 }
 /* ---------- опыт и уровни ---------- */
@@ -600,6 +601,150 @@ function applyTheme() {
   document.body.classList.add('th-' + (THEMES[S.theme] ? S.theme : 'theme0'));
   const hx = /#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(t.bg || ''); // тёмный фон — подписи вне карточек делаем светлыми
   if (hx && parseInt(hx[1], 16) * .3 + parseInt(hx[2], 16) * .59 + parseInt(hx[3], 16) * .11 < 110) document.body.classList.add('dark');
+}
+
+/* ---------- 🏡 Домик питомца: сытость, настроение, чистота, желание дня ----------
+   Питомец никогда не болеет и не «умирает»: показатели медленно снижаются, но не ниже 15%, и он просто скучает.
+   Вкусняшки 🍪 — только за учёбу (каждые 4 верных ответа), играть с ним — тоже через вопросы. */
+const PET_ACC = [[3, '🎀', 'Бантик'], [7, '🎩', 'Шляпа'], [14, '👑', 'Корона'], [30, '🌈', 'Радуга']];
+const PET_WISHES = [
+  { k: 'ok', n: 10, t: 'Ответь верно на 10 вопросов — я буду за тебя болеть!' },
+  { k: 'ok', n: 15, t: 'Хочу 15 верных ответов — тогда я станцую!' },
+  { k: 'ok', n: 20, t: 'Давай сегодня 20 верных ответов? Это будет праздник!' },
+  { k: 'feed', n: 2, t: 'Покорми меня два раза — я так люблю вкусняшки!' },
+  { k: 'play', n: 2, t: 'Поиграй со мной два раза в «вопросики»!' }
+];
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+function petC() {
+  if (!S.petCare) S.petCare = { full: 80, joy: 80, clean: 80, t: Date.now(), treats: 2, okN: 0, day: '', wish: -1, wp: 0, wDone: false, streak: 0, lastWish: '', acc: '', pats: 0 };
+  const c = S.petCare, now = Date.now(), h = Math.min(96, Math.max(0, (now - (c.t || now)) / 3600000));
+  if (h > 0.02) { // медленно скучает: за сутки сытость −48, настроение −36, чистота −24, но не ниже 15
+    c.full = Math.max(15, c.full - h * 2); c.joy = Math.max(15, c.joy - h * 1.5); c.clean = Math.max(15, c.clean - h); c.t = now;
+  }
+  const day = todayKey();
+  if (c.day !== day) { // новый день: новое желание
+    c.day = day; c.wish = Math.floor(Math.random() * PET_WISHES.length); c.wp = 0; c.wDone = false; c.pats = 0;
+  }
+  return c;
+}
+function petEarn() {
+  const c = petC(); c.okN = (c.okN || 0) + 1;
+  if (c.okN % 4 === 0) c.treats = Math.min(30, (c.treats || 0) + 1);
+  petWishStep('ok');
+}
+function petWishStep(k) {
+  const c = petC(), w = PET_WISHES[c.wish]; if (!w || c.wDone || w.k !== k) return;
+  c.wp++;
+  if (c.wp >= w.n) {
+    c.wDone = true; const y = new Date(Date.now() - 864e5), yk = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate();
+    c.streak = c.lastWish === yk ? (c.streak || 0) + 1 : 1; c.lastWish = c.day;
+    c.joy = 100; c.treats = Math.min(30, (c.treats || 0) + 3); S.emeralds += 10; save();
+    setTimeout(() => toast(`${petE(petStage())} Желание исполнено! +10 💎 +3 🍪`), 600);
+  }
+}
+const petMoodOf = c => { const m = Math.min(c.full, c.joy, c.clean); return m >= 70 ? 2 : m >= 40 ? 1 : 0; };
+function petSay(c) {
+  const nm = S.petName || 'Кубик', w = PET_WISHES[c.wish];
+  if (c.full < 40) return c.treats ? `${nm} проголодался! Покорми его 🍪` : `${nm} проголодался… Ответь верно на 4 вопроса — получишь 🍪`;
+  if (c.clean < 40) return `${nm} испачкался — помой его 🛁`;
+  if (c.joy < 40) return `${nm} скучает. Поиграй с ним 🎾`;
+  if (w && !c.wDone) return `⭐ Желание дня: ${w.t}`;
+  return [`${nm} счастлив и гордится тобой!`, `${nm} ждёт тебя завтра 💕`, `${nm} хочет научиться ещё чему-нибудь!`][new Date().getMinutes() % 3];
+}
+function petHome(back) {
+  if (tmGate()) return; tmInLesson = false;
+  epoch++; newScreen();
+  const c = petC(), nm = esc(S.petName || 'Кубик'), st = petStage();
+  const ownAcc = PET_ACC.filter(a => (c.best = Math.max(c.best || 0, c.streak || 0)) >= a[0]);
+  const draw = msg => {
+    const w = PET_WISHES[c.wish], mood = petMoodOf(c);
+    const bar = (e, n, v, cls) => `<div class="pbar"><span>${e} ${n}</span><div class="bar ${cls}"><i style="width:${Math.round(v)}%"></i></div></div>`;
+    const next = PET_ACC.find(a => (c.best || 0) < a[0]);
+    app.innerHTML = `<div class="card toprow"><button class="btn sec" id="bk">⬅ Назад</button><h2>🏡 Домик: ${nm}</h2><span class="chip">🍪 ${c.treats || 0}</span></div>
+      <div class="card center proom ${mood === 0 ? 'sad' : ''}">
+        <div class="pbub" id="pbub">${esc(msg || petSay(c))}</div>
+        <div class="pstage" id="pst"><span class="pacc">${c.acc || ''}</span><span class="pme m${mood}" id="pme">${petE(st)}</span>${c.clean < 40 ? '<span class="pdirt">💩</span>' : ''}</div>
+        <div class="prug"></div>
+        <div class="pbars">${bar('🍎', 'Сытость', c.full, 'pf')}${bar('🎾', 'Настроение', c.joy, 'pj')}${bar('🛁', 'Чистота', c.clean, 'pc')}</div>
+        <div class="pacts"><button class="btn gold" id="pfd">🍎 Покормить <small>(🍪 ${c.treats || 0})</small></button><button class="btn" id="ppl">🎾 Поиграть</button><button class="btn sec" id="pwh">🛁 Помыть</button></div>
+        <p class="phint">Погладь питомца — просто нажми на него 🤚</p>
+      </div>
+      <div class="card"><h3>⭐ Желание дня</h3>${w ? `<p>${esc(w.t)}</p><div class="bar goal"><i style="width:${Math.min(100, Math.round(c.wp / w.n * 100))}%"></i></div><p><small>${c.wDone ? '✅ Исполнено! Завтра будет новое желание' : `${Math.min(c.wp, w.n)} из ${w.n} · награда: +10 💎 +3 🍪`}</small></p>` : ''}
+        <p>🔥 Желания подряд: <b>${c.streak || 0}</b> ${next ? `<small>· через ${next[0] - (c.best || 0)} дн. — подарок питомцу: ${next[1]} ${next[2]}</small>` : ''}</p>
+        ${ownAcc.length ? `<p>Наряд: ${['', ...ownAcc.map(a => a[1])].map(e => `<button class="btn small ${c.acc === e ? 'gold' : 'sec'}" data-acc="${e}">${e || 'без наряда'}</button>`).join('')}</p>` : ''}
+        <p><small>🍪 Вкусняшки дают за учёбу: каждые 4 верных ответа в любом предмете.</small></p></div>`;
+    $('bk').onclick = back || home;
+    app.querySelectorAll('[data-acc]').forEach(b => b.onclick = () => { c.acc = b.dataset.acc; save(); draw(); });
+    const pet = $('pme');
+    const fly = (txt, n) => { const r = pet.getBoundingClientRect(); for (let k = 0; k < n; k++) fxPiece(txt, { fontSize: '26px' }, [{ transform: `translate(${r.left + r.width / 2 + (Math.random() - .5) * 60}px,${r.top + 20}px)`, opacity: 1 }, { transform: `translate(${r.left + r.width / 2 + (Math.random() - .5) * 140}px,${r.top - 90}px)`, opacity: 0 }], 900, k * 90); };
+    const bounce = () => { pet.classList.remove('hop'); void pet.offsetWidth; pet.classList.add('hop'); };
+    pet.onclick = () => {
+      if ((c.pats || 0) >= 8) { $('pbub').textContent = `${nm} уже совсем довольный 😊`; bounce(); return; }
+      c.pats = (c.pats || 0) + 1; c.joy = Math.min(100, c.joy + 3); save(); bounce(); fly('💕', 4); sfx('ok');
+      $('pbub').textContent = ['Мрр! Приятно!', 'Ещё-ещё!', 'Ты мой лучший друг!', 'Хи-хи, щекотно!'][c.pats % 4];
+      app.querySelector('.pj i').style.width = Math.round(c.joy) + '%';
+    };
+    $('pfd').onclick = () => {
+      if (!(c.treats > 0)) { $('pbub').textContent = 'Вкусняшек нет. Ответь верно на 4 вопроса в любом уроке — и я получу 🍪'; return; }
+      if (c.full >= 98) { $('pbub').textContent = 'Я уже сыт, спасибо! 😋'; return; }
+      c.treats--; c.full = Math.min(100, c.full + 30); c.joy = Math.min(100, c.joy + 5); petWishStep('feed'); save();
+      const food = ['🍪', '🍎', '🍓', '🥕', '🍰', '🍌'][Math.floor(Math.random() * 6)];
+      const b = $('pfd').getBoundingClientRect(), r = pet.getBoundingClientRect();
+      fxPiece(food, { fontSize: '40px' }, [{ transform: `translate(${b.left + b.width / 2}px,${b.top}px)` }, { transform: `translate(${r.left + r.width / 2 - 20}px,${r.top + r.height / 2 - 20}px) scale(.4)`, opacity: .2 }], 600);
+      setTimeout(() => { sfx('ok'); draw('Ням-ням! Вкуснотища! 😋'); $('pme').classList.add('hop'); }, 620);
+    };
+    $('pwh').onclick = () => {
+      if (c.clean >= 98) { $('pbub').textContent = 'Я и так чистенький! ✨'; return; }
+      $('pbub').textContent = 'Потри меня пальцем, как губкой 🧽';
+      let rub = 0, last = 0; pet.classList.add('rub');
+      const st2 = $('pst');
+      st2.onpointermove = e => {
+        if (e.pointerType === 'mouse' && !e.buttons) return; const now = Date.now(); if (now - last < 60) return; last = now; rub++;
+        fxPiece('🫧', { fontSize: (16 + Math.random() * 16) + 'px' }, [{ transform: `translate(${e.clientX - 10}px,${e.clientY - 10}px)`, opacity: 1 }, { transform: `translate(${e.clientX - 10 + (Math.random() - .5) * 60}px,${e.clientY - 70}px)`, opacity: 0 }], 800);
+        c.clean = Math.min(100, c.clean + 2.5); app.querySelector('.pc i').style.width = Math.round(c.clean) + '%';
+        if (c.clean >= 100) { st2.onpointermove = null; save(); sfx('ok'); draw('Ура, я чистый! Сверкаю! ✨'); fly('✨', 6); }
+      };
+      st2.onpointerup = () => save();
+    };
+    $('ppl').onclick = () => petPlay(c, () => petHome(back));
+  };
+  draw();
+}
+// игра с питомцем = 3 быстрых вопроса (слова пройденного языка или устный счёт)
+function petPlay(c, back) {
+  epoch++; newScreen();
+  const lang = !isGen() && Object.keys(WORDS).length;
+  const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const mk = () => {
+    if (lang) {
+      const pool = practiceWords().filter(id => WORDS[id] && WORDS[id].e), id = pool[R(0, pool.length - 1)];
+      const others = shuffle(pool.filter(x => x !== id && WORDS[x].e !== WORDS[id].e)).slice(0, 2);
+      return { q: `<div class="bigemoji">${WORDS[id].e}</div><p>Как это ${LN().adv}?</p>`, opts: shuffle([id, ...others]).map(x => [x, WORDS[x].en]), ans: id, say: WORDS[id].en };
+    }
+    const op = R(0, 2), a = op === 2 ? R(2, 9) : R(5, 50), b = op === 2 ? R(2, 9) : R(2, op ? a - 1 : 40), r = op === 0 ? a + b : op === 1 ? a - b : a * b;
+    const opts = shuffle([...new Set([r, r + R(1, 3), Math.max(0, r - R(1, 3)), r + 10])].slice(0, 3));
+    if (!opts.includes(r)) opts[0] = r;
+    return { q: `<div class="mq">${a} ${['+', '−', '×'][op]} ${b} = ?</div>`, opts: shuffle(opts).map(x => [String(x), x]), ans: String(r) };
+  };
+  let i = 0, ok = 0;
+  const ask = () => {
+    if (i >= 3) {
+      c.joy = Math.min(100, c.joy + 10 + ok * 8); petWishStep('play'); save(); sfx(ok >= 2 ? 'win' : 'ok');
+      app.innerHTML = `<div class="card center"><div class="pme m2 hop" style="font-size:96px">${petE(petStage())}</div><h2>${ok === 3 ? 'Ура! Ты угадал всё!' : 'Было весело!'}</h2><p>${esc(S.petName || 'Кубик')} радуется: верно ${ok} из 3</p><p><button class="btn gold" id="pb">🏡 В домик</button><button class="btn sec" id="pa">🎾 Ещё раз</button></p></div>`;
+      $('pb').onclick = back; $('pa').onclick = () => petPlay(c, back); return;
+    }
+    const q = mk(); let tries = 0;
+    app.innerHTML = `<div class="card center"><div class="prog">${[0, 1, 2].map(k => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div><h3>🎾 ${esc(S.petName || 'Кубик')} спрашивает</h3>${q.q}
+      <div class="opts mopts">${q.opts.map(([v, txt]) => `<button class="opt" data-v="${esc(v)}"><span class="ot">${esc(String(txt))}</span></button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div>
+      <p><button class="btn small sec" id="pb">🏡 В домик</button></p></div>`;
+    $('pb').onclick = back;
+    const my = screenId;
+    app.querySelectorAll('.opt').forEach(bt => bt.onclick = () => {
+      if (bt.dataset.v === q.ans) { bt.classList.add('good'); if (!tries) ok++; logQ(!tries); sfx('ok'); if (q.say) speak(q.say); i++; setTimeout(() => { if (screenId === my) ask(); }, 900); app.querySelectorAll('.opt').forEach(x => x.onclick = null); }
+      else { tries++; bt.classList.add('bad'); bt.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Ещё разок 💪'; }
+    });
+  };
+  ask();
 }
 
 /* ---------- каркас экранов ---------- */
@@ -1219,12 +1364,14 @@ function home() {
         <div>${petE(st)} ${S.petName || 'Кубик'} · ${PET_STAGES[st][2]}<div class="bar"><i style="width:${petPct}%"></i></div></div>
         <div><small>⭐ Опыт до уровня ${level() + 1}</small><div class="bar xp"><i style="width:${levelPct()}%"></i></div></div>${goalHtml()}</div>
     </div>
+    ${(() => { const pc = petC(), md = petMoodOf(pc); return `<button class="petcall m${md}" id="phm"><span class="pce">${pc.acc || ''}${petE(st)}</span><span class="pct"><b>🏡 ${esc(S.petName || 'Кубик')}</b><span>${esc(petSay(pc))}</span></span>${pc.treats ? `<span class="chip">🍪 ${pc.treats}</span>` : ''}</button>`; })()}
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
     <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин${(S.kNew || []).length ? ` <span class="knew">🔓${S.kNew.length}</span>` : ''}</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
+  $('phm').onclick = () => petHome(home);
   app.querySelectorAll('[data-sj]').forEach(b => b.onclick = () => { S.subj = b.dataset.sj; homeView = false; save(); map(); });
   if ($('plan')) $('plan').onclick = planScreen;
   $('shop').onclick = shop; $('awb').onclick = awards; $('parent').onclick = parentGate; $('who').onclick = players;
@@ -3626,9 +3773,9 @@ const ACH = [
   A('Разнообразие', 'tale', '📜', 'Сказочник', 'Прочитай 5 сказок и басен', 5, 15, () => TALES.filter(t => (S.lessons[t.id] || {}).done).length),
   A('Разнообразие', 'tr', '💪', 'Тренер', 'Пройди 5 тренировок слабых мест', 5, 10, () => (S.cnt || {}).tr || 0),
   A('Разнообразие', 'card', '🃏', 'Мастер карточек', 'Пройди 10 сессий с карточками', 10, 10, () => (S.cnt || {}).card || 0),
-  A('Питомец', 'p2', '🐥', 'Подросток', 'Выращи питомца до стадии «Подросток»', 1, 5, () => (petStage() >= 2 ? 1 : 0)),
-  A('Питомец', 'p3', '🦖', 'Взрослый друг', 'Выращи питомца до стадии «Взрослый»', 1, 10, () => (petStage() >= 3 ? 1 : 0)),
-  A('Питомец', 'p5', '🐲', 'Легенда', 'Выращи питомца до стадии «Легенда»', 1, 30, () => (petStage() >= 5 ? 1 : 0)),
+  A('Питомец', 'p2', '🐥', 'Подросток', 'Вырасти питомца до стадии «Подросток»', 1, 5, () => (petStage() >= 2 ? 1 : 0)),
+  A('Питомец', 'p3', '🦖', 'Взрослый друг', 'Вырасти питомца до стадии «Взрослый»', 1, 10, () => (petStage() >= 3 ? 1 : 0)),
+  A('Питомец', 'p5', '🐲', 'Легенда', 'Вырасти питомца до стадии «Легенда»', 1, 30, () => (petStage() >= 5 ? 1 : 0)),
   A('Питомец', 'pets', '🐾', 'Зверинец', 'Купи нового питомца', 1, 10, () => S.owned.filter(k => k.startsWith('pet_')).length),
   A('Богатство', 'shop10', '🛍️', 'Модный остров', 'Купи 10 вещей в магазине', 10, 20, () => Math.max(0, S.owned.length - 1)),
   A('Богатство', 'shop25', '🛒', 'Магазин-мастер', 'Купи 25 вещей в магазине', 25, 40, () => Math.max(0, S.owned.length - 1)),

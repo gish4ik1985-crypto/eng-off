@@ -545,3 +545,31 @@ body.calm .stars::before{animation:none}
 .phkey{font-size:1.4rem}.phkey .ce{font-size:2.4rem;vertical-align:middle}.phs{color:#6c3fd0}
 .wsg{display:grid;grid-template-columns:repeat(var(--n),1fr);width:100%;max-width:440px;margin:0 auto;box-sizing:border-box}.wsc{height:auto;aspect-ratio:1;font-size:clamp(1rem,5vw,1.6rem)}
 .catchcard .tftop{flex-wrap:wrap;justify-content:center}.catchcard .tftop .tfbar,.catchcard .tftop .prog{flex:1 1 100%;order:2}.bub2{min-width:0;padding:10px 14px;white-space:nowrap;font-size:clamp(.9rem,3.8vw,1.45rem)}
+/* робот на подиуме — точно по центру круга (эмодзи-шрифт задаёт высоту строки, а не Nunito) */
+.card.top>div:first-child>.hero{margin:0;display:flex;align-items:center;justify-content:center;width:1.3em;height:1.3em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.card.top>div:first-child>.hero>span:first-child{display:block;line-height:1}
+/* домик питомца */
+.petcall{display:flex;align-items:center;gap:12px;width:100%;max-width:640px;margin:4px auto 10px;padding:10px 14px;font:inherit;text-align:left;cursor:pointer;color:var(--ink);
+  border:3px solid #f0c27a;border-radius:22px;background:linear-gradient(#fffaf0,#ffeccc);box-shadow:0 5px 0 #e0a952,0 10px 18px rgba(160,90,0,.15)}
+.petcall:active{transform:translateY(3px);box-shadow:0 2px 0 #e0a952}
+.petcall .pce{font-size:2.8rem;line-height:1;animation:bob 2.2s ease-in-out infinite;flex:none}
+.petcall.m0 .pce{filter:saturate(.6);animation-duration:3.5s}
+.petcall .pct{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.petcall .pct span{font-size:.95rem;font-weight:700;color:#7a4a00}
+.proom{position:relative;overflow:hidden;background:linear-gradient(#ffe9d6 0,#ffe0c4 62%,#d9a46f 62%,#c98f5a 100%);border-color:#e9b98a}
+.proom.sad{filter:saturate(.8)}
+.pbub{position:relative;display:inline-block;max-width:90%;margin:4px auto 6px;padding:10px 16px;background:#fff;border-radius:18px;font-size:1.1rem;box-shadow:0 4px 0 rgba(0,0,0,.08)}
+.pbub::after{content:"";position:absolute;left:50%;bottom:-10px;margin-left:-10px;border:10px solid transparent;border-top-color:#fff;border-bottom:0}
+.pstage{position:relative;display:inline-block;margin:8px auto 0;touch-action:none;user-select:none}
+.pme{display:inline-block;font-size:min(34vw,9rem);line-height:1.05;cursor:pointer;filter:drop-shadow(0 10px 6px rgba(80,40,0,.25));animation:bob 2.4s ease-in-out infinite}
+.pme.m0{animation-duration:4s;filter:drop-shadow(0 10px 6px rgba(80,40,0,.25)) saturate(.6)}
+.pme.hop{animation:phop .5s ease-out}
+@keyframes phop{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-30px) scale(1.08,.95)}70%{transform:translateY(0) scale(.95,1.06)}100%{transform:none}}
+.pacc{position:absolute;left:50%;top:-.35em;transform:translateX(-50%);font-size:3rem;z-index:1;pointer-events:none}
+.pdirt{position:absolute;right:-10px;bottom:6px;font-size:1.8rem;opacity:.8;pointer-events:none}
+.prug{width:min(60%,280px);height:22px;margin:-8px auto 10px;border-radius:50%;background:radial-gradient(ellipse,rgba(120,60,10,.35),transparent 70%)}
+.pbars{display:grid;gap:6px;max-width:420px;margin:0 auto 10px;text-align:left}.pbar{display:grid;grid-template-columns:8.5em 1fr;align-items:center;gap:8px;font-size:.95rem}.pbar .bar{margin:0}
+.bar.pf i{background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,0) 60%),linear-gradient(#ffb48a,#ff7a3d)}.bar.pj i{background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,0) 60%),linear-gradient(#ffa6d0,#ff5fa2)}.bar.pc i{background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,0) 60%),linear-gradient(#9fdcff,#4fa6ef)}
+.pacts{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}.pacts .btn small{font-size:.8em}
+.phint{font-size:.95rem;color:#7a4a00;margin:8px 0 0}
+body.calm .pme,body.calm .petcall .pce{animation:none}
+.proom>.pbub{display:table;margin:4px auto 6px}.proom>.pstage{display:table;margin:10px auto 0}
