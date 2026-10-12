@@ -573,3 +573,21 @@ body.calm .stars::before{animation:none}
 .phint{font-size:.95rem;color:#7a4a00;margin:8px 0 0}
 body.calm .pme,body.calm .petcall .pce{animation:none}
 .proom>.pbub{display:table;margin:4px auto 6px}.proom>.pstage{display:table;margin:10px auto 0}
+/* питомец-спутник на занятиях, подарки в домике */
+#buddy{position:fixed;left:max(8px,env(safe-area-inset-left));bottom:62px;z-index:55;display:none;pointer-events:none}
+#buddy.on{display:block}
+.bpet{pointer-events:auto;position:relative;font:inherit;font-size:clamp(36px,7vw,52px);line-height:1;width:1.5em;height:1.5em;padding:0;border-radius:50%;cursor:pointer;
+  border:3px solid #fff;background:radial-gradient(circle at 40% 35%,#fffaf0,#ffe2b8);box-shadow:0 4px 0 #e0a952,0 8px 16px rgba(120,60,0,.25);animation:bob 2.6s ease-in-out infinite}
+.bpet.hop{animation:phop .5s ease-out}
+.bpet .bacc{position:absolute;left:50%;top:-.45em;transform:translateX(-50%);font-size:.55em}
+.bbub{position:absolute;left:0;bottom:calc(100% + 10px);width:max-content;max-width:min(240px,70vw);padding:8px 12px;border-radius:16px 16px 16px 4px;background:#fff;color:var(--ink);
+  font-size:.95rem;font-weight:800;box-shadow:0 6px 16px rgba(30,40,90,.22);border:2px solid #f0c27a;opacity:0;transform:translateY(8px) scale(.9);transform-origin:left bottom;transition:opacity .25s,transform .25s}
+.bbub.show{opacity:1;transform:none}
+body.calm .bpet{animation:none}
+.pdeco{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font-size:2rem;margin:-4px 0 10px;filter:drop-shadow(0 4px 3px rgba(80,40,0,.25))}
+#buddy.inl{position:static;display:none;align-items:center;gap:6px;min-width:0;flex:1 1 auto;justify-content:flex-end}
+#buddy.inl.on{display:flex}
+#buddy.inl .bpet{font-size:28px;width:1.45em;height:1.45em;border-width:2px;flex:none;box-shadow:0 3px 0 #e0a952}
+#buddy.inl .bbub{position:static;display:none;max-width:none;width:auto;min-width:0;font-size:.85rem;padding:5px 10px;border-radius:14px 4px 14px 14px;opacity:1;transform:none;transition:none}
+#buddy.inl .bbub.show{display:block;animation:pop .3s}
+.topline:has(#buddy.inl .bbub.show) .stepname{display:none}
