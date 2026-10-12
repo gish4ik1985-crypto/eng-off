@@ -524,6 +524,19 @@ body.calm .stars::before{animation:none}
 .toprow h2{color:#3b2f8f}
 .soff{font-style:normal;filter:grayscale(1) brightness(1.25);opacity:.4}
 .chip,.toprow .btn{white-space:nowrap}@media (max-width:560px){.toprow{gap:8px}.toprow .btn{font-size:.95rem;padding:8px 12px}.toprow h2{font-size:1.15rem}}
+/* скажи сам, правда или нет, столбик */
+.btn.mic.on{--b1:#ff9a8b;--b2:#ff5d4a;--bs:#c43a2b;animation:pulse .9s infinite}
+.tftop{display:flex;align-items:center;gap:8px}.tftop .tfbar,.tftop .prog{flex:1;margin:0}.tfbar{height:18px}.tfbar i{transition:width .2s linear}
+.tfq{margin:10px 0}.mq.tfq{font-size:2.6rem}
+.tfbtns{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:520px;margin:12px auto 0}
+.tfb{font-size:1.6rem;padding:18px 8px;margin:0}.tfb.good{box-shadow:0 5px 0 var(--bs),0 0 0 6px rgba(63,208,106,.45)}.tfb.shake{animation:shake .4s}
+.colw{--c:min(12vw,50px);display:inline-block;margin:6px auto 4px;padding:0 6px;border:2px solid var(--line-d);border-radius:14px;background-color:#fff;background-image:linear-gradient(#cfdcf5 1px,transparent 1px),linear-gradient(90deg,#cfdcf5 1px,transparent 1px);background-size:var(--c) var(--c);background-position:6px 0;box-shadow:inset 0 2px 4px rgba(30,40,90,.06)}
+.crow{display:grid;grid-template-columns:repeat(var(--n),var(--c))}
+.cc{height:var(--c);display:grid;place-items:center;font-size:calc(var(--c) * .62);font-weight:900;font-variant-numeric:tabular-nums}
+.cc.sg{color:#5b4bdb}.crow.b{box-shadow:inset 0 -4px 0 #3b2f8f}.crow.b .cc{color:#3b2f8f}
+.cc.cy{font-size:calc(var(--c) * .48);color:#e65100;align-items:end}.cc.cy.on{animation:pop .35s}
+.crow.res .cc{color:#15803d}.crow.res .cc.cur{background:#fff6c7;outline:3px dashed #ffb300;outline-offset:-4px;border-radius:10px;animation:pulse 1.2s infinite}
+.colw+.msg{min-height:3em}
 
 </style>
 </head>
@@ -7447,7 +7460,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
-  const extra = skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
+  const extra = skind() === 'math' ? '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -7462,6 +7475,7 @@ function map() {
   if ($('gal')) $('gal').onclick = izoGallery;
   $('trn').onclick = isGen() ? mathTraining : training;
   if ($('more')) $('more').onclick = more;
+  if ($('col')) $('col').onclick = () => colGame(); if ($('tfm')) $('tfm').onclick = () => tfGame('math');
   if ($('dict')) $('dict').onclick = () => dictScreen(map);
   $('play').onclick = () => {
     if (cur) return startLesson(nextI);
@@ -8538,12 +8552,275 @@ function wordGame(kind) {
   });
 }
 
+/* ---------- «Скажи сам»: ребёнок говорит слово, робот проверяет произношение ---------- */
+const SRec = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const sayNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z' ]/g, ' ').replace(/\s+/g, ' ').trim();
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// услышанное совпадает со словом? (одна из версий распознавания содержит слово или очень похожа на него)
+function sayMatch(alts, target) {
+  const w = sayNorm(target);
+  return alts.some(a => {
+    const h = sayNorm(a); if (!h) return false;
+    if ((' ' + h + ' ').includes(' ' + w + ' ')) return true;
+    const near = x => lev(x, w) <= (w.length <= 3 ? 0 : w.length <= 5 ? 1 : Math.floor(w.length / 4)); // dog ≠ dock, но elephant ≈ elefant
+    return near(h) || h.split(' ').some(near);
+  });
+}
+function sayGame() {
+  if (tmGate()) return; tmInLesson = true;
+  const ids = sample(practiceWords().filter(id => WORDS[id] && /^[A-Za-zàèéìòóù' ]{2,16}$/.test(WORDS[id].en)), 6);
+  if (!ids.length) { toast('Сначала пройди пару уроков'); return more(); }
+  let mic = !!SRec(); // нет распознавания речи (или оно не работает) — ребёнок оценивает себя сам
+  const ctx = { L: { id: 'wg_say', icon: '🎤', title: 'Скажи сам' }, asked: 0, ok: 0 };
+  const step = cb => {
+    let i = 0;
+    const ask = () => {
+      if (i >= ids.length) return cb();
+      const w = WORDS[ids[i]]; let tries = 0, rec = null, busy = false;
+      frame(ctx, `<div class="card center"><div class="prog">${ids.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
+        <h3>🎤 Скажи ${LN().adv}</h3><div class="bigemoji">${w.e}</div><div class="en">${esc(w.en)}</div>${trSmall(w.id)}<p class="ru">${w.ru}</p>
+        <p><button class="btn sec" id="sl">🔊 Послушать</button></p>
+        <div id="sbox">${mic ? '<button class="btn play huge mic" id="sm">🎤 Скажи</button>' : '<p>Послушай робота и повтори вслух 2 раза.</p><p><button class="btn gold" id="sy">😊 Получилось</button><button class="btn sec" id="sn">🔁 Ещё раз послушать</button></p>'}</div>
+        <div id="msg" class="msg">${mic ? 'Сначала послушай, потом нажми «Скажи» и произнеси слово' : '&nbsp;'}</div></div>`);
+      const my = screenId;
+      const done = ok => {
+        ctx.asked++; if (ok) ctx.ok++; logQ(ok); srs(w.id, ok); save(); i++;
+        setTimeout(() => { if (screenId === my) ask(); }, ok ? 1600 : 2200);
+      };
+      const toSelf = why => { mic = false; $('msg').textContent = why; $('sbox').innerHTML = '<p><button class="btn gold" id="sy">😊 Получилось</button><button class="btn sec" id="sn">🔁 Ещё раз послушать</button></p>'; bindSelf(); };
+      const bindSelf = () => {
+        $('sy').onclick = () => { sfx('ok'); $('msg').textContent = praise(); $('sbox').innerHTML = ''; done(true); };
+        $('sn').onclick = () => speak(w.en);
+      };
+      $('sl').onclick = () => speak(w.en);
+      speak(w.en, 300);
+      if (!mic) return bindSelf();
+      $('sm').onclick = () => {
+        if (busy) return;
+        const R = SRec(); hardStop();
+        try { rec = new R(); } catch (e) { return toSelf('На этом устройстве робот не умеет слушать. Повтори вслух и оцени себя сам 🙂'); }
+        rec.lang = LNOW.tts === 'en-GB' ? 'en-GB' : LNOW.tts; rec.interimResults = false; rec.maxAlternatives = 5; rec.continuous = false;
+        busy = true; $('sm').classList.add('on'); $('sm').textContent = '👂 Слушаю…'; $('msg').textContent = 'Говори!';
+        let got = false;
+        rec.onresult = e => {
+          got = true; if (screenId !== my) return;
+          const alts = [...e.results[0]].map(r => r.transcript);
+          if (sayMatch(alts, w.en)) {
+            sfx('ok'); $('msg').innerHTML = `${praise()} Робот понял: <b>${esc(alts[0] || w.en)}</b>`; $('sbox').innerHTML = ''; done(tries === 0);
+          } else {
+            tries++; sfx('bad');
+            $('msg').innerHTML = `Робот услышал: <b>${esc(alts[0] || '…')}</b>. ${tries >= 3 ? 'Ничего, это трудное слово! Идём дальше 💪' : 'Послушай ещё раз и скажи чётче 💪'}`;
+            if (tries >= 3) { $('sbox').innerHTML = ''; done(false); }
+          }
+        };
+        rec.onerror = e => {
+          got = true; busy = false; if (screenId !== my) return;
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') return toSelf('Микрофон не разрешён. Родители могут разрешить его в настройках браузера. А пока повтори вслух и оцени себя сам 🙂');
+          if (e.error === 'network') return toSelf('Для проверки нужен интернет. Повтори вслух и оцени себя сам 🙂');
+          $('msg').textContent = e.error === 'no-speech' ? 'Не слышу. Нажми «Скажи» и скажи погромче 🙂' : 'Не получилось расслышать, попробуй ещё раз';
+        };
+        rec.onend = () => {
+          busy = false; if (screenId !== my || !$('sm')) return;
+          $('sm').classList.remove('on'); $('sm').textContent = '🎤 Скажи';
+          if (!got) $('msg').textContent = 'Не слышу. Нажми «Скажи» и скажи погромче 🙂';
+        };
+        try { rec.start(); } catch (e) { busy = false; toSelf('Микрофон сейчас занят. Повтори вслух и оцени себя сам 🙂'); }
+      };
+    };
+    ask();
+  };
+  ctx.steps = [['Скажи сам', step]];
+  runSteps(ctx, () => {
+    const em = Math.min(8, 2 + ctx.ok); S.emeralds += em; S.petXp += 1; addXp(3 + ctx.ok); save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>🎤 Ты говоришь ${LN().adv}!</h1><p>Получилось с первого раза: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="ag">Ещё раз</button><button class="btn sec" id="mo">📚 Ещё</button></p></div>`;
+    $('ag').onclick = sayGame; $('mo').onclick = more;
+  });
+}
+
+/* ---------- «Правда или нет?»: быстрые ответы одним касанием (слова или примеры) ---------- */
+function tfGame(kind) {
+  if (tmGate()) return; tmInLesson = true;
+  const math = kind === 'math';
+  const pool = math ? null : practiceWords().filter(id => WORDS[id] && WORDS[id].e);
+  if (!math && pool.length < 4) { toast('Сначала пройди пару уроков'); return more(); }
+  const timed = !S.focus, LIMIT = 45, NQ = 14; // в спокойном режиме — без таймера, 14 вопросов
+  let lv = 0, streak = 0, score = 0, asked = 0, best = 0, endAt = 0, timer = 0, q = null, locked = false;
+  const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const mathQ = () => {
+    let a, b, op, r;
+    if (lv === 0) { op = R(0, 1) ? '+' : '−'; a = R(2, 10); b = R(1, 9); if (op === '−' && b > a) [a, b] = [b, a]; }
+    else if (lv === 1) { op = R(0, 1) ? '+' : '−'; a = R(11, 60); b = R(5, 39); if (op === '−' && b > a) [a, b] = [b, a]; }
+    else { op = R(0, 2) ? '×' : ':'; a = R(2, 9); b = R(2, 9); if (op === ':') { const p = a * b; [a, b] = [p, b]; } }
+    r = op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : a / b;
+    const truth = Math.random() < .5;
+    let shown = r;
+    if (!truth) { const d = [1, 2, 10, -1, -2, -10][R(0, 5)]; shown = r + d; if (shown < 0 || shown === r) shown = r + 1; }
+    return { html: `<div class="mq tfq">${a} ${op} ${b} = ${shown}</div>`, truth: shown === r, why: `${a} ${op} ${b} = ${r}` };
+  };
+  const wordQ = () => {
+    const id = pool[R(0, pool.length - 1)], w = WORDS[id], truth = Math.random() < .5;
+    let o = w;
+    if (!truth) { const others = pool.filter(x => WORDS[x].e !== w.e && WORDS[x].en !== w.en); o = WORDS[others[R(0, others.length - 1)]]; }
+    return { html: `<div class="bigemoji">${w.e}</div><div class="en tfq">${esc(o.en)}</div>`, truth: o === w, say: o.en, why: `${w.e} — ${w.en} (${w.ru})` };
+  };
+  const ctx = { L: { id: 'tf_' + kind, icon: '⚡', title: 'Правда или нет?' }, asked: 0, ok: 0 };
+  const step = cb => {
+    let live = 0, over = false;
+    const finish = () => { if (over) return; over = true; clearInterval(timer); mathKeyFn = null; cb(); };
+    const draw = () => {
+      if (timed ? Date.now() >= endAt : asked >= NQ) return finish();
+      q = math ? mathQ() : wordQ(); locked = false;
+      frame(ctx, `<div class="card center tfcard">
+        <div class="tftop">${timed ? '<div class="bar tfbar"><i id="tft"></i></div>' : `<div class="prog">${Array.from({ length: NQ }, (_, k) => `<i class="${k < asked ? 'd' : ''}"></i>`).join('')}</div>`}<span class="chip">⭐ ${score}</span></div>
+        <h3>${math ? 'Пример решён верно?' : 'Картинка и слово совпадают?'}</h3>${q.html}
+        <div class="tfbtns"><button class="btn tfb tfy" id="ty">✅ Да</button><button class="btn red tfb" id="tn">❌ Нет</button></div>
+        <div id="msg" class="msg">&nbsp;</div></div>`);
+      live = screenId; if (q.say) speak(q.say);
+      const tick = () => { const el = $('tft'); if (el) el.style.width = Math.max(0, (endAt - Date.now()) / (LIMIT * 1000) * 100) + '%'; };
+      if (timed) tick();
+      const my = screenId;
+      const answer = yes => {
+        if (locked || screenId !== my) return; locked = true; asked++;
+        const ok = yes === q.truth; ctx.asked++; logQ(ok);
+        if (ok) { score++; ctx.ok++; streak++; best = Math.max(best, streak); sfx('ok'); if (math && streak % 4 === 0 && lv < 2) lv++; }
+        else { streak = 0; sfx('bad'); if (math && lv > 0) lv--; }
+        $(yes ? 'ty' : 'tn').classList.add(ok ? 'good' : 'shake');
+        $('msg').innerHTML = ok ? praise() : `Неверно: ${esc(q.why)}`;
+        setTimeout(() => { if (screenId === my) draw(); }, ok ? 450 : 1500);
+      };
+      $('ty').onclick = () => answer(true); $('tn').onclick = () => answer(false);
+      mathKeyFn = e => { if (screenId !== my) return; if (e.key === 'ArrowLeft' || e.key === 'y' || e.key === '1') answer(true); if (e.key === 'ArrowRight' || e.key === 'n' || e.key === '2') answer(false); };
+    };
+    frame(ctx, `<div class="card center"><h1>⚡ Правда или нет?</h1><div class="bigemoji">${math ? '🧮' : '🖼️'}</div>
+      <p>${math ? 'Смотри на пример и решай быстро: он решён верно?' : 'Посмотри на картинку и слово: они про одно и то же?'}</p>
+      <p>${timed ? `У тебя <b>${LIMIT} секунд</b>. Чем больше верных ответов подряд — тем больше огонь 🔥` : `<b>${NQ} вопросов</b>, торопиться не нужно.`}</p>
+      <button class="btn play huge" id="go">Старт!</button></div>`);
+    $('go').onclick = () => {
+      if (timed) { endAt = Date.now() + LIMIT * 1000; timer = setInterval(() => { if (screenId !== live) return clearInterval(timer); const el = $('tft'); if (el) el.style.width = Math.max(0, (endAt - Date.now()) / (LIMIT * 1000) * 100) + '%'; if (Date.now() >= endAt && !locked) finish(); }, 200); }
+      draw();
+    };
+  };
+  ctx.steps = [['Правда или нет?', step]];
+  runSteps(ctx, () => {
+    clearInterval(timer);
+    const em = Math.min(10, Math.round(score / 2)); S.emeralds += em; S.petXp += 1; addXp(2 + score); save(); sfx('win');
+    const key = 'tfBest_' + kind, rec = score > (S[key] || 0); if (timed && rec) { S[key] = score; save(); }
+    app.innerHTML = `<div class="card center"><h1>⚡ Готово!</h1><div class="stars"><span>⭐</span></div>
+      <p>Верных ответов: <b>${score}</b> из ${asked}${best >= 3 ? ` · лучшая серия 🔥 ${best}` : ''}</p>
+      ${timed ? `<p>${rec ? '🏆 Новый рекорд!' : 'Рекорд: ' + (S[key] || 0)}</p>` : ''}<p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="ag">Ещё раз</button><button class="btn sec" id="mo">${math ? '🗺️ На карту' : '📚 Ещё'}</button></p></div>`;
+    $('ag').onclick = () => tfGame(kind); $('mo').onclick = math ? map : more;
+  });
+}
+
+/* ---------- «Столбик»: сложение и вычитание по разрядам, с переносом и заниманием ---------- */
+function colGame(size) {
+  if (tmGate()) return;
+  if (!size) {
+    epoch++; newScreen();
+    app.innerHTML = `<div class="card center"><button class="btn small sec" id="bk">⬅ Карта</button><h1>🧮 Столбик</h1>
+      <p>Пишем числа друг под другом и считаем <b>справа налево</b>: единицы, десятки, сотни. Робот подскажет, где запомнить единичку и где занять десяток.</p>
+      <div class="bigrow"><button class="btn gold big" data-n="2">До 100</button><button class="btn gold big" data-n="3">До 1 000</button><button class="btn gold big" data-n="4">До 10 000</button></div></div>`;
+    $('bk').onclick = map; app.querySelectorAll('[data-n]').forEach(b => b.onclick = () => colGame(+b.dataset.n));
+    return;
+  }
+  tmInLesson = true;
+  const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1)), lo = 10 ** (size - 1), hi = 10 ** size - 1;
+  const make = k => {
+    const plus = k % 2 === 0;
+    for (let t = 0; t < 200; t++) {
+      let a = R(lo, hi), b = R(t % 3 ? lo : Math.max(2, lo / 10), hi); // иногда второе число короче — учимся писать разряд под разрядом
+      if (plus) { if (a + b > hi) continue; } // «до 1 000» — сумма меньше 1 000
+      else { if (b >= a) [a, b] = [b, a]; if (b === a) continue; }
+      // хотим хотя бы один перенос / заём — ради этого упражнение и нужно
+      const sa = String(a).split('').reverse(), sb = String(b).split('').reverse();
+      let c = 0, hard = false;
+      for (let i = 0; i < sa.length; i++) { const x = +sa[i], y = +(sb[i] || 0); if (plus ? x + y + c >= 10 : x - c < y) { hard = true; c = 1; } else c = 0; }
+      if (hard || k === 0) return { a, b, plus };
+    }
+    return { a: 47, b: 38, plus };
+  };
+  const tasks = Array.from({ length: 6 }, (_, k) => make(k));
+  const ctx = { L: { id: 'col' + size, icon: '🧮', title: 'Столбик' }, asked: 0, ok: 0 };
+  const step = cb => {
+    let ti = 0;
+    const ask = () => {
+      if (ti >= tasks.length) { mathKeyFn = null; return cb(); }
+      const { a, b, plus } = tasks[ti], res = plus ? a + b : a - b;
+      const A = String(a).split('').reverse().map(Number), B = String(b).split('').reverse().map(Number);
+      const n = Math.max(A.length, String(res).length), W = n + 1; // ширина таблицы: место под знак
+      const out = [], carry = []; // carry[i] — единичка (или заём) над разрядом i
+      let errs = 0, tries = 0, col = 0, c = 0, locked = false;
+      const resLen = String(res).length;
+      const cell = (d, cls) => `<span class="cc ${cls || ''}">${d === undefined || d === null ? '' : d}</span>`;
+      const row = (digs, sign, cls) => `<div class="crow ${cls || ''}">${cell(sign, 'sg')}${Array.from({ length: n }, (_, k) => { const i = n - 1 - k; return cell(digs[i], i === col && cls === 'res' ? 'cur' : ''); }).join('')}</div>`;
+      const draw = msg => {
+        const top = Array.from({ length: n }, (_, k) => { const i = n - 1 - k; return cell(carry[i] ? (plus ? '1' : '•') : '', 'cy' + (carry[i] ? ' on' : '')); }).join('');
+        const sheet = `<div class="colw" id="colw" style="--n:${W}"><div class="crow">${cell('', 'sg')}${top}</div>${row(A, '', '')}${row(B, plus ? '+' : '−', 'b')}${row(out, '', 'res')}</div>`;
+        if ($('colw')) { $('colw').outerHTML = sheet; $('msg').innerHTML = msg || '&nbsp;'; return; } // на каждую цифру обновляем только тетрадь — экран не мигает
+        frame(ctx, `<div class="card center"><div class="prog">${tasks.map((_, k) => `<i class="${k < ti ? 'd' : ''}"></i>`).join('')}</div>
+          <h3>${plus ? 'Сложи' : 'Вычти'} столбиком: ${a} ${plus ? '+' : '−'} ${b}</h3>
+          ${sheet}<div id="msg" class="msg">${msg || '&nbsp;'}</div>
+          <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '💡', 0, ''].map(k => k === '' ? '<span></span>' : `<button class="btn kp ${k === '💡' ? 'gold' : 'sec'}" data-k="${k}">${k}</button>`).join('')}</div>
+          <div id="nxw"></div></div>`);
+        my = screenId;
+        app.querySelectorAll('.kp').forEach(btn => btn.onclick = () => press(btn.dataset.k));
+      };
+      const colInfo = () => {
+        const x = A[col] || 0, y = B[col] || 0;
+        if (plus) { const s = x + y + c; return { d: s % 10, nc: s >= 10 ? 1 : 0, txt: `${x} + ${y}${c ? ' + 1' : ''} = ${s}` + (s >= 10 ? `: пишем ${s % 10}, а 1 запоминаем (переносим в следующий разряд)` : `: пишем ${s}`) }; }
+        const top = x - c, need = top < y;
+        return { d: (need ? top + 10 : top) - y, nc: need ? 1 : 0, txt: top < 0 ? `Здесь 0, а единицу у него уже заняли — значит, занимаем у следующего соседа: 10 − 1 = 9, ${9} − ${y} = ${9 - y}` : (c ? `Здесь уже заняли единицу: ${x} − 1 = ${top}. ` : '') + (need ? `${top} меньше ${y} — занимаем десяток у соседа: ${top + 10} − ${y} = ${top + 10 - y}` : `${top} − ${y} = ${top - y}`) };
+      };
+      const names = ['единицы', 'десятки', 'сотни', 'тысячи', 'десятки тысяч'];
+      let my = screenId;
+      const press = k => {
+        if (locked || screenId !== my) return;
+        const info = colInfo();
+        if (k === '💡') { tries = Math.max(tries, 1); errs++; $('msg').textContent = '💡 ' + info.txt; return; }
+        if (+k === info.d) {
+          out[col] = info.d; c = info.nc; if (c) carry[col + 1] = 1; sfx('ok');
+          const said = info.txt; col++; tries = 0;
+          if (col >= resLen) {
+            locked = true; ctx.asked++; if (!errs) ctx.ok++; logQ(!errs); save();
+            draw(`${said}.<br><b>${a} ${plus ? '+' : '−'} ${b} = ${res}</b> ${errs ? '✅' : praise()}`);
+            ti++; setTimeout(() => { if (screenId === my) ask(); }, 2200);
+          } else draw(`${said}. Теперь ${names[col]} 👉`);
+        } else {
+          tries++; errs++; sfx('bad');
+          if (tries >= 2) { out[col] = info.d; c = info.nc; if (c) carry[col + 1] = 1; col++; tries = 0;
+            if (col >= resLen) { locked = true; ctx.asked++; logQ(false); save(); draw(`Смотри: ${info.txt}.<br><b>${a} ${plus ? '+' : '−'} ${b} = ${res}</b>`); $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = () => { ti++; ask(); }; return; }
+            draw(`Смотри: ${info.txt}. Теперь ${names[col]} 👉`);
+          } else $('msg').textContent = `Не так. Считаем ${names[col]}: ${plus ? 'сложи цифры этого столбика' + (c ? ' и не забудь единичку сверху' : '') : 'из верхней цифры вычти нижнюю' + (c ? ' (сверху точка — там уже заняли 1)' : '')} 💪`;
+        }
+      };
+      mathKeyFn = e => { if (screenId !== my) return; if (/^[0-9]$/.test(e.key)) press(e.key); };
+      if ($('colw')) $('colw').remove(); // новый пример — рисуем экран целиком
+      draw(`Начинаем с единиц — справа 👉`);
+    };
+    ask();
+  };
+  ctx.steps = [['Столбик', step]];
+  runSteps(ctx, () => {
+    const em = Math.round((2 + ctx.ok) * emMult()); S.emeralds += em; S.petXp += 1; addXp(4 + ctx.ok); save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>🧮 Столбик освоен!</h1><p>Без единой ошибки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="ag">Ещё раз</button><button class="btn sec" id="mp">🗺️ На карту</button></p></div>`;
+    $('ag').onclick = () => colGame(size); $('mp').onclick = map;
+  });
+}
+
 function more() {
   if (tmGate()) return; tmInLesson = false;
   epoch++; newScreen();
   app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Карта</button><h2>📚 Ещё</h2>
-    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button><button class="btn" id="m6">🔗 Слова из слов</button><button class="btn" id="m7">✏️ Исправь ошибку</button></div></div>`;
-  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more); $('m6').onclick = () => wordGame('comp'); $('m7').onclick = () => wordGame('typo');
+    <div class="moregrid"><button class="btn" id="m1">💬 Диалоги</button><button class="btn" id="m2">🎵 Песенки</button><button class="btn" id="m3">🎧 Аудирование</button><button class="btn" id="m4">📖 Словарик</button><button class="btn" id="m5">📕 Словарь</button><button class="btn" id="m6">🔗 Слова из слов</button><button class="btn" id="m7">✏️ Исправь ошибку</button><button class="btn" id="m8">🎤 Скажи сам</button><button class="btn" id="m9">⚡ Правда или нет?</button></div></div>`;
+  $('bk').onclick = map; $('m1').onclick = dialogs; $('m2').onclick = songs; $('m3').onclick = listening; $('m4').onclick = vocab; $('m5').onclick = () => dictScreen(more); $('m6').onclick = () => wordGame('comp'); $('m7').onclick = () => wordGame('typo'); $('m8').onclick = sayGame; $('m9').onclick = () => tfGame('word');
 }
 const PIN_KEY = 'engAdventure_pin';
 // сброс PIN: по семейному коду (если включено облако) или решив пример, который ребёнку не под силу
