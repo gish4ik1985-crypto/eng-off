@@ -6623,6 +6623,7 @@ function voiceScore(v) {
   if (FUN_VOICES.test(v.name)) sc -= 200;
   return sc;
 }
+const voiceScoreRu = v => (/natural|neural|online|enhanced|premium|siri/i.test(v.name) ? 30 : 0) + (/google/i.test(v.name) ? 20 : 0) + (/compact/i.test(v.name) ? -10 : 0) + (FUN_VOICES.test(v.name) ? -200 : 0);
 const langVoices = () => { try { return speechSynthesis.getVoices().filter(v => LNOW.re.test(v.lang)).sort((a, b) => voiceScore(b) - voiceScore(a)); } catch (e) { return []; } };
 function pickVoice() {
   try {
@@ -7767,7 +7768,9 @@ let mission = [];
 function unlocked(i) {
   const L = W().lessons, l = L[i], done = x => (S.lessons[x.id] || {}).done;
   if (S.unlockAll || i === 0 || done(l)) return true;
-  let j = i - 1; while (j >= 0 && L[j].bonus) j--;
+  // бонусный урок открывается после предыдущего (иначе подряд идущие бонусные открывались бы все сразу),
+  // основной — после предыдущего основного: бонусные его не блокируют
+  let j = i - 1; if (!l.bonus) while (j >= 0 && L[j].bonus) j--;
   return j < 0 || !!done(L[j]);
 }
 // какой урок идёт следующим: сначала основные, потом босс, потом бонусные
@@ -7810,7 +7813,7 @@ function home() {
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
-    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин${(S.kNew || []).length ? ` <span class="knew">🔓${S.kNew.length}</span>` : ''}</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}</div>
+    <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин${(S.kNew || []).length ? ` <span class="knew">🔓${S.kNew.length}</span>` : ''}</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}<button class="btn sec big" id="bks">📚 Учебники</button></div>
     <div class="mini2"><button class="ib" id="who" title="Сменить игрока">👤</button><button class="ib" id="mute" title="Звук">${S.mute ? '🔇' : '🔊'}</button>${cloudOn() ? `<button class="ib" id="cld" title="Облако">${CL.err ? '⚠️' : '☁️'}</button>` : ''}<button class="ib" id="parent" title="Родителям">🔒</button></div>`;
   $('play').onclick = () => { homeView = false; playNext(); };
   $('phm').onclick = () => petHome(home);
@@ -7818,6 +7821,7 @@ function home() {
   if ($('plan')) $('plan').onclick = planScreen;
   $('shop').onclick = shop; $('awb').onclick = awards; $('parent').onclick = parentGate; $('who').onclick = players;
   if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
+  $('bks').onclick = () => booksStudy();
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   $('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   mapTail();
@@ -8351,9 +8355,32 @@ function mathQuiz(o, done) {
       if (k === '⌫') buf = buf.slice(0, -1); else if (buf.length < 16) buf += k;
       $('mans').innerHTML = box();
     };
-    const sayIt = () => { try { const vs = speechSynthesis.getVoices(), v = vs.find(x => /^ru/i.test(x.lang)); if (!v) { $('msg').textContent = 'На этом устройстве нет русского голоса: читай подсказку 🙂'; return; } hardStop(); const u = new SpeechSynthesisUtterance(q.say); u.lang = 'ru-RU'; u.voice = v; u.rate = .7; speechSynthesis.speak(u); } catch (e) {} };
+    // русская озвучка слова: голос ищем при каждом нажатии (на планшетах список голосов появляется не сразу),
+    // нет русского голоса — при интернете берём онлайн-голос, иначе подсказываем читать описание
+    const sayIt = (quiet, attempt) => {
+      if (S.mute) { if (!quiet) $('msg').textContent = '🔇 Звук выключен: включи его кнопкой 🔊 на главном экране'; return; }
+      const noVoice = () => {
+        if (navigator.onLine) {
+          try { hardStop(); const a = new Audio('https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=ru&q=' + encodeURIComponent(q.say)); ONLINE_AUDIO = a; const pr = a.play(); if (pr && pr.catch) pr.catch(() => { if (!quiet) $('msg').textContent = 'Не получилось включить звук: читай подсказку 🙂'; }); return; } catch (e) {}
+        }
+        if (!quiet) $('msg').textContent = 'На этом устройстве нет русского голоса: читай подсказку 🙂';
+      };
+      try {
+        const vs = speechSynthesis.getVoices(), v = vs.filter(x => /^ru/i.test(x.lang)).sort((a, b) => voiceScoreRu(b) - voiceScoreRu(a))[0];
+        if (!v) { if (!vs.length && !attempt) return void setTimeout(() => sayIt(quiet, 1), 600); return noVoice(); }
+        hardStop(); const my = SPK.seq;
+        setTimeout(() => {
+          if (my !== SPK.seq) return;
+          const u = new SpeechSynthesisUtterance(q.say); u.lang = v.lang; u.voice = v; u.rate = .7;
+          let started = false; u.onstart = () => { started = true; };
+          speechSynthesis.speak(u);
+          setTimeout(() => { if (!started && my === SPK.seq && !attempt) { try { speechSynthesis.cancel(); } catch (e) {} sayIt(quiet, 1); } }, 1200); // «проглоченную» фразу повторяем один раз
+        }, 120);
+      } catch (e) { noVoice(); }
+    };
     app.querySelectorAll('.kp').forEach(b => b.onclick = () => press(b.dataset.k));
-    if ($('rsay')) $('rsay').onclick = sayIt;
+    if ($('rsay')) $('rsay').onclick = () => sayIt(false);
+    setTimeout(() => { if (screenId === my && !locked) sayIt(true); }, 500); // слово звучит сразу, как появилось задание
     hintUI(ctx, () => { $('msg').textContent = `💡 Слово начинается на «${q.ans[0].toLowerCase()}», в нём букв: ${q.ans.length}`; tries = Math.max(tries, 1); return true; });
     mathKeyFn = e => {
       if (screenId !== my) return;
@@ -10053,6 +10080,7 @@ const BK = {
   tx(mode, fn) { return BK.open().then(db => new Promise((res, rej) => { const t = db.transaction('p', mode), rq = fn(t.objectStore('p')); t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error); })); },
   all() { return BK.tx('readonly', s => s.getAll()); },
   add(rec) { return BK.tx('readwrite', s => s.add(rec)); },
+  put(rec) { return BK.tx('readwrite', s => s.put(rec)); },
   del(id) { return BK.tx('readwrite', s => s.delete(id)); },
   shrink(file) {
     return new Promise((res, rej) => {
@@ -10075,7 +10103,9 @@ function booksHtml() {
     <p>Предмет: ${sel('bks', BK_SUBJ)} Класс: ${sel('bkc', [[1, '1'], [2, '2'], [3, '3'], [4, '4']])}</p>
     <p><label class="btn small gold" style="display:inline-block">📷 Снять<input type="file" id="bkcam" accept="image/*" capture="environment" hidden></label>
     <label class="btn small" style="display:inline-block">🖼️ Из галереи<input type="file" id="bkgal" accept="image/*" multiple hidden></label>
-    <button class="btn small sec" id="bkdl">⬇️ Скачать все</button></p>
+    <button class="btn small sec" id="bkdl">⬇️ Скачать все</button>
+    <button class="btn small gold" id="bkocr">🔎 Распознать текст</button></p>
+    <p><small>Распознанные страницы появятся у ребёнка на главном экране в разделе «📚 Учебники»: их можно листать и решать задания по тексту. Для распознавания нужен интернет (один раз на страницу).</small></p>
     <div id="bkl" class="bkl"></div><p id="bkm"></p>`;
 }
 function booksInit() {
@@ -10085,7 +10115,7 @@ function booksInit() {
   let list = [];
   const draw = () => BK.all().then(a => {
     list = a || [];
-    $('bkl').innerHTML = list.length ? list.map(r => `<div class="bki"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${nm(r)}</small><button class="btn small red" data-d="${r.id}">✖</button></div>`).join('') : '<small>Фото пока нет.</small>';
+    $('bkl').innerHTML = list.length ? list.map(r => `<div class="bki"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${nm(r)}${r.text ? ' · 🔎✅' : ''}</small><button class="btn small red" data-d="${r.id}">✖</button></div>`).join('') : '<small>Фото пока нет.</small>';
     app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить это фото?')) BK.del(+b.dataset.d).then(draw); });
   }).catch(() => { $('bkm').textContent = 'Хранилище фото недоступно в этом браузере.'; });
   const take = files => {
@@ -10101,7 +10131,93 @@ function booksInit() {
     list.forEach((r, k) => { const key = r.subj + r.cls; cnt[key] = (cnt[key] || 0); const n = cnt[key]++; setTimeout(() => { const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = fname(r, n); document.body.appendChild(a); a.click(); a.remove(); }, k * 400); });
     $('bkm').textContent = 'Скачиваю файлов: ' + list.length + '. Пришлите их разработчику.';
   };
+  $('bkocr').onclick = () => {
+    const todo = list.filter(r => !r.text);
+    if (!todo.length) { $('bkm').textContent = list.length ? 'Все фото уже распознаны.' : 'Сначала добавьте фото.'; return; }
+    $('bkocr').disabled = true;
+    (async () => {
+      let n = 0;
+      for (const r of todo) {
+        $('bkm').textContent = `Распознаю ${++n} из ${todo.length}… (первый раз дольше: скачивается словарь)`;
+        try { r.text = await bookOcr(r.blob); await BK.put(r); } catch (e) { $('bkm').textContent = '❌ Не получилось распознать (проверьте интернет).'; $('bkocr').disabled = false; draw(); return; }
+      }
+      $('bkm').textContent = '✅ Готово. Если в тексте есть ошибки — исправьте их в разделе «📚 Учебники» (кнопка ✏️).';
+      $('bkocr').disabled = false; draw();
+    })();
+  };
   draw();
+}
+
+/* ---------- распознавание текста (Tesseract.js грузится из интернета только при распознавании) ---------- */
+function bookOcr(blob) {
+  const load = window.Tesseract ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('load')); document.head.appendChild(sc); });
+  return load.then(() => window.Tesseract.recognize(blob, 'rus+eng')).then(r => (r.data.text || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() || '(текст не найден)');
+}
+
+/* ---------- «📚 Учебники»: ребёнок листает страницы и решает задания по тексту ---------- */
+function booksStudy(subj, idx) {
+  if (tmGate()) return; newScreen();
+  const back = () => { homeView = true; home(); };
+  BK.all().then(all => {
+    all = all || [];
+    const subs = BK_SUBJ.filter(x => all.some(r => r.subj === x[0]));
+    if (!subj) {
+      app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>📚 Мои учебники</h2>
+        ${subs.length ? '<div class="sjgrid">' + subs.map(x => `<button class="sjt" data-s="${x[0]}"><span class="tn">${x[1]}</span><span class="tp">${all.filter(r => r.subj === x[0]).length} стр.</span></button>`).join('') + '</div>' : '<p>Пока нет страниц. Попроси родителей сфотографировать учебник: «🔒 Родителям» → «☁️ Связь» → «📷 Фото учебников».</p>'}</div>`;
+      $('bk').onclick = back;
+      app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => booksStudy(b.dataset.s, 0));
+      return;
+    }
+    const pages = all.filter(r => r.subj === subj).sort((a, b) => a.cls - b.cls || a.t - b.t);
+    idx = Math.max(0, Math.min(idx || 0, pages.length - 1));
+    const r = pages[idx]; if (!r) return booksStudy();
+    const url = URL.createObjectURL(r.blob), has = !!r.text && r.text !== '(текст не найден)';
+    app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Предметы</button>
+      <h3>${(BK_SUBJ.find(x => x[0] === subj) || [0, subj])[1]}, ${r.cls} кл. — страница ${idx + 1} из ${pages.length}</h3>
+      <p><button class="btn small" id="pv" ${idx ? '' : 'disabled'}>◀</button> <button class="btn small" id="nx" ${idx < pages.length - 1 ? '' : 'disabled'}>▶</button></p>
+      <img src="${url}" alt="" style="max-width:100%;border:3px solid #1b1b1b;border-radius:8px">
+      ${r.text ? `<div id="bkt" style="white-space:pre-wrap;text-align:left;background:#f6f1e3;border-radius:8px;padding:8px;margin:8px 0">${esc(r.text)}</div>` : '<p><small>Текст ещё не распознан — родители могут сделать это в разделе «📷 Фото учебников».</small></p>'}
+      <p>${has ? '<button class="btn gold" id="bkq">🎯 Задания по странице</button> ' : ''}${r.text ? '<button class="btn small sec" id="bke">✏️ Исправить текст</button>' : ''}</p></div>`;
+    $('bk').onclick = () => booksStudy();
+    $('pv').onclick = () => booksStudy(subj, idx - 1); $('nx').onclick = () => booksStudy(subj, idx + 1);
+    if ($('bkq')) $('bkq').onclick = () => booksQuiz(r, () => booksStudy(subj, idx));
+    if ($('bke')) $('bke').onclick = () => {
+      $('bkt').outerHTML = `<textarea id="bkta" rows="12" style="width:100%;font:inherit;border:3px solid #1b1b1b;border-radius:8px;padding:8px">${esc(r.text)}</textarea>`;
+      $('bke').textContent = '💾 Сохранить';
+      $('bke').onclick = () => { r.text = $('bkta').value.trim(); BK.put(r).then(() => booksStudy(subj, idx)); };
+    };
+  }).catch(() => { toast('Хранилище фото недоступно в этом браузере'); back(); });
+}
+// задания «вставь пропущенное слово» из распознанного текста страницы
+function booksQuiz(r, back) {
+  const words = [...new Set((r.text.match(/\p{L}{4,}/gu) || []).map(w => w.toLowerCase()))];
+  const sents = (r.text.replace(/\n+/g, ' ').match(/[^.!?]+[.!?]?/g) || []).map(x => x.trim()).filter(x => x.length >= 20 && x.length <= 140 && (x.match(/\p{L}{4,}/gu) || []).length >= 2);
+  if (words.length < 4 || !sents.length) { toast('На странице мало текста для заданий. Попробуйте исправить текст или сфотографировать лучше.'); return back(); }
+  const items = shuffle(sents).slice(0, 8).map(t => {
+    const cand = t.match(/\p{L}{4,}/gu), w = cand[Math.floor(Math.random() * cand.length)];
+    return { t: t.replace(w, '_____'), w: w.toLowerCase() };
+  });
+  let i = 0, ok = 0; newScreen();
+  const ask = () => {
+    if (i >= items.length) {
+      const em = Math.min(8, 2 + ok); S.emeralds += em; addXp(2 + ok); save(); sfx('win');
+      app.innerHTML = `<div class="card center"><h2>🎉 Готово!</h2><p>Верно с первой попытки: <b>${ok}</b> из ${items.length}</p><p>+${em} 💎</p><button class="btn gold" id="again">🔁 Ещё раз</button> <button class="btn sec" id="bk">⬅ К странице</button></div>`;
+      $('again').onclick = () => booksQuiz(r, back); $('bk').onclick = back; return;
+    }
+    const it = items[i], opts = shuffle([it.w].concat(shuffle(words.filter(x => x !== it.w)).slice(0, 3)));
+    let tries = 0, locked = false;
+    app.innerHTML = `<div class="card center"><div class="prog">${items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>
+      <h3>Какое слово пропущено?</h3><p style="font-size:1.2rem">${esc(it.t)}</p><div id="msg" class="msg">&nbsp;</div>
+      <div class="opts">${opts.map(o => `<button class="opt" data-w="${esc(o)}"><span class="ot">${esc(o)}</span></button>`).join('')}</div>
+      <p><button class="btn small sec" id="bk">⬅ Выйти</button></p></div>`;
+    $('bk').onclick = back;
+    app.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      if (locked) return;
+      if (b.dataset.w === it.w) { locked = true; b.classList.add('good'); sfx('ok'); $('msg').textContent = praise(); if (!tries) ok++; i++; setTimeout(ask, 900); }
+      else { tries++; b.classList.add('bad'); b.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Попробуй ещё 💪'; }
+    });
+  };
+  ask();
 }
 
 
