@@ -49,6 +49,13 @@ function handle_(r) {
   if (fr < 0) return { ok: false, err: 'Такого семейного кода нет' };
 
   if (r.op === 'join') return { ok: true, pin: pin, players: players_(code) };
+  if (r.op === 'setpw') { // пароль игрока: лист «Пароли» (Код, ID игрока, Имя, Пароль, Изменён)
+    var ps = sheet_('Пароли', ['Код', 'ID игрока', 'Имя', 'Пароль', 'Изменён']), pv = ps.getDataRange().getValues(), pr = -1;
+    for (var a = 1; a < pv.length; a++) if (String(pv[a][0]) === code && String(pv[a][1]) === String(r.id || '')) { pr = a + 1; break; }
+    var row = [code, String(r.id || ''), String(r.name || ''), String(r.pw || ''), new Date().toISOString()];
+    if (pr > 0) ps.getRange(pr, 1, 1, 5).setValues([row]); else ps.appendRow(row);
+    return { ok: true };
+  }
   if (r.op === 'setpin') { fam.getRange(fr, 2).setValue(String(r.pin || '')); return { ok: true }; }
 
   var key = code + '|' + String(r.id || '');
@@ -77,10 +84,12 @@ function handle_(r) {
 
 function players_(code) {
   var data = sheet_('data', HEAD);
+  var pws = {}, pv = sheet_('Пароли', ['Код', 'ID игрока', 'Имя', 'Пароль', 'Изменён']).getDataRange().getValues();
+  for (var a = 1; a < pv.length; a++) if (String(pv[a][0]) === code) pws[String(pv[a][1])] = String(pv[a][3] || '');
   var v = data.getDataRange().getValues(), out = [];
   for (var i = 1; i < v.length; i++) {
     var k = String(v[i][0]);
-    if (k.indexOf(code + '|') === 0 && Number(v[i][2]) === 0 && !isOff_(v[i][5])) out.push({ id: k.substr(code.length + 1), name: String(v[i][4]), ts: Number(v[i][1]) });
+    if (k.indexOf(code + '|') === 0 && Number(v[i][2]) === 0 && !isOff_(v[i][5])) out.push({ id: k.substr(code.length + 1), name: String(v[i][4]), ts: Number(v[i][1]), pw: pws[k.substr(code.length + 1)] || '' });
   }
   return out;
 }
