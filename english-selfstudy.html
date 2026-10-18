@@ -7768,16 +7768,15 @@ let mission = [];
 function unlocked(i) {
   const L = W().lessons, l = L[i], done = x => (S.lessons[x.id] || {}).done;
   if (S.unlockAll || i === 0 || done(l)) return true;
-  // бонусный урок открывается после предыдущего (иначе подряд идущие бонусные открывались бы все сразу),
-  // основной — после предыдущего основного: бонусные его не блокируют
-  let j = i - 1; if (!l.bonus) while (j >= 0 && L[j].bonus) j--;
-  return j < 0 || !!done(L[j]);
+  // строго по порядку: урок открывается, только когда пройден предыдущий (иначе несколько уроков горели бы сразу).
+  // Уже пройденные остаются открытыми, поэтому прогресс не сбивается
+  return !!done(L[i - 1]);
 }
-// какой урок идёт следующим: сначала основные, потом босс, потом бонусные
+// какой урок идёт следующим: первый непройденный по порядку (до последнего основного), потом босс, потом бонусные
 function nextIdx() {
   const L = W().lessons, done = x => (S.lessons[x.id] || {}).done;
-  let i = L.findIndex(l => !l.bonus && !done(l));
-  if (i >= 0) return i;
+  const mi = L.findIndex(l => !l.bonus && !done(l));
+  if (mi >= 0) return L.findIndex((l, k) => k <= mi && !done(l));
   if (!done(W().boss)) return -1;
   return L.findIndex(l => !done(l));
 }
@@ -8652,9 +8651,20 @@ function shop() {
 
 /* ---------- тренажёры внимания ---------- */
 function attGame(ctx, L, cb) {
-  const lv = L.lv || 1;
-  const fin = (asked, ok) => { ctx.asked += asked; ctx.ok += ok; logQn(asked, ok); save(); cb(); };
-  ({ gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs, rhythm: attRhythm })[L.game](lv, ctx, fin);
+  const lv = L.lv || 1, need = L.game === 'gonogo' ? .7 : (L.game === 'simon' || L.game === 'rhythm') ? .5 : 0;
+  // урок засчитывается, только если ребёнок реально играл: без нажатий «Жми или стой» не пройти, цепочку и ритм надо повторить верно
+  const run = () => {
+    const fin = (asked, ok) => {
+      logQn(asked, ok); save();
+      if (need && asked && ok / asked < need) {
+        frame(ctx, `<div class="card center"><div class="bigem">💪</div><h3>Давай ещё раз!</h3><p class="dtxt">Получилось ${ok} из ${asked}. Чтобы пройти, нужно хотя бы ${Math.ceil(asked * need)}. Смотри внимательно и не торопись.</p><p><button class="btn gold big" id="ra">Ещё раз ➜</button></p></div>`);
+        $('ra').onclick = run; return;
+      }
+      ctx.asked += asked; ctx.ok += ok; cb();
+    };
+    ({ gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs, rhythm: attRhythm })[L.game](lv, ctx, fin);
+  };
+  run();
 }
 function attBoss() {
   const BS = W().boss, ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
@@ -8670,11 +8680,11 @@ function attGoNoGo(lv, ctx, fin) {
   $('gs').onclick = () => {
     frame(ctx, `<div class="card center"><div class="prog">${Array.from({ length: n }, () => '<i></i>').join('')}</div><div class="bigem att-stim" id="gst">⚪</div><p><button class="btn gold huge" id="gtap">ЖМИ!</button></p><div id="msg" class="msg">&nbsp;</div></div>`);
     const my = screenId, st = $('gst'), dots = [...app.querySelectorAll('.prog i')];
-    let k = 0, ok = 0, tapped = false, isT = false, open = false;
-    $('gtap').onpointerdown = () => { if (open && !tapped) { tapped = true; st.style.opacity = .55; } };
+    let k = 0, ok = 0, tapped = false, isT = false, open = false, anyTap = false;
+    $('gtap').onpointerdown = () => { if (open && !tapped) { tapped = true; anyTap = true; st.style.opacity = .55; } };
     const trial = () => {
       if (screenId !== my) return;
-      if (k >= n) return fin(n, ok);
+      if (k >= n) return fin(n, anyTap ? ok : 0); // ни одного нажатия — игра не пройдена
       isT = Math.random() < .65; tapped = false; open = true; st.style.opacity = 1; st.textContent = isT ? '🟢' : '🔴';
       setTimeout(() => {
         if (screenId !== my) return; open = false;
