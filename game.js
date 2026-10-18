@@ -445,8 +445,11 @@ function dayRec() {
   }
   return S.log[t];
 }
+// по предметам: минуты, ответы и верные — родитель видит, что получается, а что нет
+const sjRec = d => { d.sj = d.sj || {}; const k = skind(); return d.sj[k] || (d.sj[k] = { sec: 0, q: 0, ok: 0 }); };
 function logQn(n, okN) {
   const d = dayRec(); d.q += n; d.ok += okN;
+  { const r = sjRec(d); r.q += n; r.ok += okN; S.last = { t: Date.now(), s: skind() }; }
   const nw = new Date(), h = nw.getHours(), wd = (nw.getDay() + 6) % 7; S.hrs = S.hrs || {}; S.wds = S.wds || {};
   const a = S.hrs[h] || (S.hrs[h] = { q: 0, ok: 0 }), b = S.wds[wd] || (S.wds[wd] = { q: 0, ok: 0 });
   a.q += n; a.ok += okN; b.q += n; b.ok += okN;
@@ -507,6 +510,7 @@ function hintUI(ctx, apply) {
 }
 function logDone(kind) {
   const d = dayRec(); d[kind] = (d[kind] || 0) + 1;
+  S.act = (S.act || []).concat([{ t: Date.now(), s: skind(), k: kind }]).slice(-40); S.last = { t: Date.now(), s: skind() };
   S.cnt[kind] = (S.cnt[kind] || 0) + 1;
   setTimeout(checkAch, 1600); // проверяем награды чуть позже, когда экран результата уже показан
 }
@@ -514,7 +518,7 @@ function logDone(kind) {
 let lastTouch = 0;
 document.addEventListener('pointerdown', () => {
   const n = Date.now();
-  if (lastTouch && n - lastTouch < 90000) { dayRec().sec += Math.round((n - lastTouch) / 1000); }
+  if (lastTouch && n - lastTouch < 90000) { const d = dayRec(), sc = Math.round((n - lastTouch) / 1000); d.sec += sc; if (S.name) sjRec(d).sec += sc; }
   lastTouch = n;
 }, { passive: true });
 window.addEventListener('pagehide', () => save());
@@ -931,9 +935,10 @@ function players() {
   }).join('');
   app.innerHTML = `<div class="card top">${S.name ? '<button class="btn small sec" id="bk">⬅ Карта</button>' : ''}<div class="grow center"><h2>👤 Кто занимается?</h2></div></div>
     <div class="card"><div class="shop">${cards}<div class="item"><div class="ie">➕</div><b>Новый игрок</b><br><button class="btn small gold" id="np">Добавить</button></div></div>
-      <p><button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button>${cloudOn() ? ' <button class="btn small sec" id="rsg">😴 Пауза для отдыха (родителям)</button>' : ''}</p>
+      <p><button class="btn small gold" id="prt">👨 Я родитель: что делают дети</button> <button class="btn small sec" id="cl">☁️ Семейный код (вход с другого устройства)</button>${cloudOn() ? ' <button class="btn small sec" id="rsg">😴 Пауза для отдыха (родителям)</button>' : ''}</p>
       <p><small>У каждого игрока свой прогресс, награды, питомец и недельный отчёт. ${cloudOn() ? 'Прогресс синхронизируется с облаком.' : 'Данные хранятся на этом устройстве.'}</small></p></div>`;
   if ($('bk')) $('bk').onclick = map;
+  $('prt').onclick = () => parentGate('kids');
   const dupes = PR.list.filter(p => { const st = p.id === PR.cur ? S : loadState(p.key); return emptySt(st) && PR.list.some(q => q !== p && String(q.name).trim().toLowerCase() === String(p.name).trim().toLowerCase() && !emptySt(q.id === PR.cur ? S : loadState(q.key))); });
   if (dupes.length) {
     const b = document.createElement('p'); b.innerHTML = `<button class="btn small red" id="dd">🧹 Убрать пустые дубли (${dupes.length})</button> <small>удаляются только игроки с тем же именем, у которых ничего не пройдено и 0 изумрудов</small>`;
@@ -1016,7 +1021,10 @@ function mergeState(a, b) {
   m.xp = Math.max(a.xp || 0, b.xp || 0);
   ['sets', 'ach', 'bonusGiven', 'hwPaid'].forEach(k => { m[k] = Object.assign({}, older[k], newer[k]); });
   m.owned = Array.from(new Set([].concat(a.owned || [], b.owned || [])));
-  m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, (x, y) => Math.max(x, y)));
+  const dmax = (x, y) => (x && y && typeof x === 'object' && typeof y === 'object' ? keyed(x, y, dmax) : Math.max(x || 0, y || 0));
+  m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, dmax));
+  m.act = [].concat(a.act || [], b.act || []).filter((e, i, arr) => arr.findIndex(x => x.t === e.t && x.k === e.k) === i).sort((x, y) => x.t - y.t).slice(-40);
+  m.last = ((a.last || {}).t || 0) >= ((b.last || {}).t || 0) ? a.last : b.last;
   ['totalDays', 'maxStreak', 'maxEm', 'petXp'].forEach(k => { m[k] = Math.max(a[k] || 0, b[k] || 0); });
   m._ts = Math.max(a._ts || 0, b._ts || 0);
   return m;
@@ -1883,6 +1891,7 @@ function reward(ctx) {
   const first = !rec.done, prevStars = rec.stars || 0;
   rec.done = true; rec.stars = Math.max(rec.stars, stars); rec.t = Date.now();
   logDone('les');
+  { const e = S.act[S.act.length - 1]; if (e) Object.assign(e, { n: L.title, st: stars, a: Math.round(acc * 100), b: ctx.boss ? 1 : 0 }); }
   // повторение тоже оплачивается, но вдвое меньше изучения; за одно и то же занятие в день — не больше двух раз
   if (S.repDay !== today()) { S.repDay = today(); S.repCnt = {}; }
   const times = S.repCnt[L.id] = (S.repCnt[L.id] || 0) + 1;
@@ -4204,8 +4213,58 @@ function concHtml() {
     ${best ? `<p>💡 Лучше всего получается: <b>${best.nm}</b> (${best.pct}%).${worst && worst.pct < best.pct - 8 ? ` Хуже всего: ${worst.nm} (${worst.pct}%): сложное лучше не ставить на это время.` : ''}</p>` : ''}<p><small>Точность считается по первым попыткам. Данные накапливаются с момента обновления игры.</small></p>`;
 }
 // экран родителей разбит на разделы (вкладки), чтобы не листать одну длинную страницу
+/* ---------- «Дети»: что делает каждый ребёнок, что получается и что трудно ---------- */
+const whenTxt = t => { if (!t) return 'ещё не занимался'; const d = new Date(t), td = new Date(), day = d.toDateString() === td.toDateString() ? 'сегодня' : d.toDateString() === new Date(td - 864e5).toDateString() ? 'вчера' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }); return day + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); };
+const lampOf = p => (p === null ? '⚪' : p >= 85 ? '🟢' : p >= 65 ? '🟡' : '🔴');
+const sjName = k => (SUBJ_META[k] ? SUBJ_META[k][0] + ' ' + SUBJ_META[k][1] : k);
+const ACT_KIND = { les: 'урок', tr: 'тренировка', card: 'карточки', dlg: 'диалог', song: 'песенка', aud: 'аудио' };
+function kidSummary(st) {
+  const t0 = today(), d14 = atRange(14).map(k => addDays(t0, -k)), sums = {}; let sec7 = 0, q7 = 0, ok7 = 0, act7 = 0;
+  d14.forEach((d, i) => {
+    const x = (st.log || {})[d]; if (!x) return;
+    if (i < 7 && (x.sec || x.q)) { act7++; sec7 += x.sec || 0; q7 += x.q || 0; ok7 += x.ok || 0; }
+    Object.keys(x.sj || {}).forEach(k => { const r = x.sj[k], a = sums[k] || (sums[k] = { sec: 0, q: 0, ok: 0 }); a.sec += r.sec || 0; a.q += r.q || 0; a.ok += r.ok || 0; });
+  });
+  const subj = Object.keys(SUBJ_META).map(k => {
+    let d = 0, n = 0; SUBJ_META[k][2]().forEach(w => w.lessons.forEach(l => { n++; if ((st.lessons || {})[l.id] && st.lessons[l.id].done) d++; }));
+    const a = sums[k] || { sec: 0, q: 0, ok: 0 }; return { k, d, n, min: Math.round(a.sec / 60), q: a.q, pct: a.q ? Math.round(100 * a.ok / a.q) : null };
+  });
+  const weakTopics = Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; }).map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 6);
+  const weakWords = Object.keys(st.words || {}).filter(id => WORDS[id] && (st.words[id].miss || 0) >= 2 && (st.words[id].box || 0) < 2).slice(0, 6).map(id => WORDS[id].en);
+  return { min7: Math.round(sec7 / 60), q7, pct7: q7 ? Math.round(100 * ok7 / q7) : null, act7, minToday: Math.round((((st.log || {})[t0] || {}).sec || 0) / 60), streak: st.streak || 0, subj, weakTopics, weakWords, last: st.last || null, act: (st.act || []).slice(-10).reverse(), ts: st._ts || 0 };
+}
+function kidsHtml() {
+  const cards = PR.list.map(pl => {
+    const st = pl.id === PR.cur ? S : loadState(pl.key), k = kidSummary(st);
+    const rows = k.subj.filter(x => x.q || x.min || x.d).sort((a, b) => (b.min + b.q) - (a.min + a.q));
+    const good = rows.filter(x => x.q >= 10 && x.pct >= 85).map(x => sjName(x.k)), hard = rows.filter(x => x.q >= 10 && x.pct < 65).map(x => sjName(x.k));
+    const hasSj = rows.some(x => x.q);
+    return `<div class="card"><h3>${esc(pl.name)}</h3>
+      <p>🕒 Последний раз: <b>${esc(whenTxt(k.last && k.last.t))}</b>${k.last ? ' · ' + esc(sjName(k.last.s)) : ''}</p>
+      <div class="pstats"><div><b>${k.minToday}</b><small>мин сегодня</small></div><div><b>${k.min7}</b><small>мин за 7 дней</small></div><div><b>${k.act7}/7</b><small>дней с занятиями</small></div><div><b>${k.pct7 === null ? '—' : k.pct7 + '%'}</b><small>верно с 1-й попытки</small></div></div>
+      ${good.length ? `<p>✅ <b>Получается:</b> ${good.join(', ')}</p>` : ''}${hard.length ? `<p>⚠️ <b>Трудно:</b> ${hard.join(', ')}</p>` : ''}${k.weakTopics.length ? `<p>🎯 <b>Слабые темы:</b> ${k.weakTopics.map(esc).join(', ')}</p>` : ''}${k.weakWords.length ? `<p>🔤 <b>Трудные слова:</b> ${k.weakWords.map(esc).join(', ')}</p>` : ''}
+      <table><tr><th>Предмет</th><th>Мин (14 дн.)</th><th>Верно</th><th>Уроков</th></tr>${rows.map(x => `<tr><td>${sjName(x.k)}</td><td>${x.min || '—'}</td><td>${lampOf(x.pct)} ${x.pct === null ? '—' : x.pct + '% (' + x.q + ')'}</td><td>${x.d}/${x.n}</td></tr>`).join('') || '<tr><td colspan="4">Пока нет занятий</td></tr>'}</table>
+      ${hasSj ? '' : '<p><small>Подробности по предметам (минуты и % верных) начнут копиться со следующих занятий.</small></p>'}
+      ${k.act.length ? `<details><summary>Последние занятия</summary><ul>${k.act.map(e => `<li>${esc(whenTxt(e.t))} · ${esc(sjName(e.s))} · ${esc(e.n || ACT_KIND[e.k] || e.k)}${e.b ? ' 👾' : ''}${e.st ? ' ' + '⭐'.repeat(e.st) : ''}${e.a !== undefined ? ' (' + e.a + '%)' : ''}</li>`).join('')}</ul></details>` : ''}
+      <p><small>Данные на: ${esc(whenTxt(k.ts))}.</small></p></div>`;
+  }).join('');
+  return `<div class="card"><h3>👨‍👩‍👧 Дети: что получается и что трудно</h3>
+    <p>Откройте это на своём телефоне: вход по семейному коду (вкладка «☁️ Связь»), и здесь будут все дети. 🟢 — получается (от 85%), 🟡 — нормально, 🔴 — трудно (меньше 65%): помогите с этим предметом.</p>
+    ${cloudOn() ? '<p><button class="btn gold" id="kref">🔄 Обновить данные детей</button></p>' : '<p>Чтобы видеть детей с другого устройства, подключите облако: «☁️ Связь».</p>'}<p id="kmsg" class="pmsg">&nbsp;</p></div>${cards}`;
+}
+// свежие данные всех детей из облака (только чтение: на устройствах детей ничего не меняется)
+async function refreshKids() {
+  if (!cloudOn()) throw new Error('облако не подключено');
+  await cloudAuto();
+  await cloudSync(true);
+  for (const p of PR.list) {
+    if (!p.cid || p.id === PR.cur) continue;
+    const r = await api('pull', { id: p.cid }); if (!r.state) continue;
+    localStorage.setItem(p.key, JSON.stringify(mergeState(loadState(p.key), JSON.parse(r.state))));
+  }
+}
 let parentTab = 'main';
-const PARENT_TABS = [['main', '🏠', 'Главное'], ['kid', '👦', 'Ученик'], ['stats', '📊', 'Успехи'], ['time', '⏰', 'Время и пароль'], ['link', '☁️', 'Связь'], ['set', '⚙️', 'Настройки']];
+const PARENT_TABS = [['main', '🏠', 'Главное'], ['kids', '👨‍👩‍👧', 'Дети'], ['kid', '👦', 'Ученик'], ['stats', '📊', 'Успехи'], ['time', '⏰', 'Время и пароль'], ['link', '☁️', 'Связь'], ['set', '⚙️', 'Настройки']];
 function parent(tab) {
   if (tab) parentTab = tab;
   if (!PARENT_TABS.some(x => x[0] === parentTab)) parentTab = 'main';
@@ -4228,7 +4287,8 @@ function parent(tab) {
       <p><small>Лучше заниматься по 10–15 минут каждый день. Хвалите за старание, а не за оценки.</small></p></div>${fam}
     <div class="card"><h3>Быстрые переходы</h3><div class="ptiles">
       <button class="ptile" data-go="kid">📚 Предметы ученика</button><button class="ptile" data-go="kid">🧘 Спокойный фокус ${S.focus ? '✅' : ''}</button><button class="ptile" data-go="kid">📅 «Мой день» ${S.plan && S.plan.on ? '✅' : ''}</button>
-      <button class="ptile" data-go="stats">📊 Недели и концентрация</button><button class="ptile" data-go="time">⏰ Таймер ${TM.on ? '✅ ' + (TM.min + (TM.extra || 0)) + ' мин' : ''}</button><button class="ptile" data-go="time">😴 Пауза для отдыха ${Object.values(RS.L).some(rsActive) ? '✅' : ''}</button><button class="ptile" data-go="link">☁️ Облако ${cloudOn() ? '✅' : ''}</button></div></div>`;
+      <button class="ptile" data-go="kids">👨‍👩‍👧 Дети: что получается</button><button class="ptile" data-go="stats">📊 Недели и концентрация</button><button class="ptile" data-go="time">⏰ Таймер ${TM.on ? '✅ ' + (TM.min + (TM.extra || 0)) + ' мин' : ''}</button><button class="ptile" data-go="time">😴 Пауза для отдыха ${Object.values(RS.L).some(rsActive) ? '✅' : ''}</button><button class="ptile" data-go="link">☁️ Облако ${cloudOn() ? '✅' : ''}</button></div></div>`;
+  sec.kids = kidsHtml();
   // --- ученик ---
   sec.kid = `<div class="card"><h3>📚 Предметы ученика «${nm}»</h3>
       <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется.</p>
@@ -4366,6 +4426,7 @@ function parent(tab) {
   on('vc', () => { vTest(); vstat(); });
   on('vsel', e => { voiceWish(e.target.value); enVoice = null; pickVoice(); vTest(); vstat(); }, 'onchange');
   on('dgp', diagIntro);
+  on('kref', async () => { $('kref').disabled = true; $('kmsg').textContent = 'Обновляю…'; try { await refreshKids(); parent('kids'); } catch (e) { $('kmsg').textContent = 'Не получилось: ' + String(e.message || e); $('kref').disabled = false; } });
   on('rsub', () => {
     const k = $('rsubj').value, ids = SUBJ_META[k][2]().flatMap(w => w.lessons.map(l => l.id).concat([w.boss.id]));
     const n = ids.filter(id => (S.lessons[id] || {}).done).length;
