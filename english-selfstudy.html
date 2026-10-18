@@ -613,6 +613,9 @@ body.calm .bpet{animation:none}
 .rsrow{border-top:2px dashed rgba(120,120,160,.25);padding-top:6px;margin-top:6px}
 .rsrow .btn.small{margin:3px}
 .rsmsg{font-size:1.25rem;font-weight:800;background:#fff7d6;border-radius:14px;padding:8px 12px;color:#5a3d00}
+.attbox{min-height:90px;display:flex;align-items:center;justify-content:center;margin:8px 0}.atfield{font-size:2.2rem;line-height:1.35;max-width:440px;margin:0 auto}.atcmp{flex:1;max-width:200px;border:3px solid #1b1b1b;border-radius:12px;background:#fff;padding:8px;font-size:1.6rem;line-height:1.3}
+.attopts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:8px 0}.atopt{font-size:1.5rem;min-width:70px;min-height:56px}
+.oddb.bad{background:#ffd0d0}.oddb.lit{background:#ffd54f}
 
 </style>
 </head>
@@ -4228,8 +4231,52 @@ AL1.push(
   Object.assign(AL(26014, '🥁', 'Повтори ритм: быстро и медленно', 'Быстрые и медленные удары.', 'rhythm', 2, AT_RULES.rhythm), { bonus: true }),
   Object.assign(AL(26015, '🥁', 'Повтори ритм: мастер', 'Длинный ритм из шести ударов.', 'rhythm', 3, AT_RULES.rhythm), { bonus: true })
 );
+/* 17 новых игр × 3 уровня = 51 бонусный урок. Идут по кругу: сначала все игры «начало», потом «сложнее», потом «мастер». */
+const AT_NEW = [
+  ['count', '🔢', 'Сколько их', ['Считаем нужные картинки среди лишних.', 'Картинки прячутся через несколько секунд.', 'Много картинок и мало времени.'],
+    { title: 'Сколько их?', html: 'Среди картинок есть нужные. <b>Сосчитай только их</b>, лишние не считай. Позже картинки будут прятаться — считай быстро и запоминай.', ex: [['🍎 🐱 🍎 🍎 🐱', 'сколько 🍎? — три'], ['🙈', 'картинки спрятались — отвечай по памяти']] }],
+  ['missing', '🫥', 'Что исчезло', ['Запомни ряд картинок: одна потом пропадёт.', 'Картинок больше, времени меньше.', 'Шесть картинок и три секунды.'],
+    { title: 'Что исчезло?', html: 'Несколько секунд смотри на картинки и <b>запоминай</b>. Потом одна пропадёт — выбери, какая именно.', ex: [['🐱 🍎 🚗 ⭐', 'запоминаем'], ['🐱 ❓ 🚗 ⭐', 'пропало 🍎']] }],
+  ['stroop', '🎨', 'Цвет слова', ['Какого цвета буквы?', 'Слово обманывает: читать не надо!', 'Пять цветов и много слов-обманщиков.'],
+    { title: 'Цвет слова', html: 'Слово написано цветом. Нужно выбрать <b>цвет букв</b>, а не то, что написано. Мозгу трудно — это отличная тренировка!', ex: [['КРАСНЫЙ (синим цветом)', 'правильный ответ: синий'], ['ДОМ (зелёным цветом)', 'правильный ответ: зелёный']] }],
+  ['seq', '🧬', 'Продолжи ряд', ['Две картинки чередуются.', 'Ряды посложнее: три картинки.', 'Длинные ряды с повторами.'],
+    { title: 'Продолжи ряд', html: 'Картинки идут по правилу. <b>Найди правило</b> и выбери, что стоит на месте ❓.', ex: [['🍎 🐱 🍎 🐱 ❓', 'дальше 🍎'], ['⭐ ⭐ 🚗 ⭐ ⭐ ❓', 'дальше 🚗']] }],
+  ['oddword', '🤔', 'Что лишнее', ['Три из одной группы, одна лишняя.', 'Вариантов больше.', 'Похожие группы: фрукты и овощи, птицы и звери.'],
+    { title: 'Что лишнее по смыслу?', html: 'Почти все картинки — из одной группы (животные, еда, транспорт). Одна — <b>из другой группы</b>. Найди её.', ex: [['🐱 🐶 🍎 🐰', 'лишнее 🍎 — это еда'], ['🍎 🍌 🥕 🍓', 'лишняя 🥕 — это овощ']] }],
+  ['claps', '🔔', 'Слушай и считай', ['Сколько ударов прозвучало?', 'Ударов больше.', 'Удары с разными паузами, без подсказки глазами.'],
+    { title: 'Слушай и считай', html: 'Прозвучат удары колокольчика. <b>Слушай внимательно</b> и посчитай, сколько их было. Включи звук!', ex: [['🔔 … 🔔 … 🔔', 'три удара'], ['🔔🔔 … 🔔', 'тоже три удара']] }],
+  ['compare', '⚖️', 'Где больше', ['Слева и справа — кого больше?', 'Разница маленькая, бывает поровну.', 'Картинки быстро прячутся.'],
+    { title: 'Где больше?', html: 'Слева и справа — группы картинок. Выбери, <b>где их больше</b>. Иногда поровну!', ex: [['🍎🍎🍎 и 🍎🍎', 'слева больше'], ['🍎🍎 и 🍎🍎', 'поровну']] }],
+  ['target', '🔍', 'Найди все такие', ['Найди все одинаковые картинки на поле.', 'Лишние картинки очень похожи.', 'Большое поле и почти одинаковые картинки.'],
+    { title: 'Найди все такие', html: 'Внизу — поле с картинками. <b>Нажми на все нужные</b>. Ненужные не трогай!', ex: [['🍎 🍏 🍎 🍏', 'ищем 🍎'], ['😀 😃 😃 😀', 'ищем 😀']] }],
+  ['letters', '🔤', 'Найди буквы', ['Найди все нужные буквы.', 'Буквы-близнецы: Б и В, Ш и Щ.', 'Похожих букв много, поле большое.'],
+    { title: 'Найди буквы', html: 'На поле — буквы. <b>Найди и нажми все такие же</b>, как в задании. Читай внимательно: буквы бывают похожими.', ex: [['А Л А М', 'ищем А'], ['Ш Щ Щ Ш', 'ищем Щ']] }],
+  ['digits', '🔟', 'Найди числа', ['Найди все нужные цифры.', 'Похожие цифры: 6 и 9, 3 и 8.', 'Похожие числа: 12 и 21, 34 и 43.'],
+    { title: 'Найди числа', html: 'На поле — цифры и числа. <b>Нажми на все нужные</b>. Следи, чтобы не перепутать похожие: 6 и 9, 12 и 21.', ex: [['6 9 6 9', 'ищем 6'], ['12 21 12 21', 'ищем 21']] }],
+  ['schulte', '🔢', 'Числа по порядку', ['Девять чисел от 1 до 9.', 'Шестнадцать чисел.', 'Двадцать пять чисел — таблица мастера.'],
+    { title: 'Числа по порядку', html: 'Числа перемешаны. Нажимай их <b>по порядку</b>: 1, 2, 3… Глаза бегают по всему полю — это тренирует внимание.', ex: [['7 2 9 1', 'сначала 1'], ['7 2 9 …', 'потом 2, потом 3…']] }],
+  ['diff', '👀', 'Найди отличия', ['Две картинки, два отличия.', 'Три отличия.', 'Четыре отличия на большом поле.'],
+    { title: 'Найди отличия', html: 'Слева и справа почти одинаковые поля. <b>Найди, чем они отличаются</b>, и нажми на правом поле.', ex: [['🍎 🐱 | 🍎 🐶', 'отличие: 🐱 стал 🐶'], ['⭐ 🚗 | ⭐ 🚗', 'здесь всё одинаково']] }],
+  ['order', '🔀', 'Запомни порядок', ['Три картинки в ряд.', 'Четыре-пять картинок.', 'Пять-шесть картинок, времени меньше.'],
+    { title: 'Запомни порядок', html: 'Посмотри на ряд картинок и <b>запомни, в каком они порядке</b>. Потом нажимай на них так же — слева направо.', ex: [['🐱 🍎 🚗', 'запоминаем'], ['🐱 → 🍎 → 🚗', 'нажимаем по порядку']] }],
+  ['corsi', '🧩', 'Путь по клеткам', ['Клетки загораются по очереди.', 'Сетка больше, путь длиннее.', 'Большая сетка и длинный путь.'],
+    { title: 'Путь по клеткам', html: 'Клетки загораются <b>по очереди</b>. Запомни путь и повтори его нажатиями в том же порядке.', ex: [['▪️ 🟨 ▪️', 'загорелась вторая клетка'], ['▪️ ▪️ 🟨', 'потом третья — повторяем']] }],
+  ['memgrid', '🟨', 'Запомни узор', ['Три жёлтые клетки на маленькой сетке.', 'Пять клеток на сетке побольше.', 'Семь клеток на большой сетке.'],
+    { title: 'Запомни узор', html: 'Несколько секунд на сетке горят <b>жёлтые клетки</b>. Запомни, где они, а когда погаснут — нажми на те же места.', ex: [['🟨 ▪️ ▪️', 'запоминаем'], ['❓ ▪️ ▪️', 'нажимаем туда, где была жёлтая']] }],
+  ['catch', '⭐', 'Лови звёздочки', ['Звёздочка прыгает по клеткам — лови!', 'Появляются бомбы: их не трогай.', 'Быстро, и бомб много.'],
+    { title: 'Лови звёздочки', html: 'Звёздочка появляется то в одной клетке, то в другой. <b>Успей нажать</b>! А если появилась 💣 — не нажимай, пусть исчезнет.', ex: [['⭐', 'нажми быстро!'], ['💣', 'не нажимай']] }],
+  ['shell', '🥤', 'Где шарик', ['Три стаканчика, шарик под одним.', 'Стаканчики меняются чаще.', 'Быстро и много перестановок.'],
+    { title: 'Где шарик?', html: 'Шарик спрятан под стаканчиком. Стаканчики <b>меняются местами</b>. Следи глазами за нужным и в конце покажи, где шарик.', ex: [['🥤 🥤 🥤', 'смотрим, где шарик'], ['🥤↔🥤', 'следим за ним']] }]
+];
+{
+  let id = 26016;
+  ['начало', 'сложнее', 'мастер'].forEach((lvName, k) => AT_NEW.forEach(([game, icon, name, stories, rule]) => {
+    AT_RULES[game] = rule;
+    AL1.push(Object.assign(AL(id++, icon, name + ': ' + lvName, stories[k], game, k + 1, rule), { bonus: true }));
+  }));
+}
 const AWORLDS = [
-  { name: 'Внимание · Тренажёры', lessons: AL1, boss: { id: 26100, title: 'Башня Рассеянности', icon: '🗼', bossIcon: '🐉', story: 'Босс Рассеянность отвлекает всех. Пройди четыре испытания внимания подряд!', cert: 'победил(а) Рассеянность и стал(а) мастером внимания' } }
+  { name: 'Внимание · Тренажёры', lessons: AL1, boss: { id: 26100, title: 'Башня Рассеянности', icon: '🗼', bossIcon: '🐉', story: 'Босс Рассеянность отвлекает всех. Пройди восемь разных испытаний внимания подряд: каждый раз они другие!', cert: 'победил(а) Рассеянность и стал(а) мастером внимания' } }
 ];
 
 </script>
@@ -7343,6 +7390,8 @@ function mergeState(a, b) {
   const keyed = (x, y, pick) => { const o = {}; new Set([...Object.keys(x || {}), ...Object.keys(y || {})]).forEach(k => { const p = (x || {})[k], q = (y || {})[k]; o[k] = !p ? q : !q ? p : pick(p, q); }); return o; };
   const prog = (p, q) => Object.assign({}, q, p, { done: !!(p.done || q.done), stars: Math.max(p.stars || 0, q.stars || 0) });
   ['lessons', 'dlg', 'songs', 'audio'].forEach(k => { m[k] = keyed(a[k], b[k], prog); });
+  m.rst = keyed(a.rst, b.rst, (p, q) => Math.max(p, q)); // сброс предмета родителем: уроки, пройденные до сброса, не возвращаются
+  Object.keys(m.rst).forEach(id => { const r = m.lessons[id]; if (r && (r.t || 0) <= m.rst[id]) delete m.lessons[id]; });
   m.words = keyed(a.words, b.words, (p, q) => { const w = (p.seen || 0) >= (q.seen || 0) ? p : q; return Object.assign({}, w, { first: [p.first, q.first].filter(Boolean).sort()[0] || w.first }); });
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
@@ -8217,7 +8266,7 @@ function reward(ctx) {
   const stars = acc >= .9 ? 3 : (acc >= .7 || S.focus) ? 2 : 1; // в «Спокойном фокусе» за пройденный урок не меньше двух звёзд
   const rec = S.lessons[L.id] || (S.lessons[L.id] = { stars: 0, done: false });
   const first = !rec.done, prevStars = rec.stars || 0;
-  rec.done = true; rec.stars = Math.max(rec.stars, stars);
+  rec.done = true; rec.stars = Math.max(rec.stars, stars); rec.t = Date.now();
   logDone('les');
   // повторение тоже оплачивается, но вдвое меньше изучения; за одно и то же занятие в день — не больше двух раз
   if (S.repDay !== today()) { S.repDay = today(); S.repCnt = {}; }
@@ -8651,7 +8700,7 @@ function shop() {
 
 /* ---------- тренажёры внимания ---------- */
 function attGame(ctx, L, cb) {
-  const lv = L.lv || 1, need = L.game === 'gonogo' ? .7 : (L.game === 'simon' || L.game === 'rhythm') ? .5 : 0;
+  const lv = L.lv || 1, need = AT_NEED[L.game] || 0;
   // урок засчитывается, только если ребёнок реально играл: без нажатий «Жми или стой» не пройти, цепочку и ритм надо повторить верно
   const run = () => {
     const fin = (asked, ok) => {
@@ -8662,16 +8711,20 @@ function attGame(ctx, L, cb) {
       }
       ctx.asked += asked; ctx.ok += ok; cb();
     };
-    ({ gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs, rhythm: attRhythm })[L.game](lv, ctx, fin);
+    AT_RUN[L.game](lv, ctx, fin);
   };
   run();
 }
 function attBoss() {
   const BS = W().boss, ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
+  // босс соединяет навыки всех уровней: по одной игре из каждой группы (реакция, память, поиск, логика, слух) и ещё две любые
+  const pickG = shuffle(AT_SKILLS).map(g => MP(g)), all = Object.keys(AT_RUN);
+  const games = [...new Set(pickG)]; while (games.length < 8) { const g = MP(all); if (!games.includes(g)) games.push(g); }
+  const names = { gonogo: 'Жми или стой', simon: 'Цепочка', odd: 'Лишний', pairs: 'Пары', rhythm: 'Ритм', count: 'Счёт', missing: 'Что исчезло', stroop: 'Цвет слова', seq: 'Ряд', oddword: 'Лишнее по смыслу', claps: 'Хлопки', compare: 'Больше-меньше', target: 'Поиск картинок', letters: 'Поиск букв', digits: 'Поиск чисел', schulte: 'Числа по порядку', diff: 'Отличия', order: 'Порядок', corsi: 'Путь по клеткам', memgrid: 'Узор', catch: 'Звёздочки', shell: 'Стаканчики' };
   ctx.steps = [['Башня', cb => {
-    frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Пять испытаний подряд. Ошибки не страшны!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
+    frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Восемь разных испытаний подряд: реакция, память, поиск, логика и слух. Ошибки не страшны!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
     $('fi').onclick = cb;
-  }]].concat([['Жми или стой', 'gonogo'], ['Цепочка', 'simon'], ['Лишний', 'odd'], ['Пары', 'pairs'], ['Ритм', 'rhythm']].map(([nm, gm]) => [nm, cb => attGame(ctx, { game: gm, lv: 3 }, cb)]));
+  }]].concat(games.slice(0, 8).map(gm => [names[gm] || gm, cb => attGame(ctx, { game: gm, lv: MR(2, 3) }, cb)]));
   runSteps(ctx, () => reward(ctx));
 }
 function attGoNoGo(lv, ctx, fin) {
@@ -8721,7 +8774,7 @@ function attSimon(lv, ctx, fin) {
   round();
 }
 function attRhythm(lv, ctx, fin) {
-  const sets = [[[600, 600], [800, 800], [500, 500]], [[450, 450, 900], [900, 450, 450], [450, 900, 450]], [[450, 450, 900, 450, 450], [900, 450, 450, 900, 450], [450, 900, 450, 450, 900]]][lv - 1], order = RS(sets);
+  const sets = [[[600, 600], [800, 800], [500, 500]], [[450, 450, 900], [900, 450, 450], [450, 900, 450]], [[450, 450, 900, 450, 450], [900, 450, 450, 900, 450], [450, 900, 450, 450, 900]]][lv - 1], order = shuffle(sets);
   let r = 0, ok = 0;
   const round = () => {
     if (r >= order.length) return fin(order.length, ok);
@@ -8766,7 +8819,7 @@ function attOdd(lv, ctx, fin) {
   round();
 }
 function attPairs(lv, ctx, fin) {
-  const np = [3, 4, 6][lv - 1], cols = [3, 4, 4][lv - 1], emo = RS(['🐱', '🐶', '🍎', '⭐', '🚗', '🌳', '🐟', '🎈', '🍌', '🦋']).slice(0, np), cards = RS(emo.concat(emo));
+  const np = [3, 4, 6][lv - 1], cols = [3, 4, 4][lv - 1], emo = shuffle(['🐱', '🐶', '🍎', '⭐', '🚗', '🌳', '🐟', '🎈', '🍌', '🦋']).slice(0, np), cards = shuffle(emo.concat(emo));
   frame(ctx, `<div class="card center"><h3>Найди пары</h3><p><small>Открывай по две карточки</small></p><div class="oddgrid" style="grid-template-columns:repeat(${cols},1fr)">${cards.map((_, i) => `<button class="oddb back" data-i="${i}">❓</button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
   const my = screenId, btns = [...app.querySelectorAll('.oddb')]; let open = [], found = 0, miss = 0, lock = false;
   btns.forEach((bt, i) => bt.onclick = () => {
@@ -8778,6 +8831,283 @@ function attPairs(lv, ctx, fin) {
     else { miss++; lock = true; setTimeout(() => { if (screenId !== my) return; [a, b].forEach(x => { btns[x].textContent = '❓'; btns[x].classList.add('back'); }); open = []; lock = false; }, 900); }
   });
 }
+
+/* ---------- новые тренажёры внимания: 17 разных игр (не только кружочки) ---------- */
+const attDots = (n, k) => `<div class="prog">${Array.from({ length: n }, (_, i) => `<i class="${i < k ? 'd' : ''}"></i>`).join('')}</div>`;
+const AT_EM = ['🐱', '🐶', '🍎', '⭐', '🚗', '🌳', '🐟', '🎈', '🍌', '🦋', '🐸', '🌞', '🍓', '🎁', '🐢', '🚀'];
+const AT_SIM = [['🍎', '🍏'], ['🐶', '🐕'], ['😀', '😃'], ['🔵', '🟣'], ['⭐', '🌟'], ['🌹', '🌷'], ['🔶', '🔸'], ['🟢', '🟡']];
+const AT_CAT = [['🐱', '🐶', '🐰', '🐸', '🐻', '🦊'], ['🍎', '🍌', '🍓', '🍇', '🍑', '🍒'], ['🚗', '🚌', '🚲', '🚂', '✈️', '🚀'], ['👕', '👖', '🧦', '🧢', '👗', '🧤'], ['🔨', '🔧', '✂️', '🔑', '📏', '🧲'], ['🎸', '🥁', '🎹', '🎺', '🎻', '🎷'], ['🥕', '🌽', '🥒', '🍅', '🥔', '🥦'], ['🐔', '🦆', '🦉', '🦜', '🦢', '🐧'], ['🐟', '🐙', '🐬', '🦀', '🐳', '🦈'], ['☀️', '🌧️', '❄️', '🌈', '⛈️', '🌪️']];
+const AT_CLOSE = [[1, 6], [6, 1], [7, 0], [0, 7], [8, 7], [7, 8]]; // похожие группы для высокого уровня: фрукты/овощи, птицы/звери, рыбы/птицы
+const atWait = (ms, my, fn) => setTimeout(() => { if (screenId === my) fn(); }, ms);
+const atRange = n => Array.from({ length: n }, (_, i) => i);
+
+/* общий движок: показать картинку (можно спрятать через время), затем выбрать ответ из кнопок */
+function attMC(ctx, fin, n, gen) {
+  let r = 0, ok = 0;
+  const round = () => {
+    if (r >= n) return fin(n, ok);
+    const q = gen(r); let first = true;
+    frame(ctx, `<div class="card center">${attDots(n, r)}<h3 id="atit">${q.title}</h3><div class="attbox" id="astim">${q.stim}</div>
+      <div class="attopts">${q.opts.map((o, i) => `<button class="btn sec atopt" data-i="${i}" ${i === q.ans ? 'data-ok="1"' : ''} disabled>${o}</button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+    const my = screenId, bts = [...app.querySelectorAll('.atopt')];
+    const ready = () => { if (screenId !== my) return; if (q.after) $('astim').innerHTML = q.after; if (q.title2) $('atit').textContent = q.title2; bts.forEach(b => { b.disabled = false; }); };
+    bts.forEach(b => b.onclick = () => {
+      if (+b.dataset.i === q.ans) { if (first) ok++; sfx('ok'); $('msg').textContent = praise(); bts.forEach(x => { x.disabled = true; }); r++; atWait(900, my, round); }
+      else { first = false; b.disabled = true; sfx('bad'); $('msg').textContent = 'Почти! Посмотри ещё раз 🙂'; }
+    });
+    if (q.run) q.run(my, ready); else if (q.ms) atWait(q.ms, my, ready); else ready();
+  };
+  round();
+}
+const atNums = t => { const pool = shuffle([t - 2, t - 1, t + 1, t + 2, t + 3].filter(x => x >= 1)).slice(0, 3), opts = shuffle([t].concat(pool)); return [opts, opts.indexOf(t)]; };
+
+// 1. Сколько их? — считаем нужные картинки среди лишних
+function attCount(lv, ctx, fin) {
+  attMC(ctx, fin, 6, () => {
+    const [T, D] = shuffle(AT_EM).slice(0, 2), t = MR(...[[2, 5], [4, 8], [5, 9]][lv - 1]), d = MR(...[[3, 6], [5, 9], [8, 12]][lv - 1]);
+    const cells = shuffle(Array.from({ length: t }, () => T).concat(Array.from({ length: d }, () => D))), [opts, ans] = atNums(t), ms = [0, 5000, 3000][lv - 1];
+    return { title: `Сколько ${T}?${ms ? ' Запоминай!' : ''}`, stim: `<div class="atfield">${cells.join(' ')}</div>`, ms, after: '<div class="bigem">🙈</div>', title2: `Сколько было ${T}?`, opts, ans };
+  });
+}
+// 2. Что исчезло?
+function attMissing(lv, ctx, fin) {
+  const k = [4, 5, 6][lv - 1];
+  attMC(ctx, fin, 5, () => {
+    const items = shuffle(AT_EM).slice(0, k), m = MR(0, k - 1), opts = shuffle(items), row = a => `<div class="atfield">${a.join(' ')}</div>`;
+    return { title: 'Запомни картинки 👀', stim: row(items), ms: [4500, 3500, 3000][lv - 1], after: row(items.map((x, i) => (i === m ? '❓' : x))), title2: 'Что исчезло?', opts, ans: opts.indexOf(items[m]) };
+  });
+}
+// 3. Цвет слова (эффект Струпа)
+function attStroop(lv, ctx, fin) {
+  const C = [['красный', '#e53935'], ['синий', '#1e63d8'], ['зелёный', '#2e9e4a'], ['жёлтый', '#d9a800'], ['фиолетовый', '#8e44ad'], ['оранжевый', '#f57c00']];
+  attMC(ctx, fin, lv === 3 ? 8 : 6, () => {
+    const opts = shuffle(C).slice(0, [3, 4, 5][lv - 1]), col = MP(opts), word = lv === 1 ? MP(['ДОМ', 'КОТ', 'ЛЕС', 'МЯЧ', 'СЛОН', 'ЛУНА']) : MP(C.filter(c => c !== col))[0].toUpperCase();
+    return { title: lv === 1 ? 'Какого цвета буквы?' : 'Не читай слово! Какого цвета буквы?', stim: `<div style="font-size:3rem;font-weight:900;color:${col[1]}">${word}</div>`, opts: opts.map(c => c[0]), ans: opts.indexOf(col) };
+  });
+}
+// 4. Продолжи ряд
+function attSeq(lv, ctx, fin) {
+  const U = [['AB'], ['AAB', 'ABB', 'ABC'], ['AABB', 'ABAC', 'AABC', 'ABCD']][lv - 1];
+  attMC(ctx, fin, 6, () => {
+    const u = MP(U), em = shuffle(AT_EM), map = {}; [...new Set(u)].forEach((ch, i) => { map[ch] = em[i]; });
+    const L = u.length * 2 + 1, shown = atRange(L).map(i => map[u[i % u.length]]), nx = map[u[L % u.length]];
+    const base = Object.values(map), opts = shuffle(base.concat(em.slice(5, 5 + Math.max(0, 4 - base.length))));
+    return { title: 'Что дальше в ряду?', stim: `<div class="atfield">${shown.join(' ')} ❓</div>`, opts, ans: opts.indexOf(nx) };
+  });
+}
+// 5. Что лишнее по смыслу?
+function attOddWord(lv, ctx, fin) {
+  attMC(ctx, fin, 6, () => {
+    const n = [4, 5, 6][lv - 1];
+    let A, B;
+    if (lv === 3) [A, B] = MP(AT_CLOSE); else { [A, B] = shuffle(atRange(AT_CAT.length)).slice(0, 2); }
+    const same = shuffle(AT_CAT[A]).slice(0, n - 1), odd = MP(AT_CAT[B]), opts = shuffle(same.concat([odd]));
+    return { title: 'Что лишнее по смыслу?', stim: '<div class="bigem">🤔</div>', opts: opts.map(e => `<span style="font-size:2.2rem">${e}</span>`), ans: opts.indexOf(odd) };
+  });
+}
+// 6. Слушай и считай удары
+function attClaps(lv, ctx, fin) {
+  attMC(ctx, fin, 5, () => {
+    const n = MR(...[[2, 4], [3, 6], [4, 8]][lv - 1]), gaps = atRange(n).map(() => (lv === 3 ? MR(250, 600) : 550)), [opts, ans] = atNums(n);
+    return {
+      title: 'Слушай внимательно 🎧', stim: '<div class="bigem" id="cdot" style="transition:transform .1s">🔔</div>', title2: 'Сколько было ударов?', opts, ans,
+      run: (my, ready) => {
+        let t = 700;
+        gaps.forEach(g => { atWait(t, my, () => { tones([660], 'beat'); const d = $('cdot'); if (d && (lv < 3 || S.mute)) { d.style.transform = 'scale(1.5)'; setTimeout(() => { d.style.transform = ''; }, 150); } }); t += g; });
+        atWait(t + 300, my, ready);
+      }
+    };
+  });
+}
+// 7. Где больше?
+function attCompare(lv, ctx, fin) {
+  attMC(ctx, fin, 6, () => {
+    const E = MP(AT_EM), eq = lv > 1 && Math.random() < .2, a = MR(2, [7, 9, 11][lv - 1]), b = eq ? a : a + MR(...[[3, 4], [2, 3], [1, 2]][lv - 1]), sw = Math.random() < .5, L = sw ? b : a, R = sw ? a : b;
+    const box = n => `<div class="atcmp">${atRange(n).map(() => E).join(' ')}</div>`, ms = lv === 3 ? 3500 : 0;
+    return { title: `Где больше ${E}?${ms ? ' Быстро смотри!' : ''}`, stim: `<div style="display:flex;gap:12px;justify-content:center">${box(L)}${box(R)}</div>`, ms, after: '<div class="bigem">🙈</div>', title2: 'Где было больше?', opts: ['⬅ Слева', 'Справа ➡'].concat(lv > 1 ? ['Поровну'] : []), ans: L > R ? 0 : L < R ? 1 : 2 };
+  });
+}
+
+/* общий движок: найди все нужные клетки на поле */
+function attTapAll(ctx, fin, boards) {
+  let b = 0, asked = 0, hits = 0;
+  const board = () => {
+    if (b >= boards.length) return fin(asked, hits);
+    const B = boards[b], total = B.cells.filter(c => c[1]).length; let found = 0;
+    frame(ctx, `<div class="card center">${attDots(boards.length, b)}<h3>${B.title}</h3><div class="oddgrid" style="grid-template-columns:repeat(${B.cols},1fr)${B.fs ? ';font-size:' + B.fs : ''}">${B.cells.map((c, i) => `<button class="oddb" data-i="${i}" ${c[1] ? 'data-t="1"' : ''}>${c[0]}</button>`).join('')}</div><div id="msg" class="msg">Найдено: 0 из ${total}</div></div>`);
+    const my = screenId;
+    app.querySelectorAll('.oddb').forEach(bt => bt.onclick = () => {
+      asked++;
+      if (bt.dataset.t) { bt.classList.add('done'); bt.disabled = true; found++; hits++; sfx('ok'); $('msg').textContent = `Найдено: ${found} из ${total}`; if (found === total) { $('msg').textContent = praise(); b++; atWait(900, my, board); } }
+      else { bt.classList.add('bad'); sfx('bad'); $('msg').textContent = 'Это не то. Смотри внимательнее 🙂'; setTimeout(() => bt.classList.remove('bad'), 450); }
+    });
+  };
+  board();
+}
+const atBoard = (title, cols, rows, nT, T, Ds, fs) => {
+  const n = cols * rows, cells = shuffle(atRange(n)).slice(0, nT);
+  return { title, cols, fs, cells: atRange(n).map(i => (cells.includes(i) ? [T, true] : [MP(Ds), false])) };
+};
+// 8. Найди все такие картинки
+function attTarget(lv, ctx, fin) {
+  const [cols, rows] = [[4, 4], [5, 4], [6, 5]][lv - 1];
+  attTapAll(ctx, fin, atRange(3).map(() => {
+    let T, D; if (lv === 1) [T, D] = shuffle(AT_EM).slice(0, 2); else { const p = MP(AT_SIM); [T, D] = Math.random() < .5 ? p : [p[1], p[0]]; }
+    return atBoard(`Найди все ${T}`, cols, rows, MR(...[[3, 4], [4, 6], [6, 8]][lv - 1]), T, [D]);
+  }));
+}
+// 9. Найди все такие буквы
+function attLetters(lv, ctx, fin) {
+  const [cols, rows] = [[4, 4], [5, 4], [6, 5]][lv - 1], G = [[['А', 'О', 'Е'], ['Л', 'М', 'Н', 'Т']], [[['Б', 'В'], ['Е', 'Ё'], ['И', 'Й'], ['Ш', 'Щ'], ['Ч', 'Ц']]], [[['Р', 'Г', 'Т', 'П'], ['Ш', 'Щ', 'Ц', 'Ч'], ['Б', 'В', 'Э', 'З']]]][lv - 1];
+  attTapAll(ctx, fin, atRange(3).map(() => {
+    let T, Ds;
+    if (lv === 1) { T = MP(G[0]); Ds = G[1]; } else if (lv === 2) { const p = shuffle(MP(G[0])); T = p[0]; Ds = [p[1]]; } else { const g = shuffle(MP(G[0])); T = g[0]; Ds = g.slice(1); }
+    return atBoard(`Найди все буквы «${T}»`, cols, rows, MR(...[[3, 4], [4, 6], [6, 8]][lv - 1]), T, Ds, '1.5rem');
+  }));
+}
+// 10. Найди все такие числа
+function attDigits(lv, ctx, fin) {
+  const [cols, rows] = [[4, 4], [5, 4], [6, 5]][lv - 1], P = [['6', '9'], ['3', '8'], ['1', '7'], ['2', '5'], ['0', '8']], P2 = [['12', '21'], ['15', '51'], ['34', '43'], ['26', '62'], ['38', '83']];
+  attTapAll(ctx, fin, atRange(3).map(() => {
+    let T, Ds;
+    if (lv === 1) { T = String(MR(1, 9)); Ds = '0123456789'.split('').filter(x => x !== T && Math.abs(x - T) > 2); } else { const p = shuffle(MP(lv === 2 ? P : P2)); T = p[0]; Ds = [p[1]]; }
+    return atBoard(`Найди все числа ${T}`, cols, rows, MR(...[[3, 4], [4, 6], [6, 8]][lv - 1]), T, Ds, '1.4rem');
+  }));
+}
+// 11. Таблица Шульте: числа по порядку
+function attSchulte(lv, ctx, fin) {
+  const N = [9, 16, 25][lv - 1], cols = Math.sqrt(N), order = shuffle(atRange(N).map(i => i + 1));
+  frame(ctx, `<div class="card center"><h3>Нажимай числа по порядку. Сейчас: <b id="snx">1</b></h3><div class="oddgrid" style="grid-template-columns:repeat(${cols},1fr)">${order.map(n => `<button class="oddb" data-n="${n}">${n}</button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+  let nx = 1, miss = 0;
+  app.querySelectorAll('.oddb').forEach(bt => bt.onclick = () => {
+    if (+bt.dataset.n === nx) { bt.classList.add('done'); bt.disabled = true; sfx('ok'); nx++; if (nx > N) { $('msg').textContent = praise(); const my = screenId; atWait(900, my, () => fin(N + miss, N)); } else $('snx').textContent = nx; }
+    else { miss++; bt.classList.add('bad'); sfx('bad'); setTimeout(() => bt.classList.remove('bad'), 400); }
+  });
+}
+// 12. Найди отличия
+function attDiff(lv, ctx, fin) {
+  const [cols, rows, k] = [[3, 3, 2], [4, 3, 3], [4, 4, 4]][lv - 1], n = cols * rows, base = shuffle(AT_EM).slice(0, 4), L = atRange(n).map(() => MP(base)), idx = shuffle(atRange(n)).slice(0, k);
+  const R = L.map((e, i) => (idx.includes(i) ? MP(AT_EM.filter(x => x !== e)) : e)), g = (a, tap) => `<div class="oddgrid" style="grid-template-columns:repeat(${cols},1fr);margin:0;font-size:1.4rem">${a.map((e, i) => `<button class="oddb" style="min-width:40px;height:46px;font-size:1.4rem" ${tap ? `data-i="${i}" ${idx.includes(i) ? 'data-t="1"' : ''}` : 'disabled'}>${e}</button>`).join('')}</div>`;
+  frame(ctx, `<div class="card center"><h3>Найди ${k} отличия — нажимай на правой картинке</h3><div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">${g(L, false)}${g(R, true)}</div><div id="msg" class="msg">Найдено: 0 из ${k}</div></div>`);
+  let found = 0, miss = 0; const my = screenId;
+  app.querySelectorAll('[data-i]').forEach(bt => bt.onclick = () => {
+    if (bt.dataset.t) { bt.classList.add('done'); bt.disabled = true; found++; sfx('ok'); $('msg').textContent = `Найдено: ${found} из ${k}`; if (found === k) { $('msg').textContent = praise(); atWait(900, my, () => fin(k + miss, k)); } }
+    else { miss++; bt.classList.add('bad'); sfx('bad'); setTimeout(() => bt.classList.remove('bad'), 400); }
+  });
+}
+// 13. Запомни порядок картинок
+function attOrder(lv, ctx, fin) {
+  let r = 0, ok = 0; const rounds = 3;
+  const round = () => {
+    if (r >= rounds) return fin(rounds, ok);
+    const k = [3, 4, 5][lv - 1] + (r === 2 ? 1 : 0), items = shuffle(AT_EM).slice(0, k);
+    frame(ctx, `<div class="card center">${attDots(rounds, r)}<h3>Запомни порядок 👀</h3><div class="atfield">${items.join(' ')}</div></div>`);
+    atWait([4500, 4000, 3500][lv - 1] + k * 300, screenId, () => {
+      const opts = shuffle(items); let pos = 0, miss = 0;
+      frame(ctx, `<div class="card center">${attDots(rounds, r)}<h3>Нажимай в том же порядке</h3><div class="atfield" id="osl">${items.map(() => '▫️').join(' ')}</div><div class="attopts">${opts.map(e => `<button class="btn sec atopt" data-e="${e}" ${e === items[0] ? 'data-ok="1"' : ''}>${e}</button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+      const my = screenId;
+      app.querySelectorAll('.atopt').forEach(bt => bt.onclick = () => {
+        if (bt.dataset.e === items[pos]) {
+          bt.disabled = true; bt.style.visibility = 'hidden'; pos++; sfx('ok'); $('osl').textContent = items.slice(0, pos).concat(items.slice(pos).map(() => '▫️')).join(' ');
+          app.querySelectorAll('.atopt').forEach(x => { if (x.dataset.e === items[pos]) x.dataset.ok = '1'; else delete x.dataset.ok; });
+          if (pos === k) { if (!miss) ok++; $('msg').textContent = praise(); r++; atWait(900, my, round); }
+        } else { miss++; bt.classList.add('bad'); sfx('bad'); $('msg').textContent = 'Почти! Что было раньше? 💪'; setTimeout(() => bt.classList.remove('bad'), 400); }
+      });
+    });
+  };
+  round();
+}
+// 14. Повтори путь по клеткам
+function attCorsi(lv, ctx, fin) {
+  const [cols, rows] = [[3, 2], [3, 3], [4, 3]][lv - 1], n = cols * rows, lens = [[3, 3, 4], [4, 4, 5], [5, 5, 6]][lv - 1];
+  let r = 0, ok = 0;
+  const round = () => {
+    if (r >= lens.length) return fin(lens.length, ok);
+    const seq = []; while (seq.length < lens[r]) { const c = MR(0, n - 1); if (c !== seq[seq.length - 1]) seq.push(c); }
+    frame(ctx, `<div class="card center">${attDots(lens.length, r)}<h3 id="sh">Смотри, какие клетки загораются 👀</h3><div class="oddgrid" style="grid-template-columns:repeat(${cols},70px)">${atRange(n).map(i => `<button class="oddb" style="height:70px" data-i="${i}" disabled></button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+    const my = screenId, btns = [...app.querySelectorAll('.oddb')], flash = (i, ms) => { btns[i].classList.add('lit'); setTimeout(() => { if (btns[i]) btns[i].classList.remove('lit'); }, ms); };
+    seq.forEach((v, k) => atWait(800 + k * 800, my, () => flash(v, 500)));
+    atWait(800 + seq.length * 800 + 200, my, () => {
+      $('sh').textContent = 'Теперь повтори по порядку! 👆'; btns.forEach(b => { b.disabled = false; }); btns[seq[0]].dataset.ok = '1';
+      let pos = 0, failed = false; const off = () => btns.forEach(x => { x.disabled = true; });
+      btns.forEach(b => b.onclick = () => {
+        if (failed) return; const i = +b.dataset.i; flash(i, 200);
+        if (i !== seq[pos]) { failed = true; $('msg').textContent = 'Ничего страшного, пробуем дальше 🙂'; off(); r++; atWait(1300, my, round); return; }
+        pos++; btns.forEach(x => delete x.dataset.ok); if (pos < seq.length) btns[seq[pos]].dataset.ok = '1';
+        if (pos === seq.length) { ok++; sfx('ok'); $('msg').textContent = 'Верно! ⭐'; off(); r++; atWait(900, my, round); }
+      });
+    });
+  };
+  round();
+}
+// 15. Запомни узор
+function attMemGrid(lv, ctx, fin) {
+  const [n, k] = [[3, 3], [4, 5], [5, 7]][lv - 1], rounds = 3; let r = 0, ok = 0;
+  const grid = (lit, show) => `<div class="oddgrid" style="grid-template-columns:repeat(${n},56px)">${atRange(n * n).map(i => `<button class="oddb ${show && lit.includes(i) ? 'lit' : ''}" style="height:56px" data-i="${i}" ${lit.includes(i) ? 'data-t="1"' : ''} ${show ? 'disabled' : ''}></button>`).join('')}</div>`;
+  const round = () => {
+    if (r >= rounds) return fin(rounds, ok);
+    const lit = shuffle(atRange(n * n)).slice(0, k);
+    frame(ctx, `<div class="card center">${attDots(rounds, r)}<h3>Запомни жёлтые клетки 👀</h3>${grid(lit, true)}</div>`);
+    atWait(2500 + k * 250, screenId, () => {
+      frame(ctx, `<div class="card center">${attDots(rounds, r)}<h3>Нажми на клетки, которые были жёлтыми</h3>${grid(lit, false)}<div id="msg" class="msg">&nbsp;</div></div>`);
+      const my = screenId; let found = 0, wrong = 0;
+      const end = () => { app.querySelectorAll('.oddb').forEach(x => { x.disabled = true; if (x.dataset.t && !x.classList.contains('done')) x.classList.add('lit'); }); if (!wrong) ok++; r++; atWait(1400, my, round); };
+      app.querySelectorAll('.oddb').forEach(bt => bt.onclick = () => {
+        bt.disabled = true;
+        if (bt.dataset.t) { bt.classList.add('done'); found++; sfx('ok'); if (found === k) { $('msg').textContent = praise(); end(); } }
+        else { wrong++; bt.classList.add('bad'); sfx('bad'); if (wrong >= 2) { $('msg').textContent = 'Вот где они были 🙂'; end(); } }
+      });
+    });
+  };
+  round();
+}
+// 16. Лови звёздочки (и не трогай бомбы)
+function attCatch(lv, ctx, fin) {
+  const n = [10, 12, 14][lv - 1], dur = [1700, 1400, 1100][lv - 1], bombP = [0, .3, .4][lv - 1];
+  frame(ctx, `<div class="card center">${attDots(n, 0).replace('<div class="prog">', '<div class="prog" id="cpr">')}<h3>${bombP ? 'Лови ⭐, не трогай 💣' : 'Лови ⭐'}</h3><div class="oddgrid" style="grid-template-columns:repeat(3,84px)">${atRange(9).map(i => `<button class="oddb" style="height:84px;font-size:2.6rem" data-i="${i}"></button>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+  const my = screenId, cells = [...app.querySelectorAll('.oddb')], dots = [...app.querySelectorAll('#cpr i')];
+  let k = 0, ok = 0, prev = -1, cur = null, anyStar = false;
+  cells.forEach(c => { c.onpointerdown = () => { if (!cur || cur.tapped || +c.dataset.i !== cur.pos) return; cur.tapped = true; if (!cur.bomb) anyStar = true; c.classList.add(cur.bomb ? 'bad' : 'done'); sfx(cur.bomb ? 'bad' : 'ok'); }; });
+  const trial = () => {
+    if (screenId !== my) return;
+    if (k >= n) return fin(n, anyStar ? ok : 0);
+    let pos; do pos = MR(0, 8); while (pos === prev); prev = pos;
+    cur = { pos, bomb: Math.random() < bombP, tapped: false }; cells[pos].textContent = cur.bomb ? '💣' : '⭐'; cells[pos].dataset[cur.bomb ? 'b' : 'ok'] = '1';
+    setTimeout(() => {
+      if (screenId !== my) return;
+      if (cur.bomb ? !cur.tapped : cur.tapped) { ok++; dots[k].classList.add('d'); }
+      cells[pos].textContent = ''; cells[pos].className = 'oddb'; delete cells[pos].dataset.ok; delete cells[pos].dataset.b; cur = null; k++; setTimeout(trial, 350);
+    }, dur);
+  };
+  atWait(900, my, trial);
+}
+// 17. Где шарик? (три стаканчика)
+function attShell(lv, ctx, fin) {
+  const rounds = 3, swaps = [3, 5, 8][lv - 1], ms = [750, 550, 400][lv - 1]; let r = 0, ok = 0;
+  const round = () => {
+    if (r >= rounds) return fin(rounds, ok);
+    const win = MR(0, 2), pos = [0, 1, 2];
+    frame(ctx, `<div class="card center">${attDots(rounds, r)}<h3 id="atit">Смотри, где шарик 👀</h3><div style="position:relative;height:130px;width:330px;margin:10px auto">${atRange(3).map(c => `<div class="cup" data-c="${c}" ${c === win ? 'data-ok="1"' : ''} style="position:absolute;left:0;top:0;width:100px;height:120px;cursor:pointer;transition:transform ${ms / 1000 * .8}s;transform:translateX(${c * 115}px)"><div class="cupe" style="position:relative;z-index:2;font-size:80px;line-height:1;transition:transform .3s;transform:translateY(-40px)">🥤</div>${c === win ? '<div style="position:absolute;bottom:4px;left:32px;font-size:38px">⚽</div>' : ''}</div>`).join('')}</div><div id="msg" class="msg">&nbsp;</div></div>`);
+    const my = screenId, cups = [...app.querySelectorAll('.cup')], lift = (c, up) => { c.querySelector('.cupe').style.transform = up ? 'translateY(-40px)' : 'translateY(0)'; };
+    atWait(1300, my, () => cups.forEach(c => lift(c, false)));
+    for (let s = 0; s < swaps; s++) atWait(1900 + s * (ms + 120), my, () => { const a = MR(0, 2), b = (a + MR(1, 2)) % 3, ia = pos.indexOf(a), ib = pos.indexOf(b); [pos[ia], pos[ib]] = [pos[ib], pos[ia]]; cups.forEach((c, i) => { c.style.transform = `translateX(${pos[i] * 115}px)`; }); });
+    atWait(1900 + swaps * (ms + 120) + 300, my, () => {
+      $('atit').textContent = 'Где шарик? Нажми на стаканчик'; let done = false;
+      cups.forEach(c => c.onclick = () => {
+        if (done) return; done = true; const good = c.dataset.ok === '1'; lift(c, true); cups.forEach(x => { if (x.dataset.ok) lift(x, true); });
+        if (good) { ok++; sfx('ok'); $('msg').textContent = praise(); } else { sfx('bad'); $('msg').textContent = 'Он был здесь! В следующий раз получится 🙂'; }
+        r++; atWait(1600, my, round);
+      });
+    });
+  };
+  round();
+}
+
+const AT_RUN = { gonogo: attGoNoGo, simon: attSimon, odd: attOdd, pairs: attPairs, rhythm: attRhythm, count: attCount, missing: attMissing, stroop: attStroop, seq: attSeq, oddword: attOddWord, claps: attClaps, compare: attCompare, target: attTarget, letters: attLetters, digits: attDigits, schulte: attSchulte, diff: attDiff, order: attOrder, corsi: attCorsi, memgrid: attMemGrid, catch: attCatch, shell: attShell };
+// сколько нужно набрать, чтобы урок засчитался (там, где можно «прокликать» без внимания)
+const AT_NEED = { gonogo: .7, catch: .7, simon: .5, rhythm: .5, corsi: .5, memgrid: .5, shell: .33 };
+// группы навыков: босс берёт игры из каждой группы
+const AT_SKILLS = [['gonogo', 'catch', 'stroop'], ['simon', 'order', 'missing', 'corsi', 'memgrid', 'shell'], ['odd', 'target', 'letters', 'digits', 'diff', 'schulte'], ['seq', 'oddword', 'compare', 'count'], ['rhythm', 'claps'], ['pairs', 'missing', 'order']];
 
 /* ---------- «Мой день»: утренний и вечерний план в картинках ---------- */
 const PLAN_DEF = {
@@ -10289,6 +10619,9 @@ function parent(tab) {
       <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется.</p>
       <div class="subjcols">${Object.keys(SUBJ_META).map(k => `<label class="subjopt"><input type="checkbox" data-so="${k}" ${subjOn(k) ? 'checked' : ''}> ${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</label>`).join('')}</div>
       <p id="som"></p></div>
+    <div class="card"><h3>↺ Начать предмет заново</h3>
+      <p>Обнулит пройденные уроки и босса выбранного предмета у ученика «${nm}»: он сможет пройти их с самого начала. Слова, изумруды и награды остаются.</p>
+      <p><select id="rsubj" style="${sel}">${Object.keys(SUBJ_META).map(k => `<option value="${k}" ${k === 'att' ? 'selected' : ''}>${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</option>`).join('')}</select> <button class="btn small red" id="rsub">Обнулить уроки</button></p><p id="rsm" class="pmsg">&nbsp;</p></div>
     <div class="card"><h3>🧘 Спокойный фокус</h3>
       <p>Для детей, которым трудно удерживать внимание (например, при СДВГ).</p>
       <button class="btn small ${S.focus ? 'red' : 'gold'}" id="focus">${S.focus ? '🧘 Спокойный фокус: ВКЛ (нажмите, чтобы выключить)' : 'Включить спокойный фокус'}</button>
@@ -10418,6 +10751,14 @@ function parent(tab) {
   on('vc', () => { vTest(); vstat(); });
   on('vsel', e => { voiceWish(e.target.value); enVoice = null; pickVoice(); vTest(); vstat(); }, 'onchange');
   on('dgp', diagIntro);
+  on('rsub', () => {
+    const k = $('rsubj').value, ids = SUBJ_META[k][2]().flatMap(w => w.lessons.map(l => l.id).concat([w.boss.id]));
+    const n = ids.filter(id => (S.lessons[id] || {}).done).length;
+    if (!n) { $('rsm').textContent = 'В этом предмете у ученика ещё нет пройденных уроков.'; return; }
+    if (!confirm(`Обнулить ${n} пройденных уроков в предмете «${SUBJ_META[k][1]}» у ученика «${S.name}»? Слова, изумруды и награды останутся.`)) return;
+    S.rst = S.rst || {}; const t = Date.now(); ids.forEach(id => { delete S.lessons[id]; S.rst[id] = t; });
+    save(); $('rsm').textContent = `✅ Обнулено уроков: ${n}. Ученик начнёт предмет с первого урока.`;
+  });
   on('ua', () => { S.unlockAll = !S.unlockAll; save(); parent(); });
   on('rs', () => { if (confirm(`Удалить весь прогресс игрока «${S.name}»? Другие игроки не затронутся.`)) { S = defState(); save(); applyTheme(); welcome(); } });
   on('im', () => {
