@@ -1042,8 +1042,11 @@ function updateHeader() {
 document.getElementById('mode')?.addEventListener('click', async () => {
   if (A.canEdit()) { A.lock(); render(); return; }
   if (!A.getPin()) { alert('Сначала задайте PIN-код: в игре откройте «Родителям» (значок 🔒 на карте).'); return; }
+  const login = prompt('Логин администратора:');
+  if (login === null) return;
   const pin = prompt('Пароль администратора:');
   if (pin === null) return;
+  if (String(login).trim().toLowerCase() !== 'haw') { alert('Неверный логин или пароль'); return; }
   const res = A.unlock(pin);
   if (res !== 'ok') { alert('Неверный пароль'); return; }
   await syncFromCloud();

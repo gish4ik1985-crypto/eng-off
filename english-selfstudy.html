@@ -7412,7 +7412,7 @@ function pwGate(next) {
     app.innerHTML = `<div class="card pinbox center"><h2>🔑 Вход: ${esc(p.name)}</h2><p>Введи свой пароль.</p>
       <p><input type="password" id="pwi2" maxlength="20" placeholder="Пароль" autocomplete="current-password"></p><p id="pwm" class="pmsg">&nbsp;</p>
       <p><button class="btn gold" id="pwe">Войти</button></p><p><small>Забыл пароль? Попроси взрослого.</small></p>${visPlayers().length > 1 ? sw : ''}<p><button class="btn small sec" id="pwadm">🔒 Администратор</button></p></div>`;
-    const go = () => { const v = $('pwi2').value; if (v && (v === p.pw || adminCheck(v))) { pwMark(); tmFree = false; next(); } else { $('pwm').textContent = 'Пароль не подходит.'; $('pwi2').value = ''; } };
+    const go = () => { const v = $('pwi2').value; if (v && (v === p.pw)) { pwMark(); tmFree = false; next(); } else { $('pwm').textContent = 'Пароль не подходит.'; $('pwi2').value = ''; } };
     $('pwe').onclick = go; $('pwi2').onkeydown = e => { if (e.key === 'Enter') go(); };
   }
   if ($('pwo')) $('pwo').onclick = players;
@@ -10066,17 +10066,18 @@ const tmUp = () => { tmRoll(); return !!TM.on && !!getPin() && TM.used >= tmLimi
 // вызывается в начале экранов: если время вышло — закрываем программу (экран под замком не меняется)
 function tmGate() { if (restNow()) { restShowLock(); return true; } if (!tmUp()) return false; tmShowLock(); return true; }
 let admFails = 0, admLock = 0;
+const adminLogin = (name, pw) => String(name || '').trim().toLowerCase() === ADMIN_NAME.toLowerCase() && adminCheck(pw);
 function pinEntry(box, ok) {
   const draw = msg => {
-    box.innerHTML = `<p>🔒 Вход администратора (${ADMIN_NAME})</p><p><input type="password" class="pwi" id="pwi" autocomplete="off" maxlength="40"></p><p class="pmsg">${msg || '&nbsp;'}</p><p><button class="btn gold" id="pwo">Войти</button></p>`;
+    box.innerHTML = `<p><b>🔒 Вход администратора</b></p><p><input type="text" class="pwi" id="admn" placeholder="Логин" autocomplete="off" autocapitalize="off" maxlength="20"></p><p><input type="password" class="pwi" id="pwi" placeholder="Пароль" autocomplete="off" maxlength="40"></p><p class="pmsg">${msg || '&nbsp;'}</p><p><button class="btn gold" id="pwo">Войти</button></p>`;
     const go = () => {
       if (Date.now() < admLock) return draw('Слишком много попыток. Подождите минуту.');
-      if (adminCheck($('pwi').value)) { admFails = 0; adminOn(); return ok(); }
+      if (adminLogin($('admn').value, $('pwi').value)) { admFails = 0; adminOn(); return ok(); }
       if (++admFails >= 5) { admLock = Date.now() + 60000; admFails = 0; return draw('Слишком много попыток. Подождите минуту.'); }
-      draw('Неверный пароль, попробуйте ещё раз');
+      draw('Неверный логин или пароль');
     };
-    $('pwo').onclick = go; $('pwi').onkeydown = e => { if (e.key === 'Enter') go(); };
-    $('pwi').focus();
+    $('pwo').onclick = go; $('pwi').onkeydown = e => { if (e.key === 'Enter') go(); }; $('admn').onkeydown = e => { if (e.key === 'Enter') $('pwi').focus(); };
+    $('admn').focus();
   };
   draw();
 }
