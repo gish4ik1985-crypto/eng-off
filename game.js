@@ -1516,7 +1516,7 @@ function unlocked(i) {
 // какой урок идёт следующим: первый непройденный по порядку (до последнего основного), потом босс, потом бонусные
 function nextIdx() {
   const L = W().lessons, done = x => (S.lessons[x.id] || {}).done;
-  if (skind() === 'att') return L.findIndex(l => !done(l)); // во «Внимании» босс последний: сначала все уроки по порядку
+  if (L.findIndex(l => !done(l)) >= 0) return L.findIndex(l => !done(l)); // босс последний: сначала все уроки по порядку
   const mi = L.findIndex(l => !l.bonus && !done(l));
   if (mi >= 0) return L.findIndex((l, k) => k <= mi && !done(l));
   if (!done(W().boss)) return -1;
@@ -1577,7 +1577,7 @@ function map() {
   applyTheme();
   const WL = W().lessons, BS = W().boss;
   const nextI = nextIdx();
-  const allDone = WL.every(l => (l.bonus && skind() !== 'att') || (S.lessons[l.id] || {}).done); // основные уроки пройдены (во «Внимании» — все)
+  const allDone = WL.every(l => (S.lessons[l.id] || {}).done); // босс открывается, только когда пройдены ВСЕ уроки мира
   const node = (l, i) => {
     const rec = S.lessons[l.id] || {}, ok = unlocked(i);
     const cls = rec.done ? 'done' : (i === nextI ? 'cur' : (ok ? '' : 'lock'));
