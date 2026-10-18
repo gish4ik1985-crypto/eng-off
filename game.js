@@ -944,8 +944,36 @@ async function pwPush(p) {
   if (!cloudOn() || !p || !p.pw || !p.cid || p.pws === p.pw) return;
   try { await api('setpw', { id: p.cid, name: p.name, pw: p.pw }); p.pws = p.pw; savePR(); } catch (e) {}
 }
+/* ---------- вход: логин и пароль; последний пользователь запоминается на этом устройстве ---------- */
+const LAST_KEY = 'engAdventure_lastUser';
+const lastUser = () => { try { return localStorage.getItem(LAST_KEY) || ''; } catch (e) { return ''; } };
+function loginScreen(other, msg) {
+  epoch++; newScreen(); tmFree = true; tmInLesson = false; homeView = true;
+  const last = !other ? visPlayers().find(x => x.id === lastUser()) : null;
+  app.innerHTML = `<div class="card pinbox center"><h2>🔑 Вход</h2>
+    ${last ? `<p>Привет, <b>${esc(last.name)}</b>!</p>` : '<p><input type="text" id="lgn" placeholder="Логин" autocomplete="username" autocapitalize="off" maxlength="30"></p>'}
+    <p><input type="password" id="lgp" placeholder="Пароль" autocomplete="current-password" maxlength="40"></p><p id="lgm" class="pmsg">${msg || '&nbsp;'}</p>
+    <p><button class="btn gold" id="lgo">Войти</button></p>${last ? '<p><button class="btn small sec" id="lgx">Войти под другим пользователем</button></p>' : ''}</div>`;
+  const go = () => {
+    const name = (last ? last.name : $('lgn').value).trim(), pw = $('lgp').value, nm = name.toLowerCase();
+    if (Date.now() < admLock) return loginScreen(other, 'Слишком много попыток. Подождите минуту.');
+    const fail = m => { if (++admFails >= 5) { admLock = Date.now() + 60000; admFails = 0; m = 'Слишком много попыток. Подождите минуту.'; } loginScreen(other, m); };
+    if (!nm || !pw) return loginScreen(other, 'Введите логин и пароль.');
+    if (nm === ADMIN_NAME.toLowerCase()) { if (adminCheck(pw)) { admFails = 0; adminOn(); return parentGate('main'); } return fail('Неверный логин или пароль.'); }
+    const p = visPlayers().find(x => String(x.name).trim().toLowerCase() === nm);
+    if (!p) return fail('Неверный логин или пароль.');
+    if (!p.pw) return loginScreen(other, 'Для этого пользователя пароль ещё не задан. Обратитесь к администратору.');
+    if (p.pw !== pw) return fail('Неверный логин или пароль.');
+    admFails = 0; PR.cur = p.id; pwMark(); try { localStorage.setItem(LAST_KEY, p.id); } catch (e) {}
+    useProfile(p.id);
+  };
+  $('lgo').onclick = go; $('lgp').onkeydown = e => { if (e.key === 'Enter') go(); };
+  if ($('lgn')) { $('lgn').onkeydown = e => { if (e.key === 'Enter') $('lgp').focus(); }; $('lgn').focus(); } else $('lgp').focus();
+  if ($('lgx')) $('lgx').onclick = () => loginScreen(true);
+}
 function pwGate(next) {
   const p = curP(); if (!p || pwOk()) return false;
+  if (!isAdmin()) { loginScreen(); return true; } // без входа по логину и паролю дальше не пускаем
   epoch++; newScreen(); tmFree = true;
   const sw = '<p><button class="btn small sec" id="pwo">👤 Другой игрок</button></p>';
   if (!p.pw && !isAdmin()) { // пароль игроку задаёт только администратор
@@ -994,6 +1022,7 @@ function cancelNewPlayer() {
 function players() {
   if (tmGate()) return; tmInLesson = false;
   homeView = true;
+  if (!isAdmin() && visPlayers().length) { try { sessionStorage.removeItem('engUnlock'); } catch (e) {} return loginScreen(); } // обычному игроку список других пользователей не показываем
   const cards = visPlayers().map(p => {
     const st = loadState(p.key), done = Object.values(st.lessons || {}).filter(x => x.done).length;
     return `<div class="item"><div class="ie">${hero(56, st.hue, st)}</div><b>${esc(p.name)}</b><br><small>💎 ${st.emeralds || 0} · пройдено локаций: ${done}</small><br>
@@ -5398,6 +5427,6 @@ applyTheme();
 syncSoon(true); restPoll();
 cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
 if (famLink && !cloudOn() && cloudUrl()) cloudScreen(() => (PR.list.length ? players() : welcome()), famLink);
-else if (visPlayers().length > 1) players(); // на общем планшете сначала выбираем, кто занимается
-else S.name ? map() : welcome();
+else if (visPlayers().length) loginScreen(); // сначала вход: логин и пароль (или «Привет, <последний пользователь>!»)
+else welcome();
 })();
