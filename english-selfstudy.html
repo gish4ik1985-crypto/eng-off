@@ -6297,9 +6297,25 @@ const IT_PACK = {
       }
     });
   }
+  // добор до 100 уроков в предметах, где их меньше: берём самые сложные уроки того же мира (то есть своего класса) и ставим повышенный уровень,
+  // но не выше 3 — так задания сложнее, но не выходят за рамки класса
+  function topUp(worlds, idStart, target) {
+    const total = worlds.reduce((n, w) => n + w.lessons.length, 0), need = target - total; if (need <= 0) return;
+    let id = idStart;
+    split(need, worlds.length).forEach((cnt, wi) => {
+      const w = worlds[wi], all = w.lessons.filter(l => l.id < 30000 && l.type === 'math' && l.gens && l.gens.length && l.rule), hard = all.slice(Math.floor(all.length / 2));
+      for (let k = 0; k < cnt; k++) {
+        const pick = [hard[(k * 2) % hard.length], hard[(k * 2 + 1) % hard.length], hard[(k * 2 + 3) % hard.length]].filter((l, i, arr) => arr.indexOf(l) === i), seen = new Set(), gens = [];
+        pick.forEach(l => l.gens.forEach(([g, lv]) => { if (!seen.has(g)) { seen.add(g); gens.push([g, Math.min(3, lv + (k < cnt / 2 ? 1 : 2))]); } }));
+        const titles = pick.map(l => short(l.title)).filter((t, i, arr) => arr.indexOf(t) === i);
+        w.lessons.push({ id: id++, icon: ICONS[(k + 3) % ICONS.length], title: `Испытание ${k + 1}: ${titles.slice(0, 2).join(' + ')}`, story: `Сложные задания по темам ${titles.map(t => '«' + t + '»').join(', ')}. Покажи, чему научился!`, type: 'math', rule: pick[0].rule, gens, bonus: true });
+      }
+    });
+  }
   mixGens(MWORLDS, 31001); mixGens(RWORLDS, 32001); mixGens(OWORLDS, 33001); mixGens(IWORLDS, 34001);
   mixGens(PWORLDS, 35001); mixGens(LWORLDS, 36001); mixGens(GWORLDS, 37001);
   mixWords(EN_PACK.WORLDS, 38001); mixWords(IT_PACK.WORLDS, 39001);
+  topUp(MWORLDS, 31051, 100); topUp(RWORLDS, 32051, 100); topUp(OWORLDS, 33051, 100); topUp(IWORLDS, 34051, 100); topUp(PWORLDS, 35051, 100); topUp(LWORLDS, 36051, 100); topUp(GWORLDS, 37051, 100);
 })();
 
 </script>
