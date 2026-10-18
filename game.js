@@ -937,7 +937,7 @@ function voiceCheck() {
 
 /* ---------- пароль игрока: без него в чужой аккаунт не войти (пароль родителей подходит всегда) ---------- */
 const curP = () => PR.list.find(x => x.id === PR.cur);
-const pwOk = () => { try { return sessionStorage.getItem('engUnlock') === PR.cur; } catch (e) { return true; } };
+const pwOk = () => { try { return isAdmin() || sessionStorage.getItem('engUnlock') === PR.cur; } catch (e) { return true; } }; // администратору пароль игрока не нужен
 const pwMark = () => { try { sessionStorage.setItem('engUnlock', PR.cur); } catch (e) {} };
 // пароли игроков записываются в Google-таблицу семьи (лист «Пароли»); нет связи — отправятся позже
 async function pwPush(p) {
@@ -948,7 +948,9 @@ function pwGate(next) {
   const p = curP(); if (!p || pwOk()) return false;
   epoch++; newScreen(); tmFree = true;
   const sw = '<p><button class="btn small sec" id="pwo">👤 Другой игрок</button></p>';
-  if (!p.pw) {
+  if (!p.pw && !isAdmin()) { // пароль игроку задаёт только администратор
+    app.innerHTML = `<div class="card pinbox center"><h2>🔑 «${esc(p.name)}»: пароль ещё не задан</h2><p>Попроси взрослого: администратор задаст пароль (🔒 Администратор → «Ученик» → «Пароль игрока»).</p>${visPlayers().length > 1 ? sw : ''}<p><button class="btn small sec" id="pwadm">🔒 Администратор</button></p></div>`;
+  } else if (!p.pw) {
     app.innerHTML = `<div class="card pinbox center"><h2>🔑 Пароль для «${esc(p.name)}»</h2><p>Придумай пароль от 4 до 20 знаков (цифры или буквы) и запомни его. С ним в твой аккаунт никто другой не войдёт.</p>
       <p><input type="password" id="pw1" maxlength="20" placeholder="Пароль" autocomplete="new-password"></p><p><input type="password" id="pw2" maxlength="20" placeholder="Ещё раз" autocomplete="new-password"></p>
       <p id="pwm" class="pmsg">&nbsp;</p><p><button class="btn gold" id="pws">Сохранить и войти</button></p>${visPlayers().length > 1 ? sw : ''}<p><button class="btn small sec" id="pwadm">🔒 Администратор</button></p></div>`;
