@@ -1042,10 +1042,10 @@ function updateHeader() {
 document.getElementById('mode')?.addEventListener('click', async () => {
   if (A.canEdit()) { A.lock(); render(); return; }
   if (!A.getPin()) { alert('Сначала задайте PIN-код: в игре откройте «Родителям» (значок 🔒 на карте).'); return; }
-  const pin = prompt('PIN-код родителя:');
+  const pin = prompt('Пароль администратора:');
   if (pin === null) return;
   const res = A.unlock(pin);
-  if (res !== 'ok') { alert('Неверный PIN-код'); return; }
+  if (res !== 'ok') { alert('Неверный пароль'); return; }
   await syncFromCloud();
   render();
 });
