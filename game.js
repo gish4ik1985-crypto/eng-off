@@ -416,8 +416,8 @@ function hardStop() {
 }
 function stopAll() { epoch++; newScreen(); }
 // «номер экрана»: отложенная озвучка срабатывает, только если экран за это время не сменился
-let screenId = 0;
-function newScreen() { screenId++; hardStop(); tmFree = false; budHide(); }
+let screenId = 0, screenT = Date.now();
+function newScreen() { screenId++; screenT = Date.now(); hardStop(); tmFree = false; budHide(); }
 function speakLater(text, ms) {
   const id = screenId;
   setTimeout(() => { if (id === screenId) speak(text); }, ms);
@@ -446,10 +446,22 @@ function dayRec() {
   return S.log[t];
 }
 // по предметам: минуты, ответы и верные — родитель видит, что получается, а что нет
+// занятие = подряд идущие касания с паузами не больше 5 минут: так видно, сколько ребёнок занимается без перерыва и когда устаёт
+function sesTouch(n) {
+  S.ses = S.ses || []; let c = S.ses[S.ses.length - 1];
+  if (!c || n - c.e > 300000) { c = { t: n, e: n, q1: 0, o1: 0, q2: 0, o2: 0 }; S.ses.push(c); if (S.ses.length > 60) S.ses.shift(); }
+  c.e = n; return c;
+}
 const sjRec = d => { d.sj = d.sj || {}; const k = skind(); return d.sj[k] || (d.sj[k] = { sec: 0, q: 0, ok: 0 }); };
 function logQn(n, okN) {
   const d = dayRec(); d.q += n; d.ok += okN;
   { const r = sjRec(d); r.q += n; r.ok += okN; S.last = { t: Date.now(), s: skind() }; }
+  if (n === 1) { // скорость ответа: поспешные ошибки (быстрее 2,5 с) и долгие раздумья (дольше 25 с)
+    const rt = (Date.now() - screenT) / 1000;
+    if (rt <= 60) { d.rt = (d.rt || 0) + rt; d.rn = (d.rn || 0) + 1; if (rt > 25) d.slow = (d.slow || 0) + 1; }
+    if (!okN && rt < 2.5) d.imp = (d.imp || 0) + 1;
+  }
+  { const c = sesTouch(Date.now()), early = Date.now() - c.t < 600000; c[early ? 'q1' : 'q2'] += n; c[early ? 'o1' : 'o2'] += okN; }
   const nw = new Date(), h = nw.getHours(), wd = (nw.getDay() + 6) % 7; S.hrs = S.hrs || {}; S.wds = S.wds || {};
   const a = S.hrs[h] || (S.hrs[h] = { q: 0, ok: 0 }), b = S.wds[wd] || (S.wds[wd] = { q: 0, ok: 0 });
   a.q += n; a.ok += okN; b.q += n; b.ok += okN;
@@ -504,6 +516,7 @@ function hintUI(ctx, apply) {
   msg.after(b);
   b.onclick = () => {
     if (!apply()) return;
+    { const d = dayRec(); d.hint = (d.hint || 0) + 1; }
     if (hintAllow(ctx) > 0) ctx.hintUsed = (ctx.hintUsed || 0) + 1; else S.inv.hints--;
     save(); b.remove();
   };
@@ -519,6 +532,7 @@ let lastTouch = 0;
 document.addEventListener('pointerdown', () => {
   const n = Date.now();
   if (lastTouch && n - lastTouch < 90000) { const d = dayRec(), sc = Math.round((n - lastTouch) / 1000); d.sec += sc; if (S.name) sjRec(d).sec += sc; }
+  if (S.name && !tmFree) { const gap = lastTouch ? n - lastTouch : 0; if (tmInLesson && gap > 60000 && gap < 900000) { const d = dayRec(); d.idl = (d.idl || 0) + 1; } sesTouch(n); }
   lastTouch = n;
 }, { passive: true });
 window.addEventListener('pagehide', () => save());
@@ -854,11 +868,23 @@ function budStep(ctx) { // начало, середина и последний 
 }
 
 /* ---------- каркас экранов ---------- */
+// родитель видит «сейчас занимается»: раз в 25 секунд отправляем состояние в облако (лёгкая отправка)
+let lastLive = 0;
+function liveKick() { if (!cloudOn() || Date.now() - lastLive < 25000) return; lastLive = Date.now(); save(); cloudSync(false, true); }
+// ребёнок вышел из урока на середине
+function logAbandon(ctx) {
+  try {
+    if (!S.name || !ctx.L || !ctx.steps || !(ctx.cur >= 1)) return;
+    const d = dayRec(); d.abn = (d.abn || 0) + 1;
+    S.act = (S.act || []).concat([{ t: Date.now(), s: skind(), k: 'abn', n: ctx.L.title, p: Math.round(ctx.cur / ctx.steps.length * 100) }]).slice(-40); save();
+  } catch (e) {}
+}
 function frame(ctx, inner) {
   newScreen(); // новый экран: то, что говорилось на предыдущем, больше не звучит
   const dots = ctx.steps.map((s, k) => `<i class="${k < ctx.cur ? 'd' : k === ctx.cur ? 'c' : ''}"></i>`).join('');
   app.innerHTML = `<div class="topline"><button class="btn small sec" id="exit">⬅ Карта</button><div class="dots">${dots}</div>${combo >= 3 && !S.focus ? `<span class="chip cmb">🔥 ×${combo}</span>` : ''}<div class="stepname">${ctx.steps[ctx.cur][0]}</div></div>${S.focus ? `<div class="calmbar" title="Шаг ${ctx.cur + 1} из ${ctx.steps.length}"><i style="width:${Math.round(ctx.cur / ctx.steps.length * 100)}%"></i></div>` : ''}${inner}`;
-  $('exit').onclick = () => { stopAll(); map(); };
+  $('exit').onclick = () => { logAbandon(ctx); stopAll(); map(); };
+  if (S.name && ctx.steps[ctx.cur]) { S.live = { t: Date.now(), s: skind(), n: ctx.L ? ctx.L.title : '', st: ctx.steps[ctx.cur][0] }; liveKick(); }
   window.scrollTo(0, 0);
   budShow(); budStep(ctx);
 }
@@ -1024,6 +1050,8 @@ function mergeState(a, b) {
   const dmax = (x, y) => (x && y && typeof x === 'object' && typeof y === 'object' ? keyed(x, y, dmax) : Math.max(x || 0, y || 0));
   m.log = keyed(a.log, b.log, (p, q) => keyed(p, q, dmax));
   m.act = [].concat(a.act || [], b.act || []).filter((e, i, arr) => arr.findIndex(x => x.t === e.t && x.k === e.k) === i).sort((x, y) => x.t - y.t).slice(-40);
+  m.ses = [].concat(a.ses || [], b.ses || []).filter((c, i, arr) => arr.findIndex(x => x.t === c.t) === i).sort((x, y) => x.t - y.t).slice(-60);
+  m.live = ((a.live || {}).t || 0) >= ((b.live || {}).t || 0) ? a.live : b.live;
   m.last = ((a.last || {}).t || 0) >= ((b.last || {}).t || 0) ? a.last : b.last;
   ['totalDays', 'maxStreak', 'maxEm', 'petXp'].forEach(k => { m[k] = Math.max(a[k] || 0, b[k] || 0); });
   m._ts = Math.max(a._ts || 0, b._ts || 0);
@@ -1038,7 +1066,7 @@ function cloudDirty() {
 }
 function syncSoon(force) { if (cloudOn() && (force || Date.now() - lastSync > 120000)) cloudSync(true); }
 // pull = true: сначала забрать из облака и слить; потом всегда отправить
-async function cloudSync(pull) {
+async function cloudSync(pull, light) {
   if (!cloudOn() || syncBusy) return;
   const p = curPlayer(); if (!p || !S.name) return;
   syncBusy = true;
@@ -1062,8 +1090,8 @@ async function cloudSync(pull) {
     }
     if (KEYNOW === key) await api('push', { id: cid, name: S.name, ts: S._ts || 0, state: JSON.stringify(S) });
     needPush = false; CL.last = Date.now(); CL.err = ''; lastSync = Date.now(); saveCL();
-    if (KEYNOW === key) api('push', { id: '__sum_' + cid, name: S.name, ts: Date.now(), state: JSON.stringify(ADAPT.summary(S, today(), MTOP)) }).catch(() => {});
-    schoolPull().then(ch => { if (ch && document.getElementById('vw')) map(); });
+    if (!light && KEYNOW === key) api('push', { id: '__sum_' + cid, name: S.name, ts: Date.now(), state: JSON.stringify(ADAPT.summary(S, today(), MTOP)) }).catch(() => {});
+    if (!light) schoolPull().then(ch => { if (ch && document.getElementById('vw')) map(); });
     if (changed && document.getElementById('vw')) { applyTheme(); map(); } // мы на карте: показать полученное
   } catch (e) { CL.err = String(e.message || e).slice(0, 40); saveCL(); }
   syncBusy = false;
@@ -1464,7 +1492,7 @@ function mapTail() {
 }
 const subjOn = k => !(S.off && S.off[k]);
 function home() {
-  if (tmGate()) return; tmInLesson = false;
+  if (tmGate()) return; tmInLesson = false; S.live = null;
   if (!subjOn(S.subj)) { const f = Object.keys(SUBJ_META).find(subjOn); if (f) { S.subj = f; save(); } }
   syncLang(); epoch++; newScreen(); applyTheme(); adaptLoad(); payHomework();
   const st = petStage(), nxt = PET_STAGES[st + 1];
@@ -1498,7 +1526,7 @@ function home() {
   mapTail();
 }
 function map() {
-  if (tmGate()) return; tmInLesson = false;
+  if (tmGate()) return; tmInLesson = false; S.live = null;
   if (homeView) return home();
   syncLang();
   epoch++; newScreen();
@@ -1890,6 +1918,7 @@ function reward(ctx) {
   const rec = S.lessons[L.id] || (S.lessons[L.id] = { stars: 0, done: false });
   const first = !rec.done, prevStars = rec.stars || 0;
   rec.done = true; rec.stars = Math.max(rec.stars, stars); rec.t = Date.now();
+  S.live = null;
   logDone('les');
   { const e = S.act[S.act.length - 1]; if (e) Object.assign(e, { n: L.title, st: stars, a: Math.round(acc * 100), b: ctx.boss ? 1 : 0 }); }
   // повторение тоже оплачивается, но вдвое меньше изучения; за одно и то же занятие в день — не больше двух раз
@@ -4213,55 +4242,121 @@ function concHtml() {
     ${best ? `<p>💡 Лучше всего получается: <b>${best.nm}</b> (${best.pct}%).${worst && worst.pct < best.pct - 8 ? ` Хуже всего: ${worst.nm} (${worst.pct}%): сложное лучше не ставить на это время.` : ''}</p>` : ''}<p><small>Точность считается по первым попыткам. Данные накапливаются с момента обновления игры.</small></p>`;
 }
 // экран родителей разбит на разделы (вкладки), чтобы не листать одну длинную страницу
-/* ---------- «Дети»: что делает каждый ребёнок, что получается и что трудно ---------- */
+/* ---------- «Дети»: что делает каждый ребёнок, что получается и что трудно (для родителя) ---------- */
 const whenTxt = t => { if (!t) return 'ещё не занимался'; const d = new Date(t), td = new Date(), day = d.toDateString() === td.toDateString() ? 'сегодня' : d.toDateString() === new Date(td - 864e5).toDateString() ? 'вчера' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }); return day + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); };
+const hm = t => new Date(t).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 const lampOf = p => (p === null ? '⚪' : p >= 85 ? '🟢' : p >= 65 ? '🟡' : '🔴');
 const sjName = k => (SUBJ_META[k] ? SUBJ_META[k][0] + ' ' + SUBJ_META[k][1] : k);
-const ACT_KIND = { les: 'урок', tr: 'тренировка', card: 'карточки', dlg: 'диалог', song: 'песенка', aud: 'аудио' };
+const ACT_KIND = { les: 'урок', tr: 'тренировка', card: 'карточки', dlg: 'диалог', song: 'песенка', aud: 'аудио', abn: 'вышел из урока' };
+const pctOf = (o, q) => (q ? Math.round(100 * o / q) : null);
 function kidSummary(st) {
-  const t0 = today(), d14 = atRange(14).map(k => addDays(t0, -k)), sums = {}; let sec7 = 0, q7 = 0, ok7 = 0, act7 = 0;
+  const t0 = today(), now = Date.now(), d14 = atRange(14).map(k => addDays(t0, -k)), sums = {};
+  const T = { sec: 0, q: 0, ok: 0, act: 0, imp: 0, slow: 0, rt: 0, rn: 0, abn: 0, idl: 0, hint: 0 };
   d14.forEach((d, i) => {
     const x = (st.log || {})[d]; if (!x) return;
-    if (i < 7 && (x.sec || x.q)) { act7++; sec7 += x.sec || 0; q7 += x.q || 0; ok7 += x.ok || 0; }
+    if (i < 7) { if (x.sec || x.q) { T.act++; T.sec += x.sec || 0; T.q += x.q || 0; T.ok += x.ok || 0; } ['imp', 'slow', 'rt', 'rn', 'abn', 'idl', 'hint'].forEach(f => { T[f] += x[f] || 0; }); }
     Object.keys(x.sj || {}).forEach(k => { const r = x.sj[k], a = sums[k] || (sums[k] = { sec: 0, q: 0, ok: 0 }); a.sec += r.sec || 0; a.q += r.q || 0; a.ok += r.ok || 0; });
   });
+  const days = d14.slice().reverse().map(d => { const x = (st.log || {})[d] || {}; return { d, min: Math.round((x.sec || 0) / 60), q: x.q || 0, pct: pctOf(x.ok || 0, x.q || 0) }; });
   const subj = Object.keys(SUBJ_META).map(k => {
-    let d = 0, n = 0; SUBJ_META[k][2]().forEach(w => w.lessons.forEach(l => { n++; if ((st.lessons || {})[l.id] && st.lessons[l.id].done) d++; }));
-    const a = sums[k] || { sec: 0, q: 0, ok: 0 }; return { k, d, n, min: Math.round(a.sec / 60), q: a.q, pct: a.q ? Math.round(100 * a.ok / a.q) : null };
+    let dn = 0, n = 0; SUBJ_META[k][2]().forEach(w => w.lessons.forEach(l => { n++; if ((st.lessons || {})[l.id] && st.lessons[l.id].done) dn++; }));
+    const a = sums[k] || { sec: 0, q: 0, ok: 0 }; return { k, d: dn, n, min: Math.round(a.sec / 60), q: a.q, pct: pctOf(a.ok, a.q) };
   });
+  const ses = (st.ses || []).filter(c => c.t > now - 14 * 864e5), len = c => Math.max(1, Math.round((c.e - c.t) / 60000));
+  const ses7 = ses.filter(c => c.t > now - 7 * 864e5), sum = (a, f) => a.reduce((s, c) => s + (c[f] || 0), 0);
+  const cur = ses.length && now - ses[ses.length - 1].e < 300000 ? ses[ses.length - 1] : null;
+  const live = st.live && now - st.live.t < 90000 ? st.live : null;
+  const lastT = (st.last && st.last.t) || (ses.length ? ses[ses.length - 1].e : 0) || 0;
   const weakTopics = Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; }).map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 6);
   const weakWords = Object.keys(st.words || {}).filter(id => WORDS[id] && (st.words[id].miss || 0) >= 2 && (st.words[id].box || 0) < 2).slice(0, 6).map(id => WORDS[id].en);
-  return { min7: Math.round(sec7 / 60), q7, pct7: q7 ? Math.round(100 * ok7 / q7) : null, act7, minToday: Math.round((((st.log || {})[t0] || {}).sec || 0) / 60), streak: st.streak || 0, subj, weakTopics, weakWords, last: st.last || null, act: (st.act || []).slice(-10).reverse(), ts: st._ts || 0 };
+  return {
+    T, days, subj, ses, ses7, cur, live, weakTopics, weakWords, minToday: Math.round((((st.log || {})[t0] || {}).sec || 0) / 60), streak: st.streak || 0,
+    pct7: pctOf(T.ok, T.q), avgSes: ses7.length ? Math.round(ses7.reduce((s, c) => s + len(c), 0) / ses7.length) : null, maxSes: ses7.length ? Math.max(...ses7.map(len)) : null,
+    early: pctOf(sum(ses, 'o1'), sum(ses, 'q1')), qEarly: sum(ses, 'q1'), late: pctOf(sum(ses, 'o2'), sum(ses, 'q2')), qLate: sum(ses, 'q2'),
+    avgRt: T.rn ? Math.round(T.rt / T.rn * 10) / 10 : null, lastT, lastS: (st.last && st.last.s) || '', act: (st.act || []).slice(-12).reverse(), ts: st._ts || 0, len
+  };
+}
+// лучшее и худшее время суток по ответам (данные есть и за прошлые недели)
+function kidTimes(st) {
+  const hrs = st.hrs || {}, parts = [['🌅 утром (6–11)', h => h >= 6 && h <= 11], ['☀️ днём (12–16)', h => h >= 12 && h <= 16], ['🌆 вечером (17–21)', h => h >= 17 && h <= 21], ['🌙 поздно вечером или рано утром', h => h >= 22 || h <= 5]];
+  const rows = parts.map(([nm, f]) => { let q = 0, ok = 0; Object.keys(hrs).forEach(h => { if (f(+h)) { q += hrs[h].q || 0; ok += hrs[h].ok || 0; } }); return { nm, q, pct: pctOf(ok, q) }; }).filter(r => r.q >= 15).sort((a, b) => b.pct - a.pct);
+  return { best: rows[0] || null, worst: rows.length > 1 ? rows[rows.length - 1] : null };
+}
+// главное для родителя: что требует внимания прямо сейчас, и что хорошо
+function kidInsights(st, k) {
+  const A = [], G = [], T = k.T, wrong = T.q - T.ok, tm = kidTimes(st);
+  if (k.cur) { const m = k.len(k.cur); if (m >= 30) A.push(`⏱ Занимается уже ${m} мин подряд. Для внимания лучше 10–15 минут и перерыв на движение.`); }
+  if (k.minToday >= 60) A.push(`📱 Сегодня уже ${k.minToday} мин в игре: пожалуй, хватит на сегодня.`);
+  if (wrong >= 8 && T.imp / wrong >= .4) A.push(`⚡ Поспешные ответы: ${T.imp} из ${wrong} ошибок за 7 дней — быстрее 2,5 секунд. Ребёнок отвечает, не дочитав. Попросите читать задание вслух.`);
+  if (T.rn >= 20 && T.slow / T.rn >= .25) A.push(`🐢 Долгие раздумья над ответом (больше 25 с) в ${Math.round(100 * T.slow / T.rn)}% заданий: возможно, отвлекается или задания трудны.`);
+  if (T.abn >= 3) A.push(`🚪 Бросил уроки на середине: ${T.abn} раз за 7 дней. Подбодрите: лучше короткие уроки и награда за завершение.`);
+  if (T.idl >= 5) A.push(`💭 Часто отвлекается внутри урока: ${T.idl} долгих пауз (больше минуты) за 7 дней.`);
+  if (k.qEarly >= 20 && k.qLate >= 20 && k.early - k.late >= 15) A.push(`📉 После 10-й минуты занятия точность падает: ${k.early}% → ${k.late}%. Лучшая длина занятия для него — около 10 минут.`);
+  if (T.act <= 2 && T.q > 0) A.push(`📅 Занимался только в ${T.act} из 7 дней: лучше понемногу каждый день.`);
+  if (k.days[13].q >= 10 && k.days[13].pct < 60) A.push(`🔴 Сегодня много ошибок: верно ${k.days[13].pct}% из ${k.days[13].q}.`);
+  if (T.act >= 5) G.push('📅 Отличная регулярность: занимается почти каждый день.');
+  if (k.pct7 !== null && T.q >= 20 && k.pct7 >= 85) G.push(`🎯 Высокая точность: ${k.pct7}% верно с первой попытки.`);
+  if (k.qEarly >= 20 && k.qLate >= 20 && k.late >= k.early - 3) G.push('🧠 Внимание держится на всём занятии: точность не падает к концу.');
+  if (k.avgSes !== null && k.avgSes <= 20 && k.avgSes >= 5) G.push(`⏲ Занятия хорошей длины: в среднем ${k.avgSes} мин.`);
+  if (tm.best) G.push(`⏰ Лучше всего получается ${tm.best.nm}: ${tm.best.pct}%.` + (tm.worst && tm.worst.pct < tm.best.pct - 8 ? ` Хуже ${tm.worst.nm}: ${tm.worst.pct}% — сложное лучше туда не ставить.` : ''));
+  return { A, G };
+}
+function kidChart(k) {
+  const W = 14 * 24 + 20, maxM = Math.max(10, ...k.days.map(d => d.min));
+  const bars = k.days.map((d, i) => { const h = Math.round(d.min / maxM * 70), x = 10 + i * 24; return `<rect x="${x}" y="${85 - h}" width="18" height="${h}" rx="3" fill="#64b5f6"/>${d.min ? `<text x="${x + 9}" y="${81 - h}" text-anchor="middle" font-size="9" fill="#333">${d.min}</text>` : ''}<text x="${x + 9}" y="98" text-anchor="middle" font-size="8" fill="#666">${d.d.slice(8)}</text>`; }).join('');
+  const pts = k.days.map((d, i) => (d.pct === null || d.q < 5 ? null : [10 + i * 24 + 9, 85 - Math.round(d.pct * .7)]));
+  const line = pts.filter(Boolean).map((p, i, a) => (i ? `<line x1="${a[i - 1][0]}" y1="${a[i - 1][1]}" x2="${p[0]}" y2="${p[1]}" stroke="#e8472b" stroke-width="2"/>` : '')).join('') + pts.filter(Boolean).map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="#e8472b"/>`).join('');
+  return `<svg viewBox="0 0 ${W} 104" style="width:100%;max-width:460px;background:#f6f1e3;border-radius:10px"><line x1="8" y1="85" x2="${W - 8}" y2="85" stroke="#999"/>${bars}${line}</svg><p><small><span style="color:#64b5f6">■</span> минут в день &nbsp; <span style="color:#e8472b">●</span> % верных (дни последних 2 недель, справа — сегодня)</small></p>`;
+}
+function kidCard(pl) {
+  const st = pl.id === PR.cur ? S : loadState(pl.key), k = kidSummary(st), ins = kidInsights(st, k), tm = kidTimes(st);
+  const rows = k.subj.filter(x => x.q || x.min || x.d).sort((a, b) => (b.min + b.q) - (a.min + a.q));
+  const good = rows.filter(x => x.q >= 10 && x.pct >= 85).map(x => sjName(x.k)), hard = rows.filter(x => x.q >= 10 && x.pct < 65).map(x => sjName(x.k));
+  const status = k.live ? `<p class="story" style="margin:6px 0">🟢 <b>Сейчас занимается</b> · ${esc(sjName(k.live.s))}${k.live.n ? ' · «' + esc(k.live.n) + '»' : ''}${k.live.st ? ' · ' + esc(k.live.st) : ''}${k.cur ? ' · в игре ' + k.len(k.cur) + ' мин подряд' : ''}</p>`
+    : `<p>🕒 Последний раз: <b>${esc(whenTxt(k.lastT || k.ts))}</b>${k.lastS ? ' · ' + esc(sjName(k.lastS)) : ''}${k.lastT ? '' : ' <small>(по последней синхронизации)</small>'}</p>`;
+  const shown = k.ses.slice(-6).reverse().map(c => `<li>${esc(whenTxt(c.t))}–${hm(c.e)} · ${k.len(c)} мин${c.q1 + c.q2 ? ' · верно ' + pctOf(c.o1 + c.o2, c.q1 + c.q2) + '%' : ''}</li>`).join('');
+  const T = k.T;
+  return `<div class="card"><h3>${esc(pl.name)}</h3>${status}
+    ${ins.A.length ? `<div class="story" style="background:#fff0d8"><b>⚠️ Обратите внимание</b><ul>${ins.A.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}${ins.G.length ? `<div class="story" style="background:#e4f7e8"><b>👍 Хорошо</b><ul>${ins.G.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}
+    <div class="pstats"><div><b>${k.minToday}</b><small>мин сегодня</small></div><div><b>${Math.round(T.sec / 60)}</b><small>мин за 7 дней</small></div><div><b>${T.act}/7</b><small>дней с занятиями</small></div><div><b>${k.pct7 === null ? '—' : k.pct7 + '%'}</b><small>верно с 1-й попытки</small></div></div>
+    <h4>🧠 Внимание и концентрация (7 дней)</h4>
+    <div class="pstats"><div><b>${k.avgSes === null ? '—' : k.avgSes}</b><small>мин: средняя длина занятия</small></div><div><b>${k.avgRt === null ? '—' : k.avgRt + ' с'}</b><small>среднее время ответа</small></div><div><b>${T.imp}</b><small>поспешных ошибок (быстрее 2,5 с)</small></div><div><b>${T.abn}</b><small>брошенных уроков</small></div><div><b>${T.idl}</b><small>долгих пауз в уроке</small></div><div><b>${T.hint}</b><small>подсказок</small></div></div>
+    ${k.qEarly >= 10 && k.qLate >= 10 ? `<p>⏱ Точность в первые 10 минут занятия: <b>${k.early}%</b>, дальше: <b>${k.late}%</b> (${k.qEarly} и ${k.qLate} ответов).</p>` : '<p><small>Сравнение «первые 10 минут / дальше» появится после нескольких занятий.</small></p>'}
+    ${tm.best ? `<p>⏰ Лучшее время: <b>${tm.best.nm}</b> (${tm.best.pct}%)${tm.worst && tm.worst.pct < tm.best.pct - 8 ? ` · хуже всего ${tm.worst.nm} (${tm.worst.pct}%)` : ''}</p>` : ''}
+    <h4>📈 Две недели</h4>${kidChart(k)}
+    ${good.length ? `<p>✅ <b>Получается:</b> ${good.join(', ')}</p>` : ''}${hard.length ? `<p>⚠️ <b>Трудно:</b> ${hard.join(', ')}</p>` : ''}${k.weakTopics.length ? `<p>🎯 <b>Слабые темы:</b> ${k.weakTopics.map(esc).join(', ')}</p>` : ''}${k.weakWords.length ? `<p>🔤 <b>Трудные слова:</b> ${k.weakWords.map(esc).join(', ')}</p>` : ''}
+    <table><tr><th>Предмет</th><th>Мин (14 дн.)</th><th>Верно</th><th>Уроков</th></tr>${rows.map(x => `<tr><td>${sjName(x.k)}</td><td>${x.min || '—'}</td><td>${lampOf(x.pct)} ${x.pct === null ? '—' : x.pct + '% (' + x.q + ')'}</td><td>${x.d}/${x.n}</td></tr>`).join('') || '<tr><td colspan="4">Пока нет занятий</td></tr>'}</table>
+    ${rows.some(x => x.q) ? '' : '<p><small>Минуты и % верных по предметам начнут копиться со следующих занятий.</small></p>'}
+    ${shown ? `<details><summary>Когда занимался (последние занятия)</summary><ul>${shown}</ul></details>` : ''}
+    ${k.act.length ? `<details><summary>Что проходил</summary><ul>${k.act.map(e => `<li>${esc(whenTxt(e.t))} · ${esc(sjName(e.s))} · ${esc(e.n || ACT_KIND[e.k] || e.k)}${e.k === 'abn' ? ' (на ' + (e.p || 0) + '% урока)' : ''}${e.b ? ' 👾' : ''}${e.st ? ' ' + '⭐'.repeat(e.st) : ''}${e.a !== undefined && e.k !== 'abn' ? ' (' + e.a + '%)' : ''}</li>`).join('')}</ul></details>` : ''}
+    <p><small>Данные на: ${esc(whenTxt(k.ts))}.</small></p></div>`;
 }
 function kidsHtml() {
-  const cards = PR.list.map(pl => {
-    const st = pl.id === PR.cur ? S : loadState(pl.key), k = kidSummary(st);
-    const rows = k.subj.filter(x => x.q || x.min || x.d).sort((a, b) => (b.min + b.q) - (a.min + a.q));
-    const good = rows.filter(x => x.q >= 10 && x.pct >= 85).map(x => sjName(x.k)), hard = rows.filter(x => x.q >= 10 && x.pct < 65).map(x => sjName(x.k));
-    const hasSj = rows.some(x => x.q);
-    return `<div class="card"><h3>${esc(pl.name)}</h3>
-      <p>🕒 Последний раз: <b>${esc(whenTxt(k.last && k.last.t))}</b>${k.last ? ' · ' + esc(sjName(k.last.s)) : ''}</p>
-      <div class="pstats"><div><b>${k.minToday}</b><small>мин сегодня</small></div><div><b>${k.min7}</b><small>мин за 7 дней</small></div><div><b>${k.act7}/7</b><small>дней с занятиями</small></div><div><b>${k.pct7 === null ? '—' : k.pct7 + '%'}</b><small>верно с 1-й попытки</small></div></div>
-      ${good.length ? `<p>✅ <b>Получается:</b> ${good.join(', ')}</p>` : ''}${hard.length ? `<p>⚠️ <b>Трудно:</b> ${hard.join(', ')}</p>` : ''}${k.weakTopics.length ? `<p>🎯 <b>Слабые темы:</b> ${k.weakTopics.map(esc).join(', ')}</p>` : ''}${k.weakWords.length ? `<p>🔤 <b>Трудные слова:</b> ${k.weakWords.map(esc).join(', ')}</p>` : ''}
-      <table><tr><th>Предмет</th><th>Мин (14 дн.)</th><th>Верно</th><th>Уроков</th></tr>${rows.map(x => `<tr><td>${sjName(x.k)}</td><td>${x.min || '—'}</td><td>${lampOf(x.pct)} ${x.pct === null ? '—' : x.pct + '% (' + x.q + ')'}</td><td>${x.d}/${x.n}</td></tr>`).join('') || '<tr><td colspan="4">Пока нет занятий</td></tr>'}</table>
-      ${hasSj ? '' : '<p><small>Подробности по предметам (минуты и % верных) начнут копиться со следующих занятий.</small></p>'}
-      ${k.act.length ? `<details><summary>Последние занятия</summary><ul>${k.act.map(e => `<li>${esc(whenTxt(e.t))} · ${esc(sjName(e.s))} · ${esc(e.n || ACT_KIND[e.k] || e.k)}${e.b ? ' 👾' : ''}${e.st ? ' ' + '⭐'.repeat(e.st) : ''}${e.a !== undefined ? ' (' + e.a + '%)' : ''}</li>`).join('')}</ul></details>` : ''}
-      <p><small>Данные на: ${esc(whenTxt(k.ts))}.</small></p></div>`;
-  }).join('');
-  return `<div class="card"><h3>👨‍👩‍👧 Дети: что получается и что трудно</h3>
-    <p>Откройте это на своём телефоне: вход по семейному коду (вкладка «☁️ Связь»), и здесь будут все дети. 🟢 — получается (от 85%), 🟡 — нормально, 🔴 — трудно (меньше 65%): помогите с этим предметом.</p>
-    ${cloudOn() ? '<p><button class="btn gold" id="kref">🔄 Обновить данные детей</button></p>' : '<p>Чтобы видеть детей с другого устройства, подключите облако: «☁️ Связь».</p>'}<p id="kmsg" class="pmsg">&nbsp;</p></div>${cards}`;
+  return `<div class="card"><h3>👨‍👩‍👧 Дети: что играет, что получается, как держит внимание</h3>
+    <p>Откройте это на своём телефоне: вход по семейному коду (вкладка «☁️ Связь»), и здесь будут все дети. 🟢 — получается (от 85%), 🟡 — нормально, 🔴 — трудно (меньше 65%).</p>
+    ${cloudOn() ? '<p><button class="btn gold" id="kref">🔄 Обновить</button> <button class="btn small" data-go="time">😴 Попросить отдохнуть / таймер</button></p><p><small>Пока эта вкладка открыта, данные обновляются сами каждые полминуты. На планшете ребёнка должен быть интернет.</small></p>' : '<p>Чтобы видеть детей с другого устройства, подключите облако: «☁️ Связь».</p>'}<p id="kmsg" class="pmsg">&nbsp;</p></div><div id="kcards">${PR.list.map(kidCard).join('')}</div>`;
 }
 // свежие данные всех детей из облака (только чтение: на устройствах детей ничего не меняется)
 async function refreshKids() {
   if (!cloudOn()) throw new Error('облако не подключено');
   await cloudAuto();
-  await cloudSync(true);
+  await cloudSync(true, true);
   for (const p of PR.list) {
     if (!p.cid || p.id === PR.cur) continue;
     const r = await api('pull', { id: p.cid }); if (!r.state) continue;
     localStorage.setItem(p.key, JSON.stringify(mergeState(loadState(p.key), JSON.parse(r.state))));
   }
+}
+// пока открыта вкладка «Дети», обновляем данные сами
+let kidsTimer = 0;
+function kidsPoll() {
+  clearTimeout(kidsTimer);
+  if (!cloudOn() || !$('kcards')) return;
+  kidsTimer = setTimeout(async () => {
+    if (!$('kcards')) return;
+    try { await refreshKids(); } catch (e) {}
+    if ($('kcards')) { $('kcards').innerHTML = PR.list.map(kidCard).join(''); kidsPoll(); }
+  }, 30000);
 }
 let parentTab = 'main';
 const PARENT_TABS = [['main', '🏠', 'Главное'], ['kids', '👨‍👩‍👧', 'Дети'], ['kid', '👦', 'Ученик'], ['stats', '📊', 'Успехи'], ['time', '⏰', 'Время и пароль'], ['link', '☁️', 'Связь'], ['set', '⚙️', 'Настройки']];
@@ -4427,6 +4522,7 @@ function parent(tab) {
   on('vsel', e => { voiceWish(e.target.value); enVoice = null; pickVoice(); vTest(); vstat(); }, 'onchange');
   on('dgp', diagIntro);
   on('kref', async () => { $('kref').disabled = true; $('kmsg').textContent = 'Обновляю…'; try { await refreshKids(); parent('kids'); } catch (e) { $('kmsg').textContent = 'Не получилось: ' + String(e.message || e); $('kref').disabled = false; } });
+  if (parentTab === 'kids') kidsPoll();
   on('rsub', () => {
     const k = $('rsubj').value, ids = SUBJ_META[k][2]().flatMap(w => w.lessons.map(l => l.id).concat([w.boss.id]));
     const n = ids.filter(id => (S.lessons[id] || {}).done).length;
