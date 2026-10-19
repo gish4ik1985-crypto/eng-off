@@ -133,7 +133,7 @@ const ADAPT = (() => {
       t.seen += r.seen; t.miss += r.miss || 0;
     });
     const math = Object.values(topics).map(t => ({ name: t.name, acc: Math.round(100 * (t.seen - t.miss) / t.seen), n: t.seen })).sort((a, b) => a.acc - b.acc);
-    return { name: st.name, week, math, doneLessons: Object.keys(st.lessons || {}).filter(k => st.lessons[k].done).length, updated: today };
+    return { name: st.name, week, math, doneLessons: Object.keys(st.lessons || {}).filter(k => st.lessons[k].done).length, hw: st.hw || {}, updated: today };
   }
 
   return { gameSubject, analyze, gensFromText, mathGensFromText, engMatch, homeworkToPay, summary, TEST_RE };

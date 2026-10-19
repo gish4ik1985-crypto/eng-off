@@ -211,7 +211,7 @@ const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : 
 const WS = () => isGen() ? genWorlds() : WORLDS;
 const widx = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.subj === 'pdd' ? (S.pworld || 0) : S.subj === 'lit' ? (S.lworld || 0) : S.subj === 'logic' ? (S.gworld || 0) : S.subj === 'att' ? (S.aworld || 0) : S.world;
 const W = () => WS()[widx()] || WS()[0];
-const worldOpen = k => S.unlockAll || k === 0 || isGen() || (S.lessons[WS()[k - 1].boss.id] || {}).done;
+const worldOpen = k => S.unlockAll || k === 0 || isGen() || !!(WS()[k] && WS()[k].open) || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
 const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
@@ -1114,6 +1114,7 @@ function mergeState(a, b) {
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
   m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
   m.mf = keyed(a.mf, b.mf, (p, q) => (p.s || 0) >= (q.s || 0) ? p : q);
+  m.hw = keyed(a.hw, b.hw, (p, q) => Object.assign({}, p, q, { done: Math.max(p.done || 0, q.done || 0) || undefined, t: Math.max(p.t || 0, q.t || 0) }));
   m.up = keyed(a.up, b.up, (p, q) => Math.max(p, q));
   ['hrs', 'wds'].forEach(k => { m[k] = keyed(a[k], b[k], (p, q) => (p.q || 0) >= (q.q || 0) ? p : q); });
   m.xp = Math.max(a.xp || 0, b.xp || 0);
@@ -1559,6 +1560,34 @@ function nextIdx() {
 let homeView = true;
 const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS], pdd: ['🚦', 'ПДД и ОБЖ', () => PWORLDS], lit: ['📖', 'Литературное чтение', () => LWORLDS], logic: ['🧩', 'Логика и шахматы', () => GWORLDS], att: ['🎯', 'Внимание', () => AWORLDS] };
 const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
+/* ---------- домашние задания из дневника: ребёнок видит их в игре, открывает страницы учебника, отмечает «сделано» и проверяет себя ---------- */
+function hwTasks() {
+  const sd = schoolData(), c = schoolChild(sd); if (!sd || !c) return [];
+  const t0 = today(), lim = addDays(t0, 7), subj = id => ((sd.subjects || []).find(x => x.id === id) || {}).name || '';
+  return (sd.tasks || []).filter(t => t.childId === c.id && t.status !== 'checked' && (t.due || '') <= lim && (t.due || '') >= addDays(t0, -14))
+    .sort((x, y) => (x.due < y.due ? -1 : 1)).slice(0, 4).map(t => Object.assign({ subj: subj(t.subjectId) }, t));
+}
+const hwPages = t => { const m = /(\d+)\s*[-–]\s*(\d+)/.exec(t.pages || '') || /(\d+)/.exec(t.pages || ''); return m ? [+m[1], +(m[2] || m[1])] : null; };
+function hwHtml() {
+  const ts = hwTasks(); if (!ts.length) return '';
+  const t0 = today();
+  return `<div class="card hwcard"><h3>📝 Домашка</h3>${ts.map(t => {
+    const h = (S.hw || {})[t.id] || {}, late = (t.due || '') < t0, bk = BOOKS.find(b => b.id === t.bookId), pg = hwPages(t);
+    return `<div class="hwi"><b>${esc(t.subj)}</b> · ${t.due === t0 ? 'на сегодня' : late ? '<span class="late">просрочено</span>' : 'до ' + t.due.slice(8) + '.' + t.due.slice(5, 7)}${h.done || t.status === 'done' ? ' · ✅ сделано' : ''}${h.n ? ` · 🎯 ${h.ok} из ${h.n}` : ''}
+      <div>${esc(t.text)}</div>${t.pages ? `<small>📖 ${esc(t.pages)}</small>` : ''}
+      <div class="hwb">${bk && pg ? `<button class="btn small gold" data-hb="${t.id}">📖 Открыть учебник</button> <button class="btn small" data-hq="${t.id}">🎯 Проверь себя</button> ` : ''}${h.done || t.status === 'done' ? '' : `<button class="btn small sec" data-hd="${t.id}">✅ Сделал(а)</button>`}</div></div>`;
+  }).join('')}</div>`;
+}
+function hwBind() {
+  const ts = hwTasks(), by = id => ts.find(t => t.id === id);
+  app.querySelectorAll('[data-hb]').forEach(b => b.onclick = () => { const t = by(b.dataset.hb), bk = t && BOOKS.find(x => x.id === t.bookId), pg = t && hwPages(t); if (bk && pg) booksStudy(bk.subj, pg[0] + (bk.off || 0), bk.id); });
+  app.querySelectorAll('[data-hd]').forEach(b => b.onclick = () => { S.hw = S.hw || {}; const h = S.hw[b.dataset.hd] = Object.assign(S.hw[b.dataset.hd] || {}, { done: Date.now(), t: Date.now() }); S.emeralds += 2; save(); sfx('ok'); toast('✅ Отмечено! Родитель проверит. +2 💎'); (homeView ? home() : map()); });
+  app.querySelectorAll('[data-hq]').forEach(b => b.onclick = async () => {
+    const t = by(b.dataset.hq), bk = t && BOOKS.find(x => x.id === t.bookId), pg = t && hwPages(t); if (!bk || !pg) return;
+    const TX = await bookTexts(bk), txt = [], of = bk.off || 0; for (let p = pg[0]; p <= Math.min(pg[1], pg[0] + 5); p++) if (TX[p + of]) txt.push(TX[p + of]);
+    booksQuiz({ text: txt.join('\n'), onDone: (ok, n) => { S.hw = S.hw || {}; Object.assign(S.hw[t.id] = S.hw[t.id] || {}, { ok, n, t: Date.now() }); save(); } }, () => (homeView ? home() : map()));
+  });
+}
 function mapTail() {
   syncSoon(); writeSummary(); knowNews();
   setTimeout(checkAch, 500); // награды, которые зависят от покупок и состояния (шляпы, питомец и др.)
@@ -1584,6 +1613,7 @@ function home() {
     </div>
     ${(() => { petGifts(); const pc = petC(), md = petMoodOf(pc); return `<button class="petcall m${md}" id="phm"><span class="pce">${pc.acc || ''}${petE(st)}</span><span class="pct"><b>🏡 ${esc(S.petName || 'Кубик')}</b><span>${esc(petSay(pc))}</span></span>${pc.treats ? `<span class="chip">🍪 ${pc.treats}</span>` : ''}</button>`; })()}
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button><div class="sjhint">${meta[0]} ${meta[1]}: ${what}</div></div>
+    ${hwHtml()}
     <h3 class="center">Выбери предмет</h3>
     <div class="sjgrid">${tiles}</div>
     <div class="center bigrow"><button class="btn gold big" id="shop">🛒 Магазин${(S.kNew || []).length ? ` <span class="knew">🔓${S.kNew.length}</span>` : ''}</button><button class="btn gold big" id="awb">🏆 Награды ${achList().filter(a => S.ach[a.id]).length}/${achList().length}</button>${S.plan && S.plan.on ? '<button class="btn gold big" id="plan">📅 Мой день</button>' : ''}${location.protocol === 'file:' ? '' : '<button class="btn sec big" id="dia">📓 Дневник</button>'}<button class="btn sec big" id="bks">📚 Учебники</button></div>
@@ -1595,6 +1625,7 @@ function home() {
   $('shop').onclick = shop; $('awb').onclick = awards; if ($('parent')) $('parent').onclick = () => parentGate(); $('who').onclick = players;
   if ($('dia')) $('dia').onclick = () => { location.href = diaryHref(); };
   $('bks').onclick = () => booksStudy();
+  hwBind();
   if ($('cld')) $('cld').onclick = () => toast(CL.err ? 'Нет связи с облаком — всё сохранено на устройстве и отправится позже' : 'Прогресс сохранён в облаке ☁️');
   $('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   mapTail();
@@ -1632,10 +1663,12 @@ function map() {
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
     <div class="center bigrow"><button class="btn ${nWeak ? 'red' : 'sec'}" id="trn">💪 Тренировка${nWeak ? ' (' + nWeak + ')' : ''}</button>${extra}</div>
     ${missionHtml}
+    ${hwHtml()}
     ${tabs ? `<div class="center">${tabs}</div>` : ''}
-    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
+    <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}${cur && cur.book ? ` <button class="btn small sec" id="curbk">📖 В учебнике, с. ${cur.book.page}</button>` : ''}</div>
     ${W().mult ? mulMapHtml() : ''}
     <div class="map">${rows}</div>`;
+  if (cur && cur.book && $('curbk')) $('curbk').onclick = () => { const b = BOOKS.find(x => x.id === cur.book.id); if (b) booksStudy(b.subj, cur.book.page + (b.off || 0), b.id); };
   if ($('mblz')) $('mblz').onclick = mulBlitz;
   $('hm').onclick = () => { homeView = true; home(); };
   if ($('dg')) $('dg').onclick = diagIntro;
@@ -1654,6 +1687,7 @@ function map() {
   mapTail();
   { const cn = app.querySelector('.node.cur'); if (cn) setTimeout(() => { try { cn.scrollIntoView({ block: 'center' }); } catch (e) { cn.scrollIntoView(); } }, 60); }
   app.querySelectorAll('[data-ms]').forEach(b => b.onclick = () => mission[+b.dataset.ms][3]());
+  hwBind();
   if ($('chest')) $('chest').onclick = openChest;
   if (!isGen()) setTimeout(voiceCheck, 1500);
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
@@ -2108,8 +2142,9 @@ function mathRule(ctx, cb) {
   const r = ctx.L.rule;
   frame(ctx, `<div class="card"><div class="story">${ctx.L.story}</div><h2>${r.title}</h2><div class="rule">${r.html}</div>
     <h3>Примеры:</h3>${r.ex.map(e => `<div class="exb mex"><b>${e[0]}</b><br><small>${e[1]}</small></div>`).join('')}
-    <p class="center"><button class="btn gold" id="go">${ctx.L.go || 'Понятно, решаем ➜'}</button></p></div>`);
+    <p class="center"><button class="btn gold" id="go">${ctx.L.go || 'Понятно, решаем ➜'}</button>${ctx.L.book ? ' <button class="btn sec" id="lbk">📖 Открыть в учебнике (с. ' + ctx.L.book.page + ')</button>' : ''}</p></div>`);
   $('go').onclick = cb;
+  if ($('lbk')) $('lbk').onclick = () => { const b = BOOKS.find(x => x.id === ctx.L.book.id); booksStudy(b ? b.subj : 'ru', ctx.L.book.page + (b ? b.off || 0 : 0), ctx.L.book.id); };
 }
 let mathKeyFn = null;
 document.addEventListener('keydown', e => { if (mathKeyFn && !tmLocked) mathKeyFn(e); });
@@ -4297,7 +4332,7 @@ function booksStudy(subj, idx, bid) {
       app.querySelectorAll('[data-b]').forEach(b => b.onclick = () => booksStudy(subj, 0, b.dataset.b));
       return;
     }
-    const bk = bookOf(bid);
+    const bk = bookOf(bid), off = bk ? (bk.off || 0) : 0;
     // страницы: у встроенной книги — картинки по адресу (текст — из text.json, правки ребёнка/родителей хранятся на устройстве), у своих фото — blob
     const pages = bk
       ? Array.from({ length: bk.pages }, (_, n) => saved.find(r => r.bid === bk.id && r.n === n) || { bid: bk.id, n, subj, cls: bk.cls, text: TX[n] || '' })
@@ -4305,12 +4340,12 @@ function booksStudy(subj, idx, bid) {
     idx = Math.max(0, Math.min(idx || 0, pages.length - 1));
     const r = pages[idx]; if (!r) return toBooks();
     const url = bk ? bk.dir + 'p' + String(idx).padStart(3, '0') + '.jpg' : URL.createObjectURL(r.blob), has = !!r.text && r.text !== '(текст не найден)' && r.text.length > 40;
-    const toc = bk ? `<details class="bktoc"><summary>📑 Оглавление</summary>${bk.toc.map(t => `<button class="btn small ${t[2] ? 'sec' : ''}" data-g="${t[1]}" style="margin:2px ${t[2] ? '2px 2px 14px' : '2px'}">${t[0]} · ${t[1] || 'обл.'}</button>`).join('')}</details>` : '';
+    const toc = bk ? `<details class="bktoc"><summary>📑 Оглавление</summary>${bk.toc.map(t => `<button class="btn small ${t[2] ? 'sec' : ''}" data-g="${t[1] + off}" style="margin:2px ${t[2] ? '2px 2px 14px' : '2px'}">${t[0]} · ${t[1] || 'обл.'}</button>`).join('')}</details>` : '';
     app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ ${many ? 'Книги' : 'Предметы'}</button>
-      <h3>${bk ? bk.title : sname + ', ' + r.cls + ' кл.'} — страница ${bk ? idx : idx + 1} из ${bk ? bk.pages - 1 : pages.length}</h3>
+      <h3>${bk ? bk.title : sname + ', ' + r.cls + ' кл.'} — ${bk ? (idx < off ? 'обложка' : 'страница ' + (idx - off) + ' из ' + (bk.pages - 1 - off)) : 'страница ' + (idx + 1) + ' из ' + pages.length}</h3>
       ${toc}
       <p><button class="btn small" id="pv" ${idx ? '' : 'disabled'}>◀</button> <button class="btn small" id="nx" ${idx < pages.length - 1 ? '' : 'disabled'}>▶</button>
-      ${bk ? `<input id="bkpg" type="number" min="0" max="${bk.pages - 1}" value="${idx}" style="width:70px;font:inherit;padding:4px;border:3px solid #1b1b1b;border-radius:8px"> <button class="btn small" id="bkgo">Перейти</button>` : ''}</p>
+      ${bk ? `<input id="bkpg" type="number" min="0" max="${bk.pages - 1 - off}" value="${Math.max(0, idx - off)}" style="width:70px;font:inherit;padding:4px;border:3px solid #1b1b1b;border-radius:8px"> <button class="btn small" id="bkgo">Перейти</button>` : ''}</p>
       <img src="${url}" alt="" style="max-width:100%;border:3px solid #1b1b1b;border-radius:8px">
       ${r.text ? `<details><summary>📝 Текст страницы</summary><div id="bkt" style="white-space:pre-wrap;text-align:left;background:#f6f1e3;border-radius:8px;padding:8px;margin:8px 0">${esc(r.text)}</div></details>` : (bk ? '<p><small>На этой странице нет текста (картинка).</small></p>' : '<p><small>Текст ещё не распознан — родители могут сделать это в разделе «📷 Фото учебников».</small></p>')}
       <p>${has ? '<button class="btn gold" id="bkq">🎯 Задания по странице</button> ' : ''}${r.text ? '<button class="btn small sec" id="bke">✏️ Исправить текст</button>' : ''}</p></div>`;
@@ -4318,7 +4353,7 @@ function booksStudy(subj, idx, bid) {
     $('bk').onclick = () => many ? toBooks() : booksStudy();
     $('pv').onclick = () => go(idx - 1); $('nx').onclick = () => go(idx + 1);
     app.querySelectorAll('[data-g]').forEach(b => b.onclick = () => go(+b.dataset.g));
-    if ($('bkgo')) $('bkgo').onclick = () => go(Math.max(0, Math.min(bk.pages - 1, parseInt($('bkpg').value, 10) || 0)));
+    if ($('bkgo')) $('bkgo').onclick = () => go(Math.max(0, Math.min(bk.pages - 1, (parseInt($('bkpg').value, 10) || 0) + off)));
     if ($('bkq')) $('bkq').onclick = () => booksQuiz(r, () => go(idx));
     if ($('bke')) $('bke').onclick = () => {
       const d = $('bkt').closest('details'); d.open = true;
@@ -4342,6 +4377,7 @@ function booksQuiz(r, back) {
     if (i >= items.length) {
       const em = Math.min(8, 2 + ok); S.emeralds += em; addXp(2 + ok); save(); sfx('win');
       app.innerHTML = `<div class="card center"><h2>🎉 Готово!</h2><p>Верно с первой попытки: <b>${ok}</b> из ${items.length}</p><p>+${em} 💎</p><button class="btn gold" id="again">🔁 Ещё раз</button> <button class="btn sec" id="bk">⬅ К странице</button></div>`;
+      if (r.onDone) { try { r.onDone(ok, items.length); } catch (e) {} }
       $('again').onclick = () => booksQuiz(r, back); $('bk').onclick = back; return;
     }
     const it = items[i], opts = shuffle([it.w].concat(shuffle(words.filter(x => x !== it.w)).slice(0, 3)));

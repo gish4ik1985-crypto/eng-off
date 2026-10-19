@@ -47,6 +47,8 @@ const subjectOptions = (selected, withEmpty) =>
 
 let photoUrls = [];
 let taskFilter = 'active';
+// учебники, встроенные в игру (books/books.js): у задания можно указать книгу и страницы — ребёнок откроет их из игры
+const BOOK_OPTS = [['', 'без учебника'], ['rus3-1', 'Русский язык, 3 класс, ч.1'], ['spot3', 'Английский Spotlight 3']];
 let gradeSubject = '';
 let diaryFrom = null; // понедельник недели в «Дневнике»; null = текущая
 let showSat = false;
@@ -75,6 +77,7 @@ function render() {
   updateHeader();
   hydratePhotos();
   fillGameBox();
+  fillTaskGame();
   document.title = 'Дневник';
 }
 
@@ -392,6 +395,8 @@ function taskItem(t, today) {
     <div class="item-top"><span class="tag">${esc(subjectName(t.subjectId))}</span><span class="due">${esc(L.dueLabel(t, today))}</span><span class="status">${STATUS_LABEL[st]}</span></div>
     <p class="text">${esc(t.text)}</p>
     ${t.note ? `<p class="note">📝 ${esc(t.note)}</p>` : ''}
+    ${t.pages ? `<p class="note">📖 Страницы: ${esc(t.pages)}</p>` : ''}
+    <p class="note gamehw" data-task="${t.id}" data-child="${t.childId}"></p>
     ${photoStrip(t.photoIds)}
     <div class="actions">${actions}</div>
   </li>`;
@@ -558,6 +563,8 @@ function formFields(kind, item, childId, day, date, subjectId) {
     const dueDefault = item?.due ?? date ?? L.nextLessonDate(state, childId, firstSubject, today) ?? L.addDays(today, 1);
     return `<label>Предмет<select name="subjectId" required>${subjectOptions(item?.subjectId)}</select></label>
       <label>Что задано<textarea name="text" rows="3" required>${esc(item?.text ?? '')}</textarea></label>
+      <label>Учебник в игре (необязательно)<select name="bookId">${BOOK_OPTS.map(([v, n]) => `<option value="${v}" ${v === (item?.bookId ?? '') ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label>Страницы учебника (например 75-77)<input name="pages" value="${esc(item?.pages ?? '')}" placeholder="75-77" /></label>
       <label>Срок сдачи<input type="date" name="due" value="${dueDefault}" required /></label>
       <label>Заметка родителя (необязательно)<input name="note" value="${esc(item?.note ?? '')}" /></label>`;
   }
@@ -1028,6 +1035,28 @@ async function fillGameBox() {
   box.innerHTML = `<h3 style="margin-top:0">🎮 Что показала игра <small class="muted">· обновлено ${L.formatDate(sum.updated)}</small></h3>
     <div class="stats"><div><b>${w.min}</b><small>минут за 7 дней</small></div><div><b>${w.q ? Math.round((100 * w.ok) / w.q) + '%' : '—'}</b><small>верных с первой попытки</small></div><div><b>${sum.doneLessons}</b><small>пройдено уроков</small></div></div>
     ${weak.length ? `<p class="note">Слабые темы (математика, русский язык): ${weak.map((t) => `${esc(t.name)} (${t.acc}%)`).join(' · ')}</p>` : '<p class="ok">Слабых тем не видно 👍</p>'}`;
+}
+
+// что ребёнок сделал по заданию в игре (отметка «сделал» и самопроверка по тексту страниц)
+async function fillTaskGame() {
+  const nodes = [...document.querySelectorAll('.gamehw')];
+  if (!nodes.length) return;
+  const cache = {};
+  for (const n of nodes) {
+    const c = childById(n.dataset.child);
+    if (!c) continue;
+    const key = String(c.name).trim().toLowerCase();
+    if (!(key in cache)) {
+      let sum = null;
+      try { sum = JSON.parse(localStorage.getItem('engAdventure_sum') || '{}')[key] ?? null; } catch { /* нет данных */ }
+      const remote = await C.pullSummary(key);
+      if (remote && (!sum || String(remote.updated) >= String(sum.updated))) sum = remote;
+      cache[key] = sum;
+    }
+    const h = cache[key]?.hw?.[n.dataset.task];
+    if (!document.body.contains(n)) return;
+    if (h) n.textContent = '🎮 В игре: ' + (h.done ? 'ребёнок отметил «сделано»' : 'не отмечено') + (h.n ? `; самопроверка по тексту страниц: ${h.ok} из ${h.n}` : '') + '.';
+  }
 }
 
 // ---------- режим просмотра / режим родителя ----------

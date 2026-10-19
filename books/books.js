@@ -15,4 +15,13 @@ const BOOKS = [{
     ['Толковый словарь', 149, 1], ['Словарь синонимов', 152, 1], ['Словарь антонимов', 153, 1], ['Словарь омонимов', 154, 1], ['Словарь фразеологизмов', 155, 1],
     ['Содержание', 157, 0], ['Картинная галерея', 161, 0]
   ]
+}, {
+  id: 'spot3', subj: 'eng', cls: 3, pages: 182, off: 2, dir: 'books/spot3/',
+  title: 'Spotlight 3 (Английский в фокусе, 3 класс)', authors: 'Н. Быкова, Д. Дули, М. Поспелова, В. Эванс',
+  toc: [
+    ['Welcome back! (Starter Unit)', 4, 0], ['Module 1: School days!', 9, 0], ['Module 2: Family moments!', 25, 0], ['Module 3: All the things I like!', 41, 0],
+    ['Module 4: Come in and play!', 57, 0], ['Module 5: Furry friends!', 73, 0], ['Module 6: Home, sweet home!', 89, 0], ['Module 7: A Day off!', 105, 0], ['Module 8: Day by day!', 121, 0],
+    ['Merry Christmas, everybody!', 138, 0], ['Mother’s Day', 140, 0], ['Spotlight on Russia', 142, 0], ['Further Reading Practice', 150, 0], ['Further Writing Practice', 156, 0],
+    ['Further Speaking Practice', 162, 0], ['Grammar Reference', 166, 0], ['Phonetics', 171, 0], ['Word List (словарик)', 172, 0]
+  ]
 }];
