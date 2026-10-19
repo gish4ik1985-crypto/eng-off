@@ -1113,6 +1113,7 @@ function mergeState(a, b) {
   m.gr = keyed(a.gr, b.gr, (p, q) => ((p.miss || 0) + (p.box || 0)) >= ((q.miss || 0) + (q.box || 0)) ? p : q);
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
   m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
+  m.mf = keyed(a.mf, b.mf, (p, q) => (p.s || 0) >= (q.s || 0) ? p : q);
   m.up = keyed(a.up, b.up, (p, q) => Math.max(p, q));
   ['hrs', 'wds'].forEach(k => { m[k] = keyed(a[k], b[k], (p, q) => (p.q || 0) >= (q.q || 0) ? p : q); });
   m.xp = Math.max(a.xp || 0, b.xp || 0);
@@ -1625,7 +1626,7 @@ function map() {
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
   const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
-  const extra = skind() === 'math' ? '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button><button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'ru' || skind() === 'ow' ? '<button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${isAdmin() && skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
+  const extra = skind() === 'math' ? (W().mult ? '<button class="btn gold" id="mblz">⚡ Блиц таблицы</button>' : '') + '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button><button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'ru' || skind() === 'ow' ? '<button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${isAdmin() && skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
     <div class="center"><button class="btn play huge" id="play">▶ Играть</button></div>
@@ -1633,7 +1634,9 @@ function map() {
     ${missionHtml}
     ${tabs ? `<div class="center">${tabs}</div>` : ''}
     <div class="story">${cur ? `<b>Следующая локация — ${cur.icon} ${cur.title}.</b> ${cur.story}` : (bossRec.done ? (widx() + 1 < WS().length ? '🏆 Этот мир пройден! Загляни в следующий мир выше или повтори уроки ради звёзд.' : '🏆 Этот мир пройден! Можно повторять уроки и копить звёзды. Следующий мир — скоро!') : `${BS.icon} Все локации пройдены! Пора на битву с боссом.`)}</div>
+    ${W().mult ? mulMapHtml() : ''}
     <div class="map">${rows}</div>`;
+  if ($('mblz')) $('mblz').onclick = mulBlitz;
   $('hm').onclick = () => { homeView = true; home(); };
   if ($('dg')) $('dg').onclick = diagIntro;
   if ($('free')) $('free').onclick = () => izoFree();
@@ -2059,6 +2062,21 @@ function startBoss() {
 /* ---------- математика ---------- */
 const specOf = a => ({ g: a[0], l: a[1] });
 const mkey = sp => sp.g + sp.l;
+// таблица умножения: помним, на каких именно примерах (7×8 и т.п.) ребёнок ошибается; h — последние результаты (1 — верно с первой попытки)
+function mulFact(f, ok) {
+  const m = S.mf || (S.mf = {}), r = m[f] || (m[f] = { s: 0, m: 0, h: [] });
+  r.s++; if (!ok) r.m++; r.h.push(ok ? 1 : 0); if (r.h.length > 6) r.h.shift();
+}
+if (typeof mulSetStats === 'function') mulSetStats(() => S.mf || {});
+const mulState = k => { const r = (S.mf || {})[k]; if (!r || !r.s) return 'new'; const h = r.h || []; if (h.length >= 3 && h.slice(-3).every(x => x)) return 'ok'; return h.slice(-3).includes(0) ? 'bad' : 'mid'; };
+function mulMapHtml() {
+  const cs = [2, 3, 4, 5, 6, 7, 8, 9];
+  const rows = cs.map(a => `<tr><th>${a}</th>` + cs.map(b => { const st = mulState(Math.min(a, b) + 'x' + Math.max(a, b)); return `<td class="m-${st}">${a * b}</td>`; }).join('') + '</tr>').join('');
+  const learned = cs.reduce((n, a) => n + cs.filter(b => b >= a && mulState(a + 'x' + b) === 'ok').length, 0);
+  return `<div class="card center mulmap"><h3>⚡ Карта таблицы умножения</h3><p><b>${learned} из 36</b> примеров выучено</p><div class="bar goal"><i style="width:${Math.round(learned / 36 * 100)}%"></i></div>
+    <table class="pyth"><tr><th>×</th>${cs.map(b => `<th>${b}</th>`).join('')}</tr>${rows}</table>
+    <p><small><span class="m-ok pl">выучено</span> <span class="m-mid pl">учим</span> <span class="m-bad pl">ошибки</span> <span class="m-new pl">ещё не было</span></small></p></div>`;
+}
 const keySpec = k => ({ g: k.slice(0, -1), l: +k.slice(-1) });
 // уровень сложности темы: стартовый + поправка, которую игра сама подбирает по ответам ребёнка
 const mathLv = sp => { const r = S.mt[mkey(sp)]; return Math.max(1, Math.min(3, sp.l + (r ? r.adj || 0 : 0))); };
@@ -2183,7 +2201,7 @@ function mathQuiz(o, done) {
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
     const my = screenId;
     const ansText = q.opts ? q.ans : parts.map(p => (p.l ? p.l + ' ' : '') + p.a).join(', ');
-    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); logQ(ok); save(); };
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); if (q.fact) mulFact(q.fact, ok); logQ(ok); save(); };
     const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
     const reveal = () => {
       locked = true; $('msg').innerHTML = `Правильный ответ: <b>${ansText}</b><br><small>${q.why}</small>`; count(false); i++;
@@ -2228,6 +2246,7 @@ function mathQuiz(o, done) {
 function mathBoss() {
   const BS = W().boss, specs = [];
   W().lessons.filter(l => !l.bonus).forEach(l => l.gens.forEach(g => specs.push(specOf(g))));
+  const bossItems = W().bossGens ? mixSpecs(W().bossGens, 14) : sample(specs, 12); // у «Короля Таблицы» свой набор: только трудное
   const ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
   ctx.steps = [
     ['Башня', cb => {
@@ -2235,7 +2254,7 @@ function mathBoss() {
         <p>${BS.story}</p><p>Каждый верный ответ ранит босса. Ошибки не страшны: после второй ошибки покажу решение!</p><button class="btn gold" id="fi">В бой! ⚔️</button></div>`);
       $('fi').onclick = cb;
     }],
-    ['Бой', cb => mathQuiz({ ctx, boss: true, bossIcon: BS.bossIcon, counted: true, items: sample(specs, 12) }, cb)]
+    ['Бой', cb => mathQuiz({ ctx, boss: true, bossIcon: BS.bossIcon, counted: true, items: bossItems }, cb)]
   ];
   runSteps(ctx, () => reward(ctx));
 }
@@ -2254,6 +2273,20 @@ function mathTraining() {
     app.innerHTML = `<div class="card center"><h1>Тренировка окончена! 💪</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
       <p><button class="btn gold" id="mp">На карту ➜</button><button class="btn sec" id="rp">Ещё раз</button></p></div>`;
     $('mp').onclick = map; $('rp').onclick = mathTraining;
+  });
+}
+
+// блиц по таблице умножения: 20 примеров, трудные и ещё не выученные — чаще
+function mulBlitz() {
+  epoch++; newScreen();
+  const ctx = { L: { id: 'mblz', title: 'Блиц таблицы' }, asked: 0, ok: 0 };
+  const items = mixSpecs([['twk', 2], ['twk', 3], ['tu25349678', 2], ['tdv25349678', 2], ['tu25349678', 3], ['twk', 2]], 20);
+  ctx.steps = [['Блиц', cb => mathQuiz({ ctx, counted: true, title: '⚡ Блиц: таблица умножения', items }, cb)]];
+  runSteps(ctx, () => {
+    const em = Math.round((2 + ctx.ok) * emMult()); addXp(5 + ctx.ok); S.emeralds += em; logDone('tr'); save(); sfx('win');
+    app.innerHTML = `<div class="card center"><h1>Блиц окончен! ⚡</h1><p>Правильно с первой попытки: ${ctx.ok} из ${ctx.asked}</p><p class="chip">+${em} 💎</p>
+      <p><button class="btn gold" id="mp">На карту ➜</button><button class="btn sec" id="rp">Ещё блиц</button></p></div>`;
+    $('mp').onclick = map; $('rp').onclick = mulBlitz;
   });
 }
 
