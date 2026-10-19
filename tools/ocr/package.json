@@ -1,0 +1,1 @@
+{ "name": "book-ocr", "private": true, "version": "1.0.0", "description": "Офлайн-распознавание страниц учебников (tesseract.js)", "dependencies": { "tesseract.js": "5.1.1" } }

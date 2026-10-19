@@ -7339,6 +7339,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ADAPT;
 
 </script>
 <script>
+/* Встроенные учебники. Страницы-картинки лежат в books/<id>/pNNN.jpg (номер файла = номер страницы в книге),
+   распознанный текст — в books/<id>/text.json ({"12": "текст страницы", ...}); его делает tools/book.py (см. tools/README.md).
+   toc — оглавление: [название, страница, уровень]. */
+const BOOKS = [{
+  id: 'rus3-1', subj: 'ru', cls: 3, pages: 165, dir: 'books/rus3-1/',
+  title: 'Русский язык, 3 класс, часть 1', authors: 'В. П. Канакина, В. Г. Горецкий',
+  toc: [
+    ['Обложка', 0, 0], ['Язык и речь', 5, 0], ['Наша речь и наш язык', 6, 1],
+    ['Текст. Предложение. Словосочетание', 11, 0], ['Текст', 12, 1], ['Предложение', 15, 1], ['Словосочетание', 31, 1],
+    ['Слово в языке и речи', 39, 0], ['Лексическое значение слова', 40, 1], ['Слово и словосочетание', 47, 1], ['Части речи (повторение). Имя числительное', 53, 1],
+    ['Однокоренные слова (повторение)', 61, 1], ['Слово и слог. Звуки и буквы (повторение)', 63, 1], ['Проектные задания. Рассказ о слове', 72, 1],
+    ['Состав слова', 73, 0], ['Корень слова', 74, 1], ['Формы слова. Окончание', 79, 1], ['Приставка', 84, 1], ['Суффикс', 89, 1], ['Основа слова', 95, 1],
+    ['Проектные задания. Семья слов', 101, 1], ['Правописание частей слова', 102, 1], ['Проектные задания. Орфографический словарь', 140, 1],
+    ['Справочные материалы', 141, 0], ['Памятки', 141, 1], ['Орфоэпический словарь', 145, 1], ['Словарь однокоренных слов', 146, 1], ['Орфографический словарь', 147, 1],
+    ['Толковый словарь', 149, 1], ['Словарь синонимов', 152, 1], ['Словарь антонимов', 153, 1], ['Словарь омонимов', 154, 1], ['Словарь фразеологизмов', 155, 1],
+    ['Содержание', 157, 0], ['Картинная галерея', 161, 0]
+  ]
+}];
+
+</script>
+<script>
 (function () {
 'use strict';
 const app = document.getElementById('app');
@@ -11564,7 +11585,7 @@ function booksInit() {
   const fname = (r, k) => `uchebnik-${r.subj}-${r.cls}kl-${k + 1}.jpg`;
   let list = [];
   const draw = () => BK.all().then(a => {
-    list = a || [];
+    list = (a || []).filter(r => !r.bid);
     $('bkl').innerHTML = list.length ? list.map(r => `<div class="bki"><img src="${URL.createObjectURL(r.blob)}" alt=""><small>${nm(r)}${r.text ? ' · 🔎✅' : ''}</small><button class="btn small red" data-d="${r.id}">✖</button></div>`).join('') : '<small>Фото пока нет.</small>';
     app.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { if (confirm('Удалить это фото?')) BK.del(+b.dataset.d).then(draw); });
   }).catch(() => { $('bkm').textContent = 'Хранилище фото недоступно в этом браузере.'; });
@@ -11605,36 +11626,67 @@ function bookOcr(blob) {
 }
 
 /* ---------- «📚 Учебники»: ребёнок листает страницы и решает задания по тексту ---------- */
-function booksStudy(subj, idx) {
+// готовый текст встроенных книг (books/<id>/text.json делает tools/book.py): грузим один раз
+const BK_TXT = {};
+function bookTexts(bk) {
+  if (!bk) return Promise.resolve({});
+  if (BK_TXT[bk.id]) return Promise.resolve(BK_TXT[bk.id]);
+  return fetch(bk.dir + 'text.json').then(r => r.ok ? r.json() : {}).catch(() => ({})).then(t => (BK_TXT[bk.id] = t));
+}
+function booksStudy(subj, idx, bid) {
   if (tmGate()) return; newScreen();
   const back = () => { homeView = true; home(); };
-  BK.all().then(all => {
+  const bookOf = id => BOOKS.find(x => x.id === id);
+  Promise.all([BK.all(), bookTexts(bookOf(bid))]).then(([all, TX]) => {
     all = all || [];
-    const subs = BK_SUBJ.filter(x => all.some(r => r.subj === x[0]));
+    const mine = all.filter(r => !r.bid), saved = all.filter(r => r.bid);
+    const subs = BK_SUBJ.filter(x => mine.some(r => r.subj === x[0]) || BOOKS.some(b => b.subj === x[0]));
     if (!subj) {
-      app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>📚 Мои учебники</h2>
-        ${subs.length ? '<div class="sjgrid">' + subs.map(x => `<button class="sjt" data-s="${x[0]}"><span class="tn">${x[1]}</span><span class="tp">${all.filter(r => r.subj === x[0]).length} стр.</span></button>`).join('') + '</div>' : '<p>Пока нет страниц. Попроси родителей сфотографировать учебник: «🔒 Родителям» → «☁️ Связь» → «📷 Фото учебников».</p>'}</div>`;
+      app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Назад</button><h2>📚 Учебники</h2>
+        ${subs.length ? '<div class="sjgrid">' + subs.map(x => { const n = mine.filter(r => r.subj === x[0]).length, bs = BOOKS.filter(b => b.subj === x[0]).length; return `<button class="sjt" data-s="${x[0]}"><span class="tn">${x[1]}</span><span class="tp">${[bs ? bs + ' кн.' : '', n ? n + ' фото' : ''].filter(Boolean).join(' · ')}</span></button>`; }).join('') + '</div>' : '<p>Пока нет страниц. Попроси родителей сфотографировать учебник: «🔒 Родителям» → «☁️ Связь» → «📷 Фото учебников».</p>'}</div>`;
       $('bk').onclick = back;
-      app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => booksStudy(b.dataset.s, 0));
+      app.querySelectorAll('[data-s]').forEach(b => b.onclick = () => booksStudy(b.dataset.s));
       return;
     }
-    const pages = all.filter(r => r.subj === subj).sort((a, b) => a.cls - b.cls || a.t - b.t);
+    const sname = (BK_SUBJ.find(x => x[0] === subj) || [0, subj])[1], bks = BOOKS.filter(b => b.subj === subj), my = mine.filter(r => r.subj === subj);
+    const many = bks.length + (my.length ? 1 : 0) > 1, toBooks = () => booksStudy(subj);
+    if (bid === undefined) { // выбор книги внутри предмета
+      if (!many) return booksStudy(subj, 0, bks.length ? bks[0].id : 'my');
+      app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Предметы</button><h2>${sname}</h2><div class="sjgrid">
+        ${bks.map(b => `<button class="sjt" data-b="${b.id}"><span class="tn">📖 ${b.title}</span><span class="tp">${b.authors} · ${b.pages} стр.</span></button>`).join('')}
+        ${my.length ? `<button class="sjt" data-b="my"><span class="tn">📷 Мои фото</span><span class="tp">${my.length} стр.</span></button>` : ''}</div></div>`;
+      $('bk').onclick = () => booksStudy();
+      app.querySelectorAll('[data-b]').forEach(b => b.onclick = () => booksStudy(subj, 0, b.dataset.b));
+      return;
+    }
+    const bk = bookOf(bid);
+    // страницы: у встроенной книги — картинки по адресу (текст — из text.json, правки ребёнка/родителей хранятся на устройстве), у своих фото — blob
+    const pages = bk
+      ? Array.from({ length: bk.pages }, (_, n) => saved.find(r => r.bid === bk.id && r.n === n) || { bid: bk.id, n, subj, cls: bk.cls, text: TX[n] || '' })
+      : my.sort((a, b) => a.cls - b.cls || a.t - b.t);
     idx = Math.max(0, Math.min(idx || 0, pages.length - 1));
-    const r = pages[idx]; if (!r) return booksStudy();
-    const url = URL.createObjectURL(r.blob), has = !!r.text && r.text !== '(текст не найден)';
-    app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ Предметы</button>
-      <h3>${(BK_SUBJ.find(x => x[0] === subj) || [0, subj])[1]}, ${r.cls} кл. — страница ${idx + 1} из ${pages.length}</h3>
-      <p><button class="btn small" id="pv" ${idx ? '' : 'disabled'}>◀</button> <button class="btn small" id="nx" ${idx < pages.length - 1 ? '' : 'disabled'}>▶</button></p>
+    const r = pages[idx]; if (!r) return toBooks();
+    const url = bk ? bk.dir + 'p' + String(idx).padStart(3, '0') + '.jpg' : URL.createObjectURL(r.blob), has = !!r.text && r.text !== '(текст не найден)' && r.text.length > 40;
+    const toc = bk ? `<details class="bktoc"><summary>📑 Оглавление</summary>${bk.toc.map(t => `<button class="btn small ${t[2] ? 'sec' : ''}" data-g="${t[1]}" style="margin:2px ${t[2] ? '2px 2px 14px' : '2px'}">${t[0]} · ${t[1] || 'обл.'}</button>`).join('')}</details>` : '';
+    app.innerHTML = `<div class="card"><button class="btn small sec" id="bk">⬅ ${many ? 'Книги' : 'Предметы'}</button>
+      <h3>${bk ? bk.title : sname + ', ' + r.cls + ' кл.'} — страница ${bk ? idx : idx + 1} из ${bk ? bk.pages - 1 : pages.length}</h3>
+      ${toc}
+      <p><button class="btn small" id="pv" ${idx ? '' : 'disabled'}>◀</button> <button class="btn small" id="nx" ${idx < pages.length - 1 ? '' : 'disabled'}>▶</button>
+      ${bk ? `<input id="bkpg" type="number" min="0" max="${bk.pages - 1}" value="${idx}" style="width:70px;font:inherit;padding:4px;border:3px solid #1b1b1b;border-radius:8px"> <button class="btn small" id="bkgo">Перейти</button>` : ''}</p>
       <img src="${url}" alt="" style="max-width:100%;border:3px solid #1b1b1b;border-radius:8px">
-      ${r.text ? `<div id="bkt" style="white-space:pre-wrap;text-align:left;background:#f6f1e3;border-radius:8px;padding:8px;margin:8px 0">${esc(r.text)}</div>` : '<p><small>Текст ещё не распознан — родители могут сделать это в разделе «📷 Фото учебников».</small></p>'}
+      ${r.text ? `<details><summary>📝 Текст страницы</summary><div id="bkt" style="white-space:pre-wrap;text-align:left;background:#f6f1e3;border-radius:8px;padding:8px;margin:8px 0">${esc(r.text)}</div></details>` : (bk ? '<p><small>На этой странице нет текста (картинка).</small></p>' : '<p><small>Текст ещё не распознан — родители могут сделать это в разделе «📷 Фото учебников».</small></p>')}
       <p>${has ? '<button class="btn gold" id="bkq">🎯 Задания по странице</button> ' : ''}${r.text ? '<button class="btn small sec" id="bke">✏️ Исправить текст</button>' : ''}</p></div>`;
-    $('bk').onclick = () => booksStudy();
-    $('pv').onclick = () => booksStudy(subj, idx - 1); $('nx').onclick = () => booksStudy(subj, idx + 1);
-    if ($('bkq')) $('bkq').onclick = () => booksQuiz(r, () => booksStudy(subj, idx));
+    const go = k => booksStudy(subj, k, bid);
+    $('bk').onclick = () => many ? toBooks() : booksStudy();
+    $('pv').onclick = () => go(idx - 1); $('nx').onclick = () => go(idx + 1);
+    app.querySelectorAll('[data-g]').forEach(b => b.onclick = () => go(+b.dataset.g));
+    if ($('bkgo')) $('bkgo').onclick = () => go(Math.max(0, Math.min(bk.pages - 1, parseInt($('bkpg').value, 10) || 0)));
+    if ($('bkq')) $('bkq').onclick = () => booksQuiz(r, () => go(idx));
     if ($('bke')) $('bke').onclick = () => {
+      const d = $('bkt').closest('details'); d.open = true;
       $('bkt').outerHTML = `<textarea id="bkta" rows="12" style="width:100%;font:inherit;border:3px solid #1b1b1b;border-radius:8px;padding:8px">${esc(r.text)}</textarea>`;
       $('bke').textContent = '💾 Сохранить';
-      $('bke').onclick = () => { r.text = $('bkta').value.trim(); BK.put(r).then(() => booksStudy(subj, idx)); };
+      $('bke').onclick = () => { r.text = $('bkta').value.trim(); (r.id ? BK.put(r) : BK.add(r)).then(() => go(idx)); };
     };
   }).catch(() => { toast('Хранилище фото недоступно в этом браузере'); back(); });
 }
