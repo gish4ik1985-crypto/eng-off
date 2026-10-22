@@ -612,3 +612,17 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
 
 /* домашние задания */
 .hwcard{text-align:left}.hwi{border-top:2px dashed #cfc7ad;padding:6px 0}.hwi:first-of-type{border-top:0}.hwb{margin-top:4px}.late{color:#c0392b;font-weight:800}
+
+/* подчёркивание слов и запятые пальцем */
+.mk{font-size:1.7rem;line-height:2.6;text-align:center;touch-action:none;user-select:none;-webkit-user-select:none;margin:8px 0;padding:8px;background:#fff;border:3px solid var(--ink);border-radius:12px}
+.mkw{display:inline-block;padding:0 6px;border-radius:8px;cursor:pointer;line-height:1.5;text-decoration-thickness:3px;text-underline-offset:6px}
+.mkw.pre{background:#ffe9a8}
+.ln{text-decoration-thickness:3px;text-underline-offset:6px}
+.l-u,.l-s{text-decoration:underline}.l-p{text-decoration:underline double}.l-x{text-decoration:underline dashed}.l-a{text-decoration:underline wavy}
+.mkw.good{background:#e3f6e5}.mkw.bad{background:#fde0e0}.mkw.miss{background:#fff1d6;outline:2px dashed #e08a00}
+.mkc{display:inline-block;min-width:22px;height:2.1rem;vertical-align:middle;margin:0 1px;border-radius:7px;border:2px dashed #cfc7ad;cursor:pointer;line-height:1.7rem;font-weight:900;font-size:1.7rem}
+.mkc.on{border:2px solid #1b1b1b;background:#f3efe0}.mkc.good{border-color:#2e9e3e;background:#e3f6e5}.mkc.bad{border-color:#d33;background:#fde0e0}.mkc.miss{border-color:#e08a00;background:#fff1d6}
+.mkpal{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:6px 0}
+.mkt{display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;font-size:1.15rem;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:4px 12px;cursor:pointer}
+.mkt small{font-size:.8rem}.mkt.sel{background:#ffd54a;box-shadow:0 0 0 3px #1b1b1b inset}
+@media (max-width:480px){.mk{font-size:1.4rem;line-height:2.1}.mkt{padding:3px 8px;font-size:1rem}}

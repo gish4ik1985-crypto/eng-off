@@ -1732,7 +1732,7 @@ function startLesson(i) {
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
   if (L.type === 'math' && L.exam) {
-    ctx.exam = true;
+    ctx.exam = true; rtMode();
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
     ctx.steps.push(['Контрольная', cb => mathQuiz({ ctx, counted: true, title: '📝 Контрольная работа', fixed: !!L.fixed, items: L.fixed ? L.gens.map(specOf) : mixSpecs(L.gens, 12) }, cb)]);
     ctx.steps.push(['Оценка', cb => examGrade(ctx, cb)]);
@@ -2158,12 +2158,15 @@ function mathTopicsHtml() {
   }).join('');
   return rows ? `<table>${rows}</table><p><small>Уровень (1–3) игра подбирает сама: после 5 верных подряд задания усложняются, при ошибках — упрощаются.</small></p>` : '<p>Пока нет данных — ребёнок ещё не решал задачи.</p>';
 }
+const rtMode = () => { const m = S.rtMode === 'mc' ? 'mc' : 'touch'; window.RT_MODE = m; return m; }; // режим ответов в проверочных работах: «touch» — на экране, «mc» — выбор ответа
 function mathRule(ctx, cb) {
   const r = ctx.L.rule;
   frame(ctx, `<div class="card"><div class="story">${ctx.L.story}</div><h2>${r.title}</h2><div class="rule">${r.html}</div>
     <h3>Примеры:</h3>${r.ex.map(e => `<div class="exb mex"><b>${e[0]}</b><br><small>${e[1]}</small></div>`).join('')}
+    ${ctx.L.fixed ? `<p class="center"><b>Как отвечать:</b><br><button class="btn small ${rtMode() === 'mc' ? 'gold' : 'sec'}" data-rm="mc">🔘 Выбор ответа</button> <button class="btn small ${rtMode() === 'touch' ? 'gold' : 'sec'}" data-rm="touch">👆 На экране: подчёркивать и ставить запятые</button><br><small>Режим можно менять перед каждой работой. В режиме «на экране» основу, обращения и главные слова отмечают пальцем.</small></p>` : ''}
     <p class="center"><button class="btn gold" id="go">${ctx.L.go || 'Понятно, решаем ➜'}</button>${ctx.L.book ? ' <button class="btn sec" id="lbk">📖 Открыть в учебнике (с. ' + ctx.L.book.page + ')</button>' : ''}</p></div>`);
   $('go').onclick = cb;
+  app.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { S.rtMode = b.dataset.rm; window.RT_MODE = S.rtMode; save(); mathRule(ctx, cb); });
   if ($('lbk')) $('lbk').onclick = () => { const b = BOOKS.find(x => x.id === ctx.L.book.id); booksStudy(b ? b.subj : 'ru', ctx.L.book.page + (b ? b.off || 0 : 0), ctx.L.book.id); };
 }
 let mathKeyFn = null;
@@ -2172,6 +2175,81 @@ function mathQuiz(o, done) {
   if (S.focus && !o.boss && !o.fixed && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
+  // задание на экране: панель линий (одна черта, две черты, волнистая…), выбор слова нажатием или проведением пальца, запятые между словами;
+  // кнопка «Проверка» показывает, где ошибки: красным — лишнее или не та линия, оранжевым — пропущено
+  function askMark(sp, q) {
+    const M = q.mark, words = M.words, E = M.marks || {}, hasU = Object.keys(E).length > 0 || !!(M.types && M.types.length), hasC = !!M.commas;
+    const types = M.types || ['u'], LN = { u: ['подчеркни', 'u'], s: ['подлежащее', 's'], p: ['сказуемое', 'p'], x: ['второстепенный член', 'x'], a: ['обращение', 'a'] };
+    let tool = types[0], tries = 0, locked = false, fb = null; const T = {}, C = new Set();
+    const head = o.boss
+      ? `<div>${o.bossIcon || '👾'} <span class="hp"><i style="width:${(total - i) / total * 100}%"></i></span></div>`
+      : `<div class="prog">${o.items.map((_, k) => `<i class="${k < i ? 'd' : ''}"></i>`).join('')}</div>`;
+    const sentence = () => words.map((w, k) => `<span class="mkw" data-i="${k}">${esc(w)}</span>${hasC && k < words.length - 1 ? `<span class="mkc" data-c="${k}"></span>` : ''}`).join(' ');
+    const palette = () => hasU ? `<div class="mkpal" id="mkpal">${types.map(t => `<button class="mkt" data-t="${t}"><span class="ln l-${t}">слово</span><small>${LN[t] ? LN[t][0] : t}</small></button>`).join('')}<button class="mkt" data-t="erase"><span>🧽</span><small>стереть</small></button></div>` : '';
+    frame(ctx, `<div class="card center">${head}${o.title ? `<h3>${o.title}</h3>` : ''}<div class="mq long">${q.q}</div>
+      ${palette()}<div class="mk" id="mk">${sentence()}</div>
+      <p class="clue">${hasU ? 'Выбери линию на панели, потом нажми на слово или проведи пальцем по нескольким словам. ' : ''}${hasC ? 'Нажми на пустое место между словами — появится запятая; ещё раз — исчезнет. ' : ''}</p>
+      <p><button class="btn gold" id="mkok">Проверка ✓</button> <button class="btn small sec" id="mkclr">Стереть всё</button></p>
+      <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
+    const my = screenId, box = $('mk');
+    const paint = () => {
+      box.querySelectorAll('.mkw').forEach(e => {
+        const k = +e.dataset.i, t = T[k]; e.className = 'mkw' + (t ? ' on ln l-' + t : '');
+        if (fb) { const ex = E[k]; if (t && t === ex) e.classList.add('good'); else if (t && t !== ex) e.classList.add('bad'); else if (!t && ex) e.classList.add('miss'); }
+      });
+      box.querySelectorAll('.mkc').forEach(e => {
+        const k = +e.dataset.c, has = C.has(k), ex = (M.commas || []).includes(k); e.textContent = has || (fb && fb.reveal && ex) ? ',' : ''; e.className = 'mkc' + (has ? ' on' : '');
+        if (fb) { if (has && ex) e.classList.add('good'); else if (has) e.classList.add('bad'); else if (ex) e.classList.add('miss'); }
+      });
+      app.querySelectorAll('.mkt').forEach(b => b.classList.toggle('sel', b.dataset.t === tool));
+    };
+    const edited = () => { fb = null; $('msg').innerHTML = '&nbsp;'; paint(); };
+    app.querySelectorAll('.mkt').forEach(b => b.onclick = () => { if (!locked) { tool = b.dataset.t; paint(); } });
+    // нажатие и проведение пальцем по словам
+    let drag = null;
+    const idxAt = (x, y) => { const el = document.elementFromPoint(x, y), w = el && el.closest ? el.closest('.mkw') : null; return w ? +w.dataset.i : -1; };
+    const apply = k => { if (tool === 'erase') delete T[k]; else T[k] = tool; };
+    box.addEventListener('pointerdown', e => {
+      if (locked) return;
+      const w = e.target.closest('.mkw'), c = e.target.closest('.mkc');
+      if (c) { const k = +c.dataset.c; C.has(k) ? C.delete(k) : C.add(k); edited(); return; }
+      if (!w || !hasU) return;
+      drag = { s: +w.dataset.i, e: +w.dataset.i, moved: false }; e.preventDefault();
+    });
+    box.addEventListener('pointermove', e => {
+      if (!drag) return; const k = idxAt(e.clientX, e.clientY); if (k < 0 || k === drag.e) return;
+      drag.e = k; drag.moved = true;
+      const lo = Math.min(drag.s, drag.e), hi = Math.max(drag.s, drag.e);
+      box.querySelectorAll('.mkw').forEach(el => { const j = +el.dataset.i; el.classList.toggle('pre', j >= lo && j <= hi); });
+    });
+    const end = () => {
+      if (!drag) return; const lo = Math.min(drag.s, drag.e), hi = Math.max(drag.s, drag.e);
+      if (!drag.moved && T[drag.s] === tool && tool !== 'erase') delete T[drag.s]; else for (let j = lo; j <= hi; j++) apply(j);
+      drag = null; edited();
+    };
+    box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end); box.addEventListener('pointerleave', () => { if (drag && drag.moved) end(); });
+    const okNow = () => {
+      const keys = new Set(Object.keys(T).concat(Object.keys(E)));
+      for (const k of keys) if (T[k] !== E[k]) return false;
+      const ec = M.commas || []; return C.size === ec.length && ec.every(x => C.has(x));
+    };
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); if (ctx.exam && !ok) (ctx.missG = ctx.missG || []).push(sp.g); logQ(ok); save(); };
+    const solved = () => { locked = true; fb = {}; sfx('ok'); paint(); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 1000); };
+    const reveal = () => {
+      locked = true; Object.keys(T).forEach(k => delete T[k]); C.clear(); Object.keys(E).forEach(k => T[k] = E[k]); (M.commas || []).forEach(k => C.add(k)); fb = { reveal: true }; paint();
+      $('msg').innerHTML = `Правильно так<br><small>${q.why}</small>`; count(false); i++;
+      $('nxw').innerHTML = '<p><button class="btn gold" id="nx">Дальше ➜</button></p>'; $('nx').onclick = next;
+    };
+    $('mkclr').onclick = () => { if (locked) return; Object.keys(T).forEach(k => delete T[k]); C.clear(); edited(); };
+    $('mkok').onclick = () => {
+      if (locked) return;
+      if (okNow()) return solved();
+      if (shieldUse(ctx)) { Object.keys(T).forEach(k => delete T[k]); C.clear(); edited(); sfx('bad'); $('msg').textContent = '🛡️ Щит защитил: ошибка не считается!'; return; }
+      tries++; sfx('bad'); if (tries >= 2) return reveal();
+      fb = {}; paint(); $('msg').innerHTML = 'Есть ошибки: <b style="color:#d33">красным</b> — лишнее или не та линия, <b style="color:#e08a00">оранжевым</b> — пропущено. Исправь и нажми «Проверка» ещё раз 💪';
+    };
+    mathKeyFn = null; paint();
+  }
   function askWord(sp, q) {
     let tries = 0, locked = false, buf = '';
     const norm = s => s.toLowerCase().replace(/ё/g, 'е');
@@ -2241,6 +2319,7 @@ function mathQuiz(o, done) {
     for (let t = 0; t < 25 && seen.has(q.q + (q.sent || '') + '|' + q.ans); t++) q = MQ[sp.g](mathLv(sp)); // тот же вопрос в одном задании не повторяем
     seen.add(q.q + (q.sent || '') + '|' + q.ans);
     if (q.word) return askWord(sp, q);
+    if (q.mark) return askMark(sp, q);
     const isEq = !q.opts && !q.parts && /x/.test(q.q);
     const parts = q.opts ? null : (q.parts || [{ l: isEq ? 'x' : '', a: q.ans }]);
     let tries = 0, locked = false, pi = 0, buf = '';
