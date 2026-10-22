@@ -1,10 +1,12 @@
 # Контрольные и проверочные работы (русский язык, 3 класс, «Школа России»)
 
-Мир «📝 Контрольные» в игре (`rutests.js`) тренирует **те же виды заданий**, что в работах ниже, но на своих словах и предложениях (тексты работ с сайта не копируются). Сами работы удобно распечатать и пройти на бумаге после тренировки.
+Мир «📝 Контрольные» в игре состоит из двух частей:
+- **🏫 Проверочные работы учителя** (`rutest_real.js`) — настоящие задания этих работ в том же порядке, с теми же словами и предложениями; вместо письма в тетради ребёнок выбирает ответ или вписывает слово. Словарные статьи (дружба, лайка, синонимы, антонимы) сверены с учебником Канакиной в проекте.
+- **📝 Контрольные №1–4** (`rutests.js`) — тренировки с подсказками и контрольная с такими же видами заданий на других словах, плюс итоговая.
 
 | Контрольная в игре | Тема | Исходная работа на multiurok.ru |
 |---|---|---|
-| №1 | Текст. Предложение. Словосочетание | https://multiurok.ru/files/proverochnaia-rabota-po-teme-tekst-predlozhenie-sl.html |
+| №1 (вариант 1 и 2) | Текст. Предложение. Словосочетание | https://multiurok.ru/files/proverochnaia-rabota-po-teme-tekst-predlozhenie-sl.html |
 | №2 | Слово в языке и речи | https://multiurok.ru/files/provierochnaia-rabota-po-russkomu-iazyku-v-3-klass.html |
 | №3 | Состав слова | https://multiurok.ru/files/proverochnaia-rabota-po-teme-sostav-slova-russkii.html · https://multiurok.ru/files/3-klass-russkii-iazyk-proverochnaia-rabota-po-tema.html (корень и окончание) |
 | №4 | Правописание частей слова | https://multiurok.ru/files/provierochnaia-rabota-po-russkomu-iazyku-po-tiem-2.html · https://multiurok.ru/files/proverochnaia-rabota-pravopisanie-pristavok-i-pred.html |

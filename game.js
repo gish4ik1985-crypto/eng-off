@@ -1734,7 +1734,7 @@ function startLesson(i) {
   if (L.type === 'math' && L.exam) {
     ctx.exam = true;
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
-    ctx.steps.push(['Контрольная', cb => mathQuiz({ ctx, counted: true, title: '📝 Контрольная работа', items: mixSpecs(L.gens, 12) }, cb)]);
+    ctx.steps.push(['Контрольная', cb => mathQuiz({ ctx, counted: true, title: '📝 Контрольная работа', fixed: !!L.fixed, items: L.fixed ? L.gens.map(specOf) : mixSpecs(L.gens, 12) }, cb)]);
     ctx.steps.push(['Оценка', cb => examGrade(ctx, cb)]);
   } else if (L.type === 'math') {
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
@@ -1831,7 +1831,7 @@ function storyOrder(ctx, cb) {
 
 /* Грамматика: вставь пропущенное слово */
 function gapQuiz(o, done) {
-  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
+  if (S.focus && !o.boss && !o.fixed && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length; let i = 0;
   const next = () => (i >= total ? done() : ask(o.items[i]));
   function ask(g) {
@@ -1932,7 +1932,7 @@ function distract(id, n, ctx) {
 
 /* Игра-вопросы: listen (слушай→картинка), see (картинка→слово), mine (слушай→блок со словом) */
 function quiz(o, done) {
-  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
+  if (S.focus && !o.boss && !o.fixed && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length; let i = 0;
   const next = () => (i >= total ? done() : ask(WORDS[o.items[i]]));
   function ask(w) {
@@ -2169,7 +2169,7 @@ function mathRule(ctx, cb) {
 let mathKeyFn = null;
 document.addEventListener('keydown', e => { if (mathKeyFn && !tmLocked) mathKeyFn(e); });
 function mathQuiz(o, done) {
-  if (S.focus && !o.boss && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
+  if (S.focus && !o.boss && !o.fixed && o.items.length > 5) o = Object.assign({}, o, { items: o.items.slice(0, 5) }); // «Спокойный фокус»: короткие блоки
   const ctx = o.ctx, total = o.items.length, seen = new Set(); let i = 0;
   const next = () => { if (i >= total) { mathKeyFn = null; return done(); } ask(o.items[i]); };
   function askWord(sp, q) {
