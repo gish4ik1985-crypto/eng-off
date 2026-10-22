@@ -947,6 +947,11 @@ async function pwPush(p) {
 /* ---------- вход: логин и пароль; последний пользователь запоминается на этом устройстве ---------- */
 const LAST_KEY = 'engAdventure_lastUser';
 const lastUser = () => { try { return localStorage.getItem(LAST_KEY) || ''; } catch (e) { return ''; } };
+// «остаться в системе»: после входа игрок остаётся вошедшим на этом устройстве, пока сам не выберет «Войти под другим пользователем»
+const AUTO_KEY = 'engAdventure_autoUser';
+const autoSet = id => { try { localStorage.setItem(AUTO_KEY, id); } catch (e) {} };
+const autoClear = () => { try { localStorage.removeItem(AUTO_KEY); } catch (e) {} };
+const autoUser = () => { try { const id = localStorage.getItem(AUTO_KEY), p = visPlayers().find(x => x.id === id); return p && p.pw ? p : null; } catch (e) { return null; } };
 function loginScreen(other, msg) {
   epoch++; newScreen(); tmFree = true; tmInLesson = false; homeView = true;
   const last = !other ? visPlayers().find(x => x.id === lastUser()) : null;
@@ -964,12 +969,12 @@ function loginScreen(other, msg) {
     if (!p) return fail('Неверный логин или пароль.');
     if (!p.pw) return loginScreen(other, 'Для этого пользователя пароль ещё не задан. Обратитесь к администратору.');
     if (p.pw !== pw) return fail('Неверный логин или пароль.');
-    admFails = 0; PR.cur = p.id; pwMark(); try { localStorage.setItem(LAST_KEY, p.id); } catch (e) {}
+    admFails = 0; PR.cur = p.id; pwMark(); autoSet(p.id); try { localStorage.setItem(LAST_KEY, p.id); } catch (e) {}
     useProfile(p.id);
   };
   $('lgo').onclick = go; $('lgp').onkeydown = e => { if (e.key === 'Enter') go(); };
   if ($('lgn')) { $('lgn').onkeydown = e => { if (e.key === 'Enter') $('lgp').focus(); }; $('lgn').focus(); } else $('lgp').focus();
-  if ($('lgx')) $('lgx').onclick = () => loginScreen(true);
+  if ($('lgx')) $('lgx').onclick = () => { autoClear(); loginScreen(true); };
 }
 function pwGate(next) {
   const p = curP(); if (!p || pwOk()) return false;
@@ -1022,7 +1027,7 @@ function cancelNewPlayer() {
 function players() {
   if (tmGate()) return; tmInLesson = false;
   homeView = true;
-  if (!isAdmin() && visPlayers().length) { try { sessionStorage.removeItem('engUnlock'); } catch (e) {} return loginScreen(); } // обычному игроку список других пользователей не показываем
+  if (!isAdmin() && visPlayers().length) { try { sessionStorage.removeItem('engUnlock'); } catch (e) {} autoClear(); return loginScreen(); } // обычному игроку список других пользователей не показываем
   const cards = visPlayers().map(p => {
     const st = loadState(p.key), done = Object.values(st.lessons || {}).filter(x => x.done).length;
     return `<div class="item"><div class="ie">${hero(56, st.hue, st)}</div><b>${esc(p.name)}</b><br><small>💎 ${st.emeralds || 0} · пройдено локаций: ${done}</small><br>
@@ -5542,6 +5547,6 @@ applyTheme();
 syncSoon(true); restPoll();
 cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
 if (famLink && !cloudOn() && cloudUrl()) cloudScreen(() => (PR.list.length ? players() : welcome()), famLink);
-else if (visPlayers().length) loginScreen(); // сначала вход: логин и пароль (или «Привет, <последний пользователь>!»)
+else if (visPlayers().length) { const au = autoUser(); if (au) { PR.cur = au.id; pwMark(); useProfile(au.id); } else loginScreen(); } // вошедший ранее игрок остаётся в системе; иначе — вход по логину и паролю
 else welcome();
 })();
