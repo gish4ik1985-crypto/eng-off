@@ -509,7 +509,7 @@ function shieldUse(ctx) {
 const hintAllow = ctx => upLv('lamp') - (ctx.hintUsed || 0);
 const hintsLeft = ctx => S.strict ? 0 : Math.max(0, hintAllow(ctx)) + ((S.inv && S.inv.hints) || 0);
 function hintUI(ctx, apply) {
-  if (hintsLeft(ctx) <= 0) return;
+  if (ctx.exam || hintsLeft(ctx) <= 0) return;
   const msg = $('msg'); if (!msg) return;
   const b = document.createElement('button');
   b.className = 'btn small gold'; b.id = 'hintb'; b.textContent = `💡 Подсказка (${hintsLeft(ctx)})`;
@@ -1712,11 +1712,26 @@ const GAMES = {
   memory: ['Найди пару', memory],
   build: ['Собери слово', build]
 };
+// оценка за контрольную: по доле верных ответов с первой попытки, и темы, которые стоит повторить
+function examGrade(ctx, cb) {
+  const acc = ctx.asked ? ctx.ok / ctx.asked : 0, gr = acc >= .9 ? 5 : acc >= .75 ? 4 : acc >= .5 ? 3 : 2;
+  const miss = [...new Set(ctx.missG || [])].map(g => MTOP[g] || g), rec = S.lessons[ctx.L.id] || (S.lessons[ctx.L.id] = { stars: 0, done: false });
+  rec.grade = Math.max(rec.grade || 0, gr);
+  frame(ctx, `<div class="card center"><h1>Оценка: ${gr} ${['', '', '😟', '🙂', '😀', '🏆'][gr]}</h1><p>Верно с первой попытки: <b>${ctx.ok} из ${ctx.asked}</b> (${Math.round(acc * 100)}%)</p>
+    ${miss.length ? `<p><b>Стоит повторить:</b><br>${miss.map(esc).join('<br>')}</p>${ctx.L.book ? `<p><small>Правила — в учебнике, с. ${ctx.L.book.page}.</small></p>` : ''}` : '<p>Ошибок по темам нет — отличная подготовка! 👏</p>'}
+    <p><button class="btn gold" id="go">Дальше ➜</button></p></div>`);
+  $('go').onclick = cb;
+}
 function startLesson(i) {
   if (tmGate()) return; tmInLesson = true;
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
-  if (L.type === 'math') {
+  if (L.type === 'math' && L.exam) {
+    ctx.exam = true;
+    ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
+    ctx.steps.push(['Контрольная', cb => mathQuiz({ ctx, counted: true, title: '📝 Контрольная работа', items: mixSpecs(L.gens, 12) }, cb)]);
+    ctx.steps.push(['Оценка', cb => examGrade(ctx, cb)]);
+  } else if (L.type === 'math') {
     ctx.steps.push(['Правило', cb => mathRule(ctx, cb)]);
     ctx.steps.push(['Тренируемся', cb => mathQuiz({ ctx, counted: true, items: mixSpecs(L.gens, focusOf(skind()).focus ? 12 : 8) }, cb)]);
     const ds = focusOf(skind()).focus || focusOf(skind()).exams.length ? diarySpecs().slice(0, 4) : [];
@@ -2167,7 +2182,7 @@ function mathQuiz(o, done) {
       <div class="rukeys">${letters.map(c => `<button class="btn sec kp" data-k="${c}">${c}</button>`).join('')}<button class="btn sec kp" data-k="⌫">⌫</button><button class="btn gold kp" data-k="✓">✓</button></div>
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
     const my = screenId;
-    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); logQ(ok); save(); };
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); if (ctx.exam && !ok) (ctx.missG = ctx.missG || []).push(sp.g); logQ(ok); save(); };
     const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
     const reveal = () => {
       locked = true; $('msg').innerHTML = `Правильно пишется: <b>${q.ans}</b><br><small>${q.why}</small>`; count(false); i++;
@@ -2236,7 +2251,7 @@ function mathQuiz(o, done) {
       <div id="msg" class="msg">&nbsp;</div><div id="nxw"></div></div>`);
     const my = screenId;
     const ansText = q.opts ? q.ans : parts.map(p => (p.l ? p.l + ' ' : '') + p.a).join(', ');
-    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); if (q.fact) mulFact(q.fact, ok); logQ(ok); save(); };
+    const count = ok => { if (o.counted) { ctx.asked++; if (ok) ctx.ok++; } mathNote(sp, ok); if (q.fact) mulFact(q.fact, ok); if (ctx.exam && !ok) (ctx.missG = ctx.missG || []).push(sp.g); logQ(ok); save(); };
     const solved = () => { locked = true; sfx('ok'); $('msg').textContent = praise(); count(tries === 0); i++; setTimeout(() => { if (screenId === my) next(); }, 900); };
     const reveal = () => {
       locked = true; $('msg').innerHTML = `Правильный ответ: <b>${ansText}</b><br><small>${q.why}</small>`; count(false); i++;
