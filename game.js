@@ -209,9 +209,27 @@ const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj ===
 const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo' || S.subj === 'pdd' || S.subj === 'lit' || S.subj === 'logic' || S.subj === 'att'; // предметы с генерируемыми заданиями
 const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : S.subj === 'pdd' ? PWORLDS : S.subj === 'lit' ? LWORLDS : S.subj === 'logic' ? GWORLDS : S.subj === 'att' ? AWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widx = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.subj === 'pdd' ? (S.pworld || 0) : S.subj === 'lit' ? (S.lworld || 0) : S.subj === 'logic' ? (S.gworld || 0) : S.subj === 'att' ? (S.aworld || 0) : S.world;
+const widxRaw = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.subj === 'pdd' ? (S.pworld || 0) : S.subj === 'lit' ? (S.lworld || 0) : S.subj === 'logic' ? (S.gworld || 0) : S.subj === 'att' ? (S.aworld || 0) : S.world;
+// классы (миры), которые родитель скрыл для ученика, не показываются: S.offW[предмет][id босса мира] = true
+const wOn = (wd, subj) => !(S.offW && S.offW[subj || S.subj] && S.offW[subj || S.subj][wd.boss.id]);
+const wDone = wd => !!(S.lessons[wd.boss.id] || {}).done, wStarted = wd => wd.lessons.some(l => (S.lessons[l.id] || {}).done);
+// цепочка классов: из показанных классов открыт первый (самый нижний), каждый следующий — только после полного прохождения предыдущего (вместе с боссом).
+// Дополнительные миры (open: «Таблица ×», «По учебнику», «Контрольные», «Для малышей», Spotlight) в цепочку не входят.
+// Класс, в котором ребёнок уже занимался, остаётся открытым, чтобы прежний прогресс не терялся
+const chainOf = () => WS().map((wd, k) => k).filter(k => !WS()[k].open && wOn(WS()[k]));
+const worldOpen = k => {
+  const wd = WS()[k]; if (!wd) return false;
+  if (S.unlockAll || wd.open) return true;
+  const c = chainOf(), p = c.indexOf(k); if (p <= 0) return true;
+  return wDone(WS()[c[p - 1]]) || wStarted(wd);
+};
+const widx = () => {
+  const k = widxRaw(), ws = WS();
+  if (ws[k] && wOn(ws[k]) && worldOpen(k)) return k;
+  const f = ws.findIndex((wd, j) => !wd.open && wOn(wd) && worldOpen(j)); if (f >= 0) return f;
+  const g = ws.findIndex(wd => wOn(wd)); return g >= 0 ? g : 0;
+};
 const W = () => WS()[widx()] || WS()[0];
-const worldOpen = k => S.unlockAll || k === 0 || isGen() || !!(WS()[k] && WS()[k].open) || (S.lessons[WS()[k - 1].boss.id] || {}).done;
 /* игроки (профили): у каждого свой прогресс. Первый профиль использует прежний ключ, поэтому сохранённое не пропадает */
 const PKEY = 'engAdventure_profiles';
 let PR = { list: [], cur: null };
@@ -1564,7 +1582,7 @@ function nextIdx() {
 // и только внутри предмета — карта уроков, тренировка и задание дня.
 let homeView = true;
 const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS], pdd: ['🚦', 'ПДД и ОБЖ', () => PWORLDS], lit: ['📖', 'Литературное чтение', () => LWORLDS], logic: ['🧩', 'Логика и шахматы', () => GWORLDS], att: ['🎯', 'Внимание', () => AWORLDS] };
-const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
+const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { if (!wOn(w, key)) return; w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
 /* ---------- домашние задания из дневника: ребёнок видит их в игре, открывает страницы учебника, отмечает «сделано» и проверяет себя ---------- */
 function hwTasks() {
   const sd = schoolData(), c = schoolChild(sd); if (!sd || !c) return [];
@@ -1661,7 +1679,7 @@ function map() {
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
-  const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.tab || ((/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop())}</button>`).join('') : '';
+  const tabs = WS().filter(x => wOn(x)).length > 1 ? WS().map((wd, k) => !wOn(wd) ? '' : `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.tab || ((/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop())}</button>`).join('') : '';
   const extra = skind() === 'math' ? (W().mult ? '<button class="btn gold" id="mblz">⚡ Блиц таблицы</button>' : '') + '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button><button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'ru' || skind() === 'ow' ? '<button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${isAdmin() && skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
@@ -1697,7 +1715,7 @@ function map() {
   if (!isGen()) setTimeout(voiceCheck, 1500);
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
-    if (!worldOpen(k)) return toast('Сначала победи босса предыдущего мира 🔒');
+    if (!worldOpen(k)) return toast('Следующий класс откроется, когда ты полностью пройдёшь предыдущий (вместе с боссом) 🔒');
     if (S.subj === 'it') S.itworld = k; else if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else if (S.subj === 'pdd') S.pworld = k; else if (S.subj === 'lit') S.lworld = k; else if (S.subj === 'logic') S.gworld = k; else if (S.subj === 'att') S.aworld = k; else S.world = k;
     save(); map();
   });
@@ -4678,7 +4696,11 @@ function parent(tab) {
   sec.kid = `<div class="card"><h3>📚 Предметы ученика «${nm}»</h3>
       <p>Отметьте, что нужно изучать этому ребёнку. Скрытые предметы пропадают с главного экрана; прогресс по ним не теряется.</p>
       <div class="subjcols">${Object.keys(SUBJ_META).map(k => `<label class="subjopt"><input type="checkbox" data-so="${k}" ${subjOn(k) ? 'checked' : ''}> ${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</label>`).join('')}</div>
-      <p id="som"></p></div>
+      <p id="som"></p>
+      <h4>🎓 Классы и миры внутри предметов</h4>
+      <p><small>Скройте классы, которые ребёнку сейчас не нужны: он увидит только оставшиеся. Показанные классы открываются по порядку: следующий — только после полного прохождения предыдущего. Если скрыть нижние классы, начнётся с самого нижнего из оставшихся. Дополнительные миры («Таблица ×», «По учебнику», «Контрольные», «Для малышей») открыты всегда, если не скрыты.</small></p>
+      ${Object.keys(SUBJ_META).filter(k => SUBJ_META[k][2]().length > 1).map(k => `<details class="pdet"><summary>${SUBJ_META[k][0]} ${SUBJ_META[k][1]}</summary><div class="subjcols">${SUBJ_META[k][2]().map(wd => `<label class="subjopt"><input type="checkbox" data-wo="${k}|${wd.boss.id}" ${wOn(wd, k) ? 'checked' : ''}> ${esc(wd.tab || wd.name.split(' · ').pop())}${wd.open ? ' <small>(доп.)</small>' : ''}</label>`).join('')}</div></details>`).join('')}
+      <p id="wom"></p></div>
     <div class="card"><h3>🔑 Пароль игрока «${nm}»</h3>
       <p>Вход: <b id="pwshow">••••••</b> <button class="btn small sec" id="pwshb">показать</button></p>
       <p><input type="text" id="pwnew" maxlength="20" placeholder="новый пароль (4–20 знаков)"> <button class="btn small gold" id="pwsv">Сменить</button></p><p id="pwmm" class="pmsg">&nbsp;</p>
@@ -4784,6 +4806,12 @@ function parent(tab) {
     if (!Object.keys(SUBJ_META).some(subjOn)) { S.off[c.dataset.so] = false; c.checked = true; $('som').textContent = 'Должен остаться хотя бы один предмет.'; return; }
     if (!subjOn(S.subj)) S.subj = Object.keys(SUBJ_META).find(subjOn);
     save(); $('som').textContent = 'Сохранено ✅';
+  });
+  app.querySelectorAll('[data-wo]').forEach(c => c.onchange = () => {
+    const [sj, id] = c.dataset.wo.split('|'), ws = SUBJ_META[sj][2]();
+    S.offW = S.offW || {}; S.offW[sj] = S.offW[sj] || {}; S.offW[sj][id] = !c.checked;
+    if (!ws.some(wd => wOn(wd, sj))) { S.offW[sj][id] = false; c.checked = true; $('wom').textContent = 'В предмете должен остаться хотя бы один класс.'; return; }
+    save(); $('wom').textContent = 'Сохранено ✅';
   });
   on('pln', () => { S.plan = S.plan || {}; S.plan.on = !S.plan.on; save(); parent(); });
   app.querySelectorAll('[data-ph]').forEach(c => c.onchange = () => { S.plan = S.plan || {}; S.plan.hide = S.plan.hide || {}; S.plan.hide[c.dataset.ph] = !c.checked; save(); });

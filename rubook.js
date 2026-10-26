@@ -136,7 +136,7 @@
   MQ.r_bdouble = l => { const [r, w] = MP(DBL); return { q: 'Как правильно написать слово?', opts: RS([r, w]), ans: r, why: `Двойные согласные надо запомнить: ${r}.` }; };
 
   /* ---------- уроки ---------- */
-  const lessons = []; let nid = 41001;
+  const lessons = []; let nid = 46001;
   const BKID = 'rus3-1';
   const add = (icon, title, story, page, rule, gens) => lessons.push({ id: nid++, icon, title, story, type: 'math', rule, gens, book: { id: BKID, page } });
   const rl = (title, html, ex) => ({ title, html, ex });
@@ -190,7 +190,7 @@
     r_bending: 'Окончание', r_bsuffix: 'Суффикс', r_bbase: 'Основа слова', r_bsilent: 'Непроизносимые согласные', r_bdouble: 'Двойные согласные'
   });
   RWORLDS.push({
-    name: 'Русский · 📖 По учебнику', lessons, bossGens,
-    boss: { id: 41100, title: 'Хранитель учебника', icon: '📚', bossIcon: '🧙', story: 'Хранитель учебника проверяет, всё ли ты выучил из первой части: от текста и предложения до состава слова и правописания.', cert: 'прошёл(а) учебник русского языка за 3 класс (часть 1)' }
+    name: 'Русский · 📖 По учебнику', open: true, lessons, bossGens,
+    boss: { id: 46100, title: 'Хранитель учебника', icon: '📚', bossIcon: '🧙', story: 'Хранитель учебника проверяет, всё ли ты выучил из первой части: от текста и предложения до состава слова и правописания.', cert: 'прошёл(а) учебник русского языка за 3 класс (часть 1)' }
   });
 })();
