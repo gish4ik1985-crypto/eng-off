@@ -1661,7 +1661,7 @@ function map() {
   const missionHtml = missionCard();
   const nWeak = isGen() ? mathWeak().length : weakCount();
   const meta = SUBJ_META[skind()];
-  const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${(/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop()}</button>`).join('') : '';
+  const tabs = WS().length > 1 ? WS().map((wd, k) => `<button class="btn small ${k === widx() ? 'gold' : 'sec'}" data-w="${k}">${worldOpen(k) ? '' : '🔒 '}${wd.tab || ((/(\d)\s*класс/.exec(wd.name) || [0, 0])[1] ? (/(\d)\s*класс/.exec(wd.name)[1]) + ' класс' : wd.name.split(' · ').pop())}</button>`).join('') : '';
   const extra = skind() === 'math' ? (W().mult ? '<button class="btn gold" id="mblz">⚡ Блиц таблицы</button>' : '') + '<button class="btn sec" id="col">🧮 Столбик</button><button class="btn sec" id="tfm">⚡ Правда или нет?</button><button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'ru' || skind() === 'ow' ? '<button class="btn sec" id="srt">🧺 Разложи</button>' : skind() === 'izo' ? '<button class="btn gold" id="free">🖌️ Рисовать самому</button><button class="btn sec" id="gal">🖼️ Мои рисунки</button>' : (!isGen() ? `${isAdmin() && skind() === 'eng' && !S.diagDone && !Object.keys(S.lessons).length ? '<button class="btn gold" id="dg">🔎 Разведка</button>' : ''}<button class="btn sec" id="more">📚 Ещё</button><button class="btn sec" id="dict">📕 Словарь</button>` : '');
   app.innerHTML = `<div class="card toprow"><button class="btn sec" id="hm">🏠 Домой</button><h2>${meta[0]} ${meta[1]}</h2><span class="chip">💎 ${S.emeralds}</span></div>
     <div id="vw"></div>
@@ -1762,6 +1762,13 @@ function startLesson(i) {
     ctx.steps.push(['Вставь слово', cb => gapQuiz({ ctx, counted: true, items: sample(L.gaps, Math.min(6, L.gaps.length)) }, cb)]);
     ctx.steps.push(['Собери предложение', cb => sentBuild(ctx, sample(L.sents, Math.min(3, L.sents.length)), cb)]);
     ctx.steps.push(['Мини-тест', cb => gapQuiz({ ctx, counted: true, title: 'Мини-тест', items: sample(L.gaps, Math.min(5, L.gaps.length)) }, cb)]);
+  } else if (L.kids) { // уроки для малышей: слушаем и показываем картинки, без письма и чтения предложений
+    const wu = warmupWords(L).slice(0, 4);
+    if (wu.length) ctx.steps.push(['Разминка', cb => quiz({ ctx, mode: 'listen', counted: false, title: '🔥 Разминка: вспомни старые слова', items: wu }, cb)]);
+    ctx.steps.push(['Новые слова', cb => intro(ctx, cb)]);
+    ctx.steps.push([GAMES.listen[0], cb => GAMES.listen[1](ctx, cb)]);
+    ctx.steps.push([GAMES.memory[0], cb => GAMES.memory[1](ctx, cb)]);
+    ctx.steps.push(['Мини-тест', cb => quiz({ ctx, mode: 'see', counted: true, title: 'Мини-тест', items: sample(L.words, Math.min(5, L.words.length)) }, cb)]);
   } else {
     const wu = warmupWords(L);
     if (wu.length) ctx.steps.push(['Разминка', cb => quiz({ ctx, mode: 'listen', counted: false, title: '🔥 Разминка: вспомни старые слова', items: wu }, cb)]);
