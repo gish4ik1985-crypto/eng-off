@@ -1782,6 +1782,10 @@ function startLesson(i) {
     ctx.steps.push(['Вставь слово', cb => gapQuiz({ ctx, counted: true, items: sample(L.gaps, Math.min(6, L.gaps.length)) }, cb)]);
     ctx.steps.push(['Собери предложение', cb => sentBuild(ctx, sample(L.sents, Math.min(3, L.sents.length)), cb)]);
     ctx.steps.push(['Мини-тест', cb => gapQuiz({ ctx, counted: true, title: 'Мини-тест', items: sample(L.gaps, Math.min(5, L.gaps.length)) }, cb)]);
+  } else if (L.type === 'mouse') { // мышиный тренажёр
+    ctx.steps.push(['Подготовка', cb => mouseIntro(ctx, L, cb)]);
+    const ks = L.kinds || [];
+    ks.forEach((k, n) => ctx.steps.push(['Игра ' + (n + 1), cb => mouseGame(ctx, L, k, cb)]));
   } else if (L.type === 'typing') { // клавиатурный тренажёр
     ctx.steps.push(['Подготовка', cb => typingIntro(ctx, L, cb)]);
     const ks = L.kinds || [];
@@ -2125,6 +2129,7 @@ function reward(ctx) {
 function startBoss() {
   if (S.subj === 'att') return attBoss();
   if (W().typingBoss) return typingBoss();
+  if (W().mouseBoss) return mouseBoss();
   if (isGen()) return mathBoss();
   const BS = W().boss, bi = BS.bossIcon || '👾';
   const vocab = [].concat(...W().lessons.filter(l => l.words).map(l => l.words)).filter((x, k, a) => a.indexOf(x) === k);
@@ -2248,6 +2253,111 @@ function typingBoss() {
     ['Испытание', cb => { frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Клавиатура на экране спрячет буквы. Печатай, как научился!</p><button class="btn gold" id="fi">Начинаем ⌨️</button></div>`); $('fi').onclick = cb; }],
     ['Текст', cb => typingRun(ctx, L, 'story', true, cb)]
   ];
+  runSteps(ctx, () => reward(ctx));
+}
+
+/* ---------- мышиный тренажёр ---------- */
+const MG = {
+  point: ['👆 Наведи курсор', 6], click: ['🎈 Щёлкни левой кнопкой', 8], small: ['🎯 Точный щелчок', 8], move: ['🎈 Лови шарики', 8], dbl: ['📁 Двойной щелчок', 5],
+  right: ['🎁 Правая кнопка', 5], drag: ['🧺 Перетащи', 6], scroll: ['🔍 Крути колёсико', 4], path: ['🛣️ Проведи по дорожке', 3]
+};
+const COARSE = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+function mouseIntro(ctx, L, cb) {
+  const touch = COARSE();
+  frame(ctx, `<div class="card center"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
+    ${L.photo ? `<img class="pcimg" src="pc/photos/${L.photo}.jpg" alt="">` : ''}<p>${touch ? (L.tipTouch || L.tip) : L.tip}</p>
+    <p><small>${touch ? 'Это планшет: нажимай пальцем.' : 'Ошибки не страшны: цель в том, чтобы рука запомнила движения.'}</small></p><button class="btn gold" id="go">Играем ➜</button></div>`);
+  $('go').onclick = cb;
+}
+function mouseGame(ctx, L, kind, cb, opt) {
+  opt = opt || {}; const N = opt.n || MG[kind][1], touch = COARSE();
+  let round = 0, clean = 0, misses = 0, roundMiss = false, locked = false, timers = [], raf = 0; const t0 = Date.now();
+  frame(ctx, `<div class="card center"><h3>${opt.title || L.icon + ' ' + L.title}</h3><div class="mgask" id="mgask">&nbsp;</div>
+    <div class="mgarea${kind === 'drag' || kind === 'path' || kind === 'move' ? ' noscroll' : ''}" id="mga"></div>
+    <div class="tystat"><span id="mgp"></span><span id="mgm"></span></div><small id="mgh">&nbsp;</small></div>`);
+  const my = screenId, area = $('mga'), ask = t => { $('mgask').innerHTML = t; }, alive = () => screenId === my;
+  const R = (a, b) => a + Math.random() * (b - a);
+  const later = (f, ms) => { const t = setTimeout(() => { if (alive()) f(); }, ms); timers.push(t); };
+  const stat = () => { $('mgp').textContent = `Цель ${Math.min(round + 1, N)} из ${N}`; $('mgm').textContent = misses ? `Промахов: ${misses}` : 'Без промахов 🎯'; };
+  const hint = t => { $('mgh').textContent = t; };
+  const miss = () => { misses++; roundMiss = true; sfx('bad'); stat(); };
+  const win = () => { if (locked) return; locked = true; if (!roundMiss) clean++; sfx('ok'); round++; later(() => { locked = false; next(); }, 450); };
+  const el = (html, css, cls) => { const e = document.createElement('div'); e.className = 'mgt ' + (cls || ''); e.innerHTML = html; Object.assign(e.style, css || {}); area.appendChild(e); return e; };
+  const pos = (size, avoid) => { const w = area.clientWidth || 300, h = area.clientHeight || 260; for (let i = 0; i < 30; i++) { const x = R(8, Math.max(9, w - size - 8)), y = R(8, Math.max(9, h - size - 8)); if (!(avoid || []).some(a => Math.abs(a[0] - x) < size && Math.abs(a[1] - y) < size)) return [x, y]; } return [10, 10]; };
+  const clear = () => { area.innerHTML = ''; cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = []; };
+  const bg = () => { area.onpointerdown = e => { if (e.target === area && !locked && !['point', 'scroll', 'drag', 'path', 'dbl', 'right'].includes(kind)) miss(); }; };
+  function end() {
+    clear(); const secs = Math.round((Date.now() - t0) / 1000), acc = Math.round(100 * clean / N);
+    ctx.asked += N; ctx.ok += clean; for (let i = 0; i < N; i++) logQ(i < clean); save(); sfx(acc >= 70 ? 'win' : 'ok');
+    frame(ctx, `<div class="card center"><h2>${acc >= 90 ? '🌟 Отлично!' : acc >= 60 ? '👍 Хорошо!' : '💪 Ещё потренируемся'}</h2><p>Попаданий без промаха: <b>${clean} из ${N}</b> · Время: <b>${secs} с</b></p><button class="btn gold" id="nx">Дальше ➜</button></div>`);
+    $('nx').onclick = cb;
+  }
+  function next() {
+    if (!alive()) return; if (round >= N) return end();
+    clear(); roundMiss = false; stat(); hint('&nbsp;'); bg(); SET[kind]();
+  }
+  const SET = {
+    point() { ask(touch ? 'Нажми на звёздочку' : 'Подведи курсор к звёздочке (кнопку нажимать не нужно)'); const [x, y] = pos(90), e = el('⭐', { left: x + 'px', top: y + 'px', fontSize: '64px' }, 'pulse'); e.onpointerenter = win; e.onpointerdown = win; },
+    click() { ask(touch ? 'Нажми на шарик' : 'Щёлкни левой кнопкой по шарику'); const [x, y] = pos(90), e = el('🎈', { left: x + 'px', top: y + 'px', fontSize: '72px' }, 'pop'); e.onpointerdown = ev => { ev.stopPropagation(); e.classList.add('boom'); win(); }; },
+    small() {
+      ask('Щёлкни по <b style="color:#1e6fd9">синему</b> кружку. Красные не трогай!'); const used = [], mk = (col, good) => { const [x, y] = pos(48, used); used.push([x, y]); const e = el('', { left: x + 'px', top: y + 'px', width: '46px', height: '46px', background: col, borderRadius: '50%', border: '3px solid #1b1b1b' }); e.onpointerdown = ev => { ev.stopPropagation(); if (good) { e.classList.add('boom'); win(); } else { e.classList.add('shake'); miss(); } }; };
+      mk('#2f80ed', true); mk('#e8472b', false); mk('#e8472b', false); if (round > 3) mk('#e8472b', false);
+    },
+    move() {
+      ask(touch ? 'Лови шарик пальцем' : 'Щёлкни по плывущему шарику'); const w = area.clientWidth || 300, h = area.clientHeight || 260, x0 = R(20, w - 90), sp = R(50, 90) + round * 6, ph = R(0, 6);
+      const e = el('🎈', { fontSize: '70px', left: x0 + 'px', top: h + 'px' }); let t = 0, last = performance.now(), done = false;
+      e.onpointerdown = ev => { ev.stopPropagation(); if (done) return; done = true; e.classList.add('boom'); win(); };
+      const tick = now => { if (!alive() || done) return; t += (now - last) / 1000; last = now; const y = h - t * sp; e.style.top = y + 'px'; e.style.left = (x0 + Math.sin(t * 2 + ph) * 40) + 'px';
+        if (y < -80) { done = true; miss(); win(); return; } raf = requestAnimationFrame(tick); };
+      raf = requestAnimationFrame(tick);
+    },
+    dbl() {
+      ask(touch ? 'Открой папку: нажми на неё два раза быстро' : 'Открой папку: нажми на неё левой кнопкой <b>два раза быстро</b>'); const used = [];
+      for (let k = 0; k < 3; k++) { const [x, y] = pos(90, used); used.push([x, y]); const e = el('📁', { left: x + 'px', top: y + 'px', fontSize: '64px' }); let lastT = 0;
+        e.onpointerdown = ev => { ev.stopPropagation(); if (locked) return; const now = Date.now(); if (now - lastT < 450) { e.innerHTML = '🎁'; e.classList.add('boom'); area.querySelectorAll('.mgt').forEach(o => { if (o !== e) o.style.opacity = .3; }); win(); } else { e.classList.add('sel'); lastT = now; hint('Нажми ещё раз — быстро, сразу вслед за первым'); } }; }
+    },
+    right() {
+      ask(touch ? 'Нажми на подарок и подержи палец — откроется меню. Выбери «Открыть»' : 'Нажми на подарок <b>правой кнопкой мыши</b> и выбери «Открыть»'); const [x, y] = pos(90), g = el('🎁', { left: x + 'px', top: y + 'px', fontSize: '68px' });
+      let menu = null; const close = () => { if (menu) { menu.remove(); menu = null; } };
+      const open = (px, py) => { close(); menu = document.createElement('div'); menu.className = 'mgmenu'; menu.style.left = Math.min(px, area.clientWidth - 130) + 'px'; menu.style.top = Math.min(py, area.clientHeight - 110) + 'px';
+        menu.innerHTML = ['Открыть', 'Закрыть', 'Удалить'].map(t => `<div data-t="${t}">${t}</div>`).join(''); area.appendChild(menu);
+        menu.onpointerdown = ev => { ev.stopPropagation(); const t = ev.target.dataset.t; if (!t) return; close(); if (t === 'Открыть') { g.innerHTML = '🎉'; win(); } else { miss(); hint('Нужен пункт «Открыть»'); } }; };
+      const rect = () => area.getBoundingClientRect();
+      g.oncontextmenu = ev => { ev.preventDefault(); const r = rect(); open(ev.clientX - r.left, ev.clientY - r.top); };
+      let press = 0; g.onpointerdown = ev => { ev.stopPropagation(); if (ev.button === 2) return; const r = rect(), cx = ev.clientX - r.left, cy = ev.clientY - r.top; press = setTimeout(() => { if (alive()) open(cx, cy); }, 550); timers.push(press); if (!touch) hint('Это левая кнопка. Попробуй правую!'); };
+      g.onpointerup = () => clearTimeout(press); area.oncontextmenu = ev => ev.preventDefault();
+    },
+    drag() {
+      ask('Перетащи предмет в корзину: нажми, <b>не отпуская</b> веди и отпусти над корзиной'); const w = area.clientWidth || 300, h = area.clientHeight || 260, EM = ['🍎', '🍌', '🍇', '🍓', '🍊', '🥕'];
+      const bk = el('🧺', { right: '10px', bottom: '10px', fontSize: '80px' }), it = el(MP(EM), { left: '14px', top: '14px', fontSize: '60px', touchAction: 'none', cursor: 'grab' }); let dx = 0, dy = 0, on = false;
+      it.onpointerdown = ev => { ev.preventDefault(); on = true; const r = it.getBoundingClientRect(); dx = ev.clientX - r.left; dy = ev.clientY - r.top; it.setPointerCapture && it.setPointerCapture(ev.pointerId); it.style.cursor = 'grabbing'; it.style.zIndex = 5; };
+      it.onpointermove = ev => { if (!on) return; const ar = area.getBoundingClientRect(); it.style.left = (ev.clientX - ar.left - dx) + 'px'; it.style.top = (ev.clientY - ar.top - dy) + 'px'; };
+      it.onpointerup = ev => { if (!on) return; on = false; const a = it.getBoundingClientRect(), b = bk.getBoundingClientRect(), cx = a.left + a.width / 2, cy = a.top + a.height / 2;
+        if (cx > b.left && cx < b.right && cy > b.top && cy < b.bottom) { it.style.left = (b.left - area.getBoundingClientRect().left + 20) + 'px'; it.style.top = (b.top - area.getBoundingClientRect().top + 20) + 'px'; win(); } else { miss(); it.style.transition = 'all .25s'; it.style.left = '14px'; it.style.top = '14px'; setTimeout(() => { it.style.transition = ''; }, 300); hint('Отпускай, когда предмет над корзиной'); } };
+    },
+    scroll() {
+      const all = ['🚀', '🐱', '🌳', '🚗', '🍎', '⚽', '🎸', '🐟', '🏠', '⭐', '🎩', '🌸', '🍕', '🐶', '🎁', '🔔', '🍪', '🦋', '🚲', '🐢', '☂️', '🍦', '🎈', '🧸'], target = MP(all), list = shuffle(all);
+      ask(`Найди <span style="font-size:1.6rem">${target}</span>: ${touch ? 'проведи пальцем вверх-вниз' : 'крути колёсико мыши'}, потом щёлкни по нему`);
+      area.innerHTML = `<div class="mgscroll" id="mgsc">${list.map(e => `<span class="mgi" data-e="${e}">${e}</span>`).join('')}</div>`; hint(touch ? 'Список длинный — листай' : 'Колёсико мыши прокручивает список');
+      $('mgsc').onclick = ev => { const i = ev.target.closest('.mgi'); if (!i || locked) return; if (i.dataset.e === target) { i.classList.add('boom'); win(); } else { i.classList.add('shake'); miss(); } };
+    },
+    path() {
+      const P = ['M20 100 L110 40 L190 160 L280 100', 'M20 160 C80 20 160 20 150 100 S230 180 280 40', 'M20 40 L280 40 L280 100 L20 100 L20 160 L280 160'], d = P[round % P.length], g = P[round % P.length].match(/-?\d+/g).map(Number);
+      ask(touch ? 'Проведи пальцем по дорожке от 🟢 до 🔴, не сходя с неё' : 'Нажми на 🟢, веди мышь по дорожке <b>не отпуская</b> до 🔴'); const sx = g[0], sy = g[1], ex = g[g.length - 2], ey = g[g.length - 1];
+      area.innerHTML = `<svg viewBox="0 0 300 200" class="mgsvg" id="mgsvg"><path d="${d}" class="corr" fill="none" stroke="#ffe066" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-dasharray="6 6" style="pointer-events:none"/><circle cx="${sx}" cy="${sy}" r="14" fill="#34c759" stroke="#1b1b1b" stroke-width="3" class="st"/><circle cx="${ex}" cy="${ey}" r="14" fill="#ff3b30" stroke="#1b1b1b" stroke-width="3" class="en"/></svg>`;
+      const svg = $('mgsvg'); let on = false, failed = false;
+      const under = ev => { const e = document.elementFromPoint(ev.clientX, ev.clientY); return e && e.closest ? (e.closest('.corr,.st,.en') || null) : null; };
+      svg.onpointerdown = ev => { const u = under(ev); if (u && u.classList.contains('st')) { on = true; failed = false; svg.setPointerCapture && svg.setPointerCapture(ev.pointerId); } else if (!locked) hint('Начни с зелёного кружка'); };
+      svg.onpointermove = ev => { if (!on || locked) return; const u = under(ev); if (!u) { on = false; miss(); hint('Ты сошёл с дорожки. Начни снова с зелёного кружка'); return; } if (u.classList.contains('en')) { on = false; win(); } };
+      svg.onpointerup = () => { if (on && !locked) { on = false; hint('Не отпускай до красного кружка'); } };
+    }
+  };
+  next();
+}
+function mouseBoss() {
+  const BS = W().boss, L = { id: BS.id, title: BS.title, icon: BS.icon }, ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
+  ctx.steps = [['Испытание', cb => { frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><button class="btn gold" id="fi">Начинаем 🖱️</button></div>`); $('fi').onclick = cb; }]];
+  ['click', 'small', 'dbl', 'right', 'drag', 'scroll', 'path'].forEach(k => ctx.steps.push([MG[k][0], cb => mouseGame(ctx, L, k, cb, { n: k === 'path' ? 2 : 3, title: MG[k][0] })]));
   runSteps(ctx, () => reward(ctx));
 }
 
