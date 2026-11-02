@@ -672,6 +672,9 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
 .mgi{font-size:2.4rem;text-align:center;cursor:pointer;line-height:70px;border-radius:10px;background:#fff;border:2px solid #cfc7ad}.mgi.boom{animation:mgboom .35s forwards}.mgi.shake{animation:tyshake .25s}
 .mgsvg{width:100%;height:100%;touch-action:none}.mgsvg .corr{cursor:pointer;pointer-events:stroke}.mgsvg .st,.mgsvg .en{cursor:pointer}
 
+/* запасные картинки эмодзи */
+.emo{display:inline-block;height:1.1em;width:1.1em;vertical-align:-.2em;pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -8175,7 +8178,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = TYPING;
     return MC('Что это за устройство?', NAME[k], pool.concat(l === 3 ? ['модем', 'колонки', 'сканер'] : []), 'Это ' + NAME[k] + '.', lv(l, 2, 3, 3), { pic: pic(k) });
   };
   const USE = [['monitor', 'показывает картинку и текст'], ['unit', '«мозг» компьютера: считает и хранит файлы'], ['keyboard', 'печатать буквы и цифры'], ['mouse', 'двигать стрелку и выбирать на экране'], ['printer', 'печатать на бумаге'], ['headphones', 'слушать звук, не мешая другим'], ['microphone', 'записывать голос и говорить в компьютер'], ['webcam', 'показывать тебя при видеозвонке'], ['usb', 'переносить и хранить файлы'], ['router', 'раздавать интернет (Wi-Fi)'], ['laptop', 'работать там, где нет розетки: всё в одном корпусе'], ['tablet', 'работать пальцем: экран сенсорный']];
-  MQ.c_use = l => { const [k, u] = MP(l === 1 ? USE.slice(0, 6) : USE); return MC(`Для чего нужен(а) ${NAME[k]}?`, u, USE.map(x => x[1]), `${NAME[k][0].toUpperCase() + NAME[k].slice(1)}: ${u}.`, lv(l, 2, 2, 3), l === 1 ? { pic: pic(k) } : {}); };
+  const NEED = { monitor: 'нужен', unit: 'нужен', keyboard: 'нужна', mouse: 'нужна', laptop: 'нужен', tablet: 'нужен', printer: 'нужен', headphones: 'нужны', microphone: 'нужен', webcam: 'нужна', usb: 'нужна', router: 'нужен' };
+  MQ.c_use = l => { const [k, u] = MP(l === 1 ? USE.slice(0, 6) : USE); return MC(`Для чего ${NEED[k]} ${NAME[k]}?`, u, USE.map(x => x[1]), `${NAME[k][0].toUpperCase() + NAME[k].slice(1)}: ${u}.`, lv(l, 2, 2, 3), l === 1 ? { pic: pic(k) } : {}); };
   const IO = [['мышь', 'ввод'], ['клавиатура', 'ввод'], ['микрофон', 'ввод'], ['веб-камера', 'ввод'], ['монитор', 'вывод'], ['принтер', 'вывод'], ['наушники', 'вывод'], ['колонки', 'вывод']];
   MQ.c_io = l => { const [n, a] = MP(IO); return { q: `Ввод или вывод: ${n}?`, opts: ['ввод', 'вывод'], ans: a, why: a === 'ввод' ? 'Через это устройство мы «вводим» в компьютер: слова, звук, команды.' : 'Это устройство «выводит» то, что делает компьютер: картинку, звук, бумагу.' }; };
   const KEYS = [['Enter', 'закончить строку или нажать «ОК»'], ['Пробел', 'поставить промежуток между словами'], ['Shift', 'напечатать заглавную букву (держим и нажимаем букву)'], ['Backspace', 'стереть букву слева'], ['Caps Lock', 'включить печать только ЗАГЛАВНЫМИ'], ['Esc', 'отменить или выйти'], ['Tab', 'перейти к следующему полю']];
@@ -8440,6 +8444,59 @@ const BOOKS = [{
     ['Further Speaking Practice', 162, 0], ['Grammar Reference', 166, 0], ['Phonetics', 171, 0], ['Word List (словарик)', 172, 0]
   ]
 }];
+
+</script>
+<script>
+/* Запасные картинки для пиктограмм (эмодзи). На старых компьютерах, где нет цветного шрифта эмодзи или он старый (новые значки превращаются в квадратики),
+   игра сама находит такие значки и заменяет их картинками из папки emoji/ (Twemoji, CC BY 4.0, лежат в проекте — интернет не нужен).
+   На современных устройствах ничего не меняется. Режим можно задать вручную: localStorage 'engAdventure_emoji' = 'on' (всегда картинки) / 'off' (никогда); в игре — «Родителям → Настройки». */
+(() => {
+  let mode = 'auto'; try { mode = localStorage.getItem('engAdventure_emoji') || 'auto'; } catch (e) {}
+  if (mode === 'off' || !document.createTreeWalker || !window.MutationObserver) return;
+  let RE;
+  try { RE = new RegExp('(?:\\p{Regional_Indicator}{2}|[#*0-9]\\uFE0F?\\u20E3|(?:\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)\\p{Emoji_Modifier}?(?:\\u200D(?:\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F?)\\p{Emoji_Modifier}?)*)', 'gu'); } catch (e) {
+    try { RE = new RegExp('(?:[\\u{1F1E6}-\\u{1F1FF}]{2}|[#*0-9]\\uFE0F?\\u20E3|[\\u{1F000}-\\u{1FAFF}\\u2190-\\u21FF\\u2300-\\u23FF\\u2460-\\u24FF\\u25A0-\\u27BF\\u2900-\\u297F\\u2B00-\\u2BFF](?:\\uFE0F)?[\\u{1F3FB}-\\u{1F3FF}]?(?:\\u200D[\\u{1F000}-\\u{1FAFF}\\u2600-\\u27BF\\u2B00-\\u2BFF]\\uFE0F?)*)', 'gu'); } catch (e2) { return; }
+  }
+  const cv = document.createElement('canvas'); cv.width = cv.height = 36;
+  const cx = cv.getContext && cv.getContext('2d'), cache = {};
+  // есть ли у значка цвет: если шрифта нет, рисуется чёрно-белый значок или квадратик без цветных пикселей
+  const colored = e => {
+    if (!cx) return true;
+    try {
+      cx.clearRect(0, 0, 36, 36); cx.font = '24px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif'; cx.textBaseline = 'top'; cx.fillText(e, 2, 4);
+      const d = cx.getImageData(0, 0, 36, 36).data; let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 40 && Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]) > 30) n++;
+      return n > 8;
+    } catch (err) { return true; }
+  };
+  const bad = e => mode === 'on' || (e in cache ? cache[e] : (cache[e] = !colored(e)));
+  const code = s => { const cps = Array.from(s).map(c => c.codePointAt(0).toString(16)); return (s.indexOf('‍') >= 0 ? cps : cps.filter(c => c !== 'fe0f')).join('-'); };
+  const SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, OPTION: 1, TITLE: 1, NOSCRIPT: 1, CANVAS: 1 };
+  let busy = false;
+  function fixNode(root) {
+    if (!root) return;
+    const out = [], tw = document.createTreeWalker(root.nodeType === 3 ? root.parentNode : root, 4, null, false);
+    let n; while ((n = tw.nextNode())) { const p = n.parentNode; if (p && !SKIP[p.nodeName] && !(p.className && String(p.className).indexOf('emo') === 0) && n.data) { RE.lastIndex = 0; if (RE.test(n.data)) out.push(n); } }
+    out.forEach(t => {
+      const s = t.data, frag = document.createDocumentFragment(); let last = 0, changed = false; RE.lastIndex = 0; let m;
+      while ((m = RE.exec(s))) {
+        if (!bad(m[0])) continue;
+        if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        const img = document.createElement('img'); img.className = 'emo'; img.alt = m[0]; img.draggable = false; img.src = 'emoji/' + code(m[0]) + '.svg'; img.onerror = function () { this.replaceWith(document.createTextNode(this.alt)); };
+        frag.appendChild(img); last = m.index + m[0].length; changed = true;
+      }
+      if (!changed) return;
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      if (t.parentNode) t.parentNode.replaceChild(frag, t);
+    });
+  }
+  const obs = new MutationObserver(recs => {
+    if (busy) return; busy = true;
+    try { recs.forEach(r => { if (r.type === 'characterData') fixNode(r.target); else r.addedNodes.forEach(n => { if (n.nodeType === 1 || n.nodeType === 3) fixNode(n); }); }); } finally { obs.takeRecords(); busy = false; }
+  });
+  const start = () => { fixNode(document.body); obs.observe(document.body, { childList: true, subtree: true, characterData: true }); };
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 
 </script>
 <script>
@@ -13435,7 +13492,8 @@ function parent(tab) {
         <li>Прогресс всегда хранится на самом устройстве — интернет для него не нужен.</li>
         <li>Без интернета не работают облако (всё отправится само, когда интернет появится), озвучка через интернет и обновления игры.</li>
         <li>Когда интернет есть, игра при запуске сама берёт новую версию. Если приложение долго не закрывали — нажмите «Проверить обновление».</li></ul></details>
-      <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p></div>
+      <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p>
+      <p>🎨 <b>Пиктограммы (эмодзи)</b> на старом компьютере: <select id="emomode" style="font:inherit;padding:4px;border:2px solid #1b1b1b;border-radius:8px"><option value="auto">сами выберем (авто)</option><option value="on">всегда картинками</option><option value="off">всегда как есть</option></select><br><small>Если на устройстве вместо значков квадратики или чёрно-белые рисунки, выберите «всегда картинками». Картинки Twemoji (CC BY 4.0) уже лежат в игре, интернет не нужен.</small></p></div>
     <div class="card"><h3>🔊 Озвучка</h3>${vSel}
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="${sel}">${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
@@ -13469,6 +13527,7 @@ function parent(tab) {
     Promise.race([navigator.serviceWorker.getRegistration().then(r => r && r.update()), new Promise(r => setTimeout(r, 5000))]).catch(() => {}).then(() => setTimeout(go, 400));
   });
   offCard();
+  if ($('emomode')) { try { $('emomode').value = localStorage.getItem('engAdventure_emoji') || 'auto'; } catch (e) {} $('emomode').onchange = () => { try { $('emomode').value === 'auto' ? localStorage.removeItem('engAdventure_emoji') : localStorage.setItem('engAdventure_emoji', $('emomode').value); } catch (e) {} location.reload(); }; }
   app.querySelectorAll('[data-so]').forEach(c => c.onchange = () => {
     S.off = S.off || {}; S.off[c.dataset.so] = !c.checked;
     if (!Object.keys(SUBJ_META).some(subjOn)) { S.off[c.dataset.so] = false; c.checked = true; $('som').textContent = 'Должен остаться хотя бы один предмет.'; return; }

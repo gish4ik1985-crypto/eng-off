@@ -4990,7 +4990,8 @@ function parent(tab) {
         <li>Прогресс всегда хранится на самом устройстве — интернет для него не нужен.</li>
         <li>Без интернета не работают облако (всё отправится само, когда интернет появится), озвучка через интернет и обновления игры.</li>
         <li>Когда интернет есть, игра при запуске сама берёт новую версию. Если приложение долго не закрывали — нажмите «Проверить обновление».</li></ul></details>
-      <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p></div>
+      <p><button class="btn small sec" id="offupd">🔄 Проверить обновление</button></p>
+      <p>🎨 <b>Пиктограммы (эмодзи)</b> на старом компьютере: <select id="emomode" style="font:inherit;padding:4px;border:2px solid #1b1b1b;border-radius:8px"><option value="auto">сами выберем (авто)</option><option value="on">всегда картинками</option><option value="off">всегда как есть</option></select><br><small>Если на устройстве вместо значков квадратики или чёрно-белые рисунки, выберите «всегда картинками». Картинки Twemoji (CC BY 4.0) уже лежат в игре, интернет не нужен.</small></p></div>
     <div class="card"><h3>🔊 Озвучка</h3>${vSel}
       <button class="btn small" id="vc">🔊 Проверить озвучку</button>
       <p>Скорость речи робота: <select id="rt" style="${sel}">${[[0.6, 'Медленно'], [0.7, 'Чуть медленнее'], [0.8, 'Обычно'], [0.95, 'Быстро']].map(o => `<option value="${o[0]}" ${(S.rate || 0.8) === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></p>
@@ -5024,6 +5025,7 @@ function parent(tab) {
     Promise.race([navigator.serviceWorker.getRegistration().then(r => r && r.update()), new Promise(r => setTimeout(r, 5000))]).catch(() => {}).then(() => setTimeout(go, 400));
   });
   offCard();
+  if ($('emomode')) { try { $('emomode').value = localStorage.getItem('engAdventure_emoji') || 'auto'; } catch (e) {} $('emomode').onchange = () => { try { $('emomode').value === 'auto' ? localStorage.removeItem('engAdventure_emoji') : localStorage.setItem('engAdventure_emoji', $('emomode').value); } catch (e) {} location.reload(); }; }
   app.querySelectorAll('[data-so]').forEach(c => c.onchange = () => {
     S.off = S.off || {}; S.off[c.dataset.so] = !c.checked;
     if (!Object.keys(SUBJ_META).some(subjOn)) { S.off[c.dataset.so] = false; c.checked = true; $('som').textContent = 'Должен остаться хотя бы один предмет.'; return; }
