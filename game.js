@@ -1790,7 +1790,7 @@ function startLesson(i) {
   } else if (L.type === 'typing') { // клавиатурный тренажёр
     ctx.steps.push(['Подготовка', cb => typingIntro(ctx, L, cb)]);
     const ks = L.kinds || [];
-    ks.forEach((k, n) => ctx.steps.push(['Печатаем ' + (n + 1), cb => typingRun(ctx, L, k, n === ks.length - 1, cb)]));
+    ks.forEach((k, n) => ctx.steps.push([k === 'rain' ? 'Буквопад' : 'Печатаем ' + (n + 1), cb => k === 'rain' ? typingRain(ctx, L, cb) : typingRun(ctx, L, k, n === ks.length - 1, cb)]));
   } else if (L.kids) { // уроки для малышей: слушаем и показываем картинки, без письма и чтения предложений
     const wu = warmupWords(L).slice(0, 4);
     if (wu.length) ctx.steps.push(['Разминка', cb => quiz({ ctx, mode: 'listen', counted: false, title: '🔥 Разминка: вспомни старые слова', items: wu }, cb)]);
@@ -2164,16 +2164,37 @@ function tyKbHtml(o) {
   return `<div class="tykb" id="tykb">${rows}${extra}<div class="tkr"><button class="tk sp" data-ch=" " style="background:${TY_COL[8]}">пробел</button></div></div>`;
 }
 const tyLegend = () => `<div class="tyleg">${TYPING.FNAME.slice(0, 8).map((n, i) => `<span style="background:${TY_COL[i]}">${n}</span>`).join('')}</div>`;
+// цветные темы упражнений: небо, транспорт и финиш меняются от урока к уроку
+const TY_THEMES = [
+  { bg: 'linear-gradient(#1b1464,#5b2a86)', car: '🚀', goal: '🌕', dec: '✨', name: 'космос', dark: 1 },
+  { bg: 'linear-gradient(#aee6ff,#fff3b0)', car: '🏎️', goal: '🏁', dec: '☁️', name: 'гонка' },
+  { bg: 'linear-gradient(#4fc3f7,#0277bd)', car: '🐠', goal: '🏝️', dec: '🫧', name: 'море', dark: 1 },
+  { bg: 'linear-gradient(#c8f7c5,#6fcf7a)', car: '🦊', goal: '🏡', dec: '🌳', name: 'лес' },
+  { bg: 'linear-gradient(#ffd1f0,#ffb3d9)', car: '🚁', goal: '🍭', dec: '🍬', name: 'сладкая страна' },
+  { bg: 'linear-gradient(#ffe0b2,#ffab91)', car: '🐉', goal: '🏰', dec: '🔥', name: 'замок дракона' }
+];
+const tyTheme = L => TY_THEMES[(L.id || 0) % TY_THEMES.length];
+// руки на экране: у каждого пальца свой цвет, тот палец, которым нужно нажать, поднимается и светится
+function tyHandsSvg() {
+  const fing = [[0, 48, 62], [1, 92, 82], [2, 136, 92], [3, 180, 80]], wd = 32;
+  const left = fing.map(([i, x, h]) => `<rect class="fg" data-f="${i}" x="${x}" y="${104 - h}" width="${wd}" height="${h}" rx="16" fill="${TY_COL[i]}"/>`).join('');
+  const right = fing.map(([i, x, h]) => `<rect class="fg" data-f="${7 - i}" x="${560 - x - wd}" y="${104 - h}" width="${wd}" height="${h}" rx="16" fill="${TY_COL[7 - i]}"/>`).join('');
+  return `<svg class="tyhands" viewBox="0 0 560 150" aria-hidden="true"><rect class="palm" x="40" y="96" width="190" height="46" rx="20" fill="#ffe0bd"/><rect class="palm" x="330" y="96" width="190" height="46" rx="20" fill="#ffe0bd"/>${left}${right}
+    <ellipse class="fg" data-f="8" cx="244" cy="124" rx="28" ry="13" transform="rotate(-18 244 124)" fill="${TY_COL[8]}"/><ellipse class="fg" data-f="8" cx="316" cy="124" rx="28" ry="13" transform="rotate(18 316 124)" fill="${TY_COL[8]}"/></svg>`;
+}
+const tyHandsSet = (root, f) => { (root || document).querySelectorAll('.tyhands .fg').forEach(e => e.classList.toggle('on', f !== null && f !== undefined && +e.dataset.f === f)); };
 function typingIntro(ctx, L, cb) {
-  const posture = L.intro === 'posture';
-  frame(ctx, `<div class="card center"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
+  const posture = L.intro === 'posture', th = tyTheme(L);
+  frame(ctx, `<div class="card center tycard"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
     ${posture ? `<ul class="tytips"><li>🪑 Сиди прямо, спина опирается на стул, ноги стоят на полу.</li><li>🖥️ Экран — на расстоянии вытянутой руки, чуть ниже уровня глаз.</li><li>🖐️ Пальцы лежат на <b>домашнем ряду</b>: левая рука — <b>Ф Ы В А</b>, правая — <b>О Л Д Ж</b>. На клавишах <b>А</b> и <b>О</b> есть бугорки: по ним пальцы находят «дом».</li><li>👀 Смотри на экран, а не на клавиши. Печатай всеми пальцами.</li><li>⏱️ Занимайся по 10–15 минут, потом перерыв.</li></ul>`
-      : `<p>Новые клавиши: <b>${[...L.neu].map(c => c.toUpperCase()).join(' ')}</b> (подсвечены на клавиатуре).</p><p><small>Цвет клавиши показывает палец. Нажимай правильным пальцем и возвращай его «домой».</small></p>`}
-    ${tyKbHtml({ mark: posture ? 'фывапролдж' : L.neu, shift: !!(L.caps || L.punct), punct: !!L.punct })}${tyLegend()}
-    <p><button class="btn gold" id="go">${posture ? 'Понятно ➜' : 'Начинаем ➜'}</button></p></div>`);
+      : `<p>Новые клавиши: <b class="tynewk">${[...L.neu].map(c => `<span style="background:${TY_COL[TYPING.FINGER[c] === undefined ? 8 : TYPING.FINGER[c]]}">${c.toUpperCase()}</span>`).join('')}</b></p><div class="tymiss" style="background:${th.bg};color:${th.dark ? '#fff' : '#222'}">Сегодня ты ${th.car} летишь к цели ${th.goal} — тема «${th.name}»!</div><p><small>Цвет клавиши показывает палец. Нажимай нужным пальцем и возвращай его «домой».</small></p>`}
+    ${tyKbHtml({ mark: posture ? 'фывапролдж' : L.neu, shift: !!(L.caps || L.punct), punct: !!L.punct })}${tyHandsSvg()}${tyLegend()}
+    <p><button class="btn gold big" id="go">${posture ? 'Понятно ➜' : 'Поехали! ➜'}</button></p></div>`);
+  // подсвечиваем по очереди пальцы для новых клавиш
+  const fs = [...new Set([...(posture ? 'фывапролдж' : L.neu)].map(c => TYPING.FINGER[c]).filter(f => f !== undefined))]; let k = 0;
+  const iv = setInterval(() => { if (!$('go')) return clearInterval(iv); tyHandsSet(null, fs[k++ % fs.length]); }, 900); tyHandsSet(null, fs[0]);
   $('go').onclick = cb;
 }
-// текст упражнения нужного вида
 function tyText(L, kind) {
   const T = TYPING, cap = w => w[0].toUpperCase() + w.slice(1);
   if (kind === 'custom' && L.caps) { const names = ['Маша', 'Саша', 'Даша', 'Миша', 'Паша', 'Лена', 'Вова', 'Коля', 'Катя', 'Оля', 'Москва', 'Россия', 'Волга']; return T.shuffle(names).slice(0, 6).join(' '); }
@@ -2186,54 +2207,79 @@ function tyText(L, kind) {
   }
   return T.line(L.keys, L.neu, kind === 'custom' ? 'words' : kind, 34);
 }
+// мелкие эффекты: всплывающая буква над клавишей, баннер за серию верных нажатий
+function tyPop(kbEl, wrap, txt, col, bad) {
+  const b = kbEl && kbEl.getBoundingClientRect(), w = wrap.getBoundingClientRect(); if (!b) return;
+  const p = document.createElement('span'); p.className = 'typop' + (bad ? ' bad' : ''); p.textContent = txt; p.style.left = (b.left - w.left + b.width / 2) + 'px'; p.style.top = (b.top - w.top) + 'px'; p.style.color = bad ? '#e8472b' : col;
+  wrap.appendChild(p); setTimeout(() => p.remove(), 800);
+}
+function tyBanner(wrap, txt) {
+  if (S.focus) return; const e = document.createElement('div'); e.className = 'tybanner'; e.textContent = txt; wrap.appendChild(e); setTimeout(() => e.remove(), 1300);
+  const rain = ['⭐', '✨', '🎉', '💫']; for (let i = 0; i < 8; i++) { const c = document.createElement('span'); c.className = 'tyconf'; c.textContent = rain[i % 4]; c.style.left = (10 + Math.random() * 80) + '%'; c.style.animationDelay = (i * 0.06) + 's'; wrap.appendChild(c); setTimeout(() => c.remove(), 1400); }
+}
+const tyBeep = streak => tones([Math.round(392 * Math.pow(2, Math.min(streak, 14) / 12))], 'tap');
+// итоговая карточка упражнения: звёзды, точность, скорость, рекорд
+function tyResult(ctx, L, o, again, cb, againFn) {
+  const th = tyTheme(L), stars = o.acc >= 95 ? 3 : o.acc >= 85 ? 2 : 1;
+  frame(ctx, `<div class="card center tycard"><div class="tyres" style="background:${th.bg};color:${th.dark ? '#fff' : '#222'}"><div class="tycar">${th.car} → ${th.goal}</div>
+    <div class="tystars">${[1, 2, 3].map(i => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${i * 0.25}s">⭐</span>`).join('')}</div>
+    <h2>${stars === 3 ? 'Великолепно!' : stars === 2 ? 'Отлично!' : 'Хорошая попытка!'}</h2></div>
+    <p>Точность: <b>${o.acc}%</b>${o.spd ? ` · Скорость: <b>${o.spd}</b> зн/мин` : ''}${o.extra ? ' · ' + o.extra : ''}</p>${o.record ? '<p class="tyrec">🏆 Новый рекорд скорости!</p>' : ''}
+    ${o.hard ? `<p><small>Трудные места: ${o.hard}</small></p>` : '<p>Без единой ошибки! 🎉</p>'}
+    <p>${again ? '<button class="btn gold" id="ag">🔁 Ещё раз</button> <button class="btn sec" id="nx">Дальше ➜</button>' : '<button class="btn gold big" id="nx">Дальше ➜</button>'}</p></div>`);
+  if (stars === 3 && !S.focus) { const wrap = $('nx').closest('.card'); tyBanner(wrap, '⭐⭐⭐'); }
+  $('nx').onclick = cb; if ($('ag')) $('ag').onclick = againFn;
+}
 function typingRun(ctx, L, kind, last, cb, attempt) {
   attempt = attempt || 0;
-  const text = tyText(L, kind), blind = !!(L.blind || (L.blindLast && last));
+  const text = tyText(L, kind), blind = !!(L.blind || (L.blindLast && last)), th = tyTheme(L);
   const needShift = /[А-Я!?]/.test(text) || (L.caps || L.punct);
-  let pos = 0, hits = 0, errs = 0, t0 = 0, shiftOn = false; const bad = new Set(), miss = {}, seen = {};
-  const my = (frame(ctx, `<div class="card center"><h3>${L.icon} ${L.title}</h3>
+  let pos = 0, hits = 0, errs = 0, t0 = 0, shiftOn = false, streak = 0, best = 0; const bad = new Set(), miss = {}, seen = {};
+  const my = (frame(ctx, `<div class="card center tycard" id="tywrap"><h3>${L.icon} ${L.title}</h3>
+    <div class="tytrack" style="background:${th.bg}"><span class="tydec">${th.dec}</span><span class="tydec d2">${th.dec}</span><span class="tygoal">${th.goal}</span><span class="tyveh" id="tyveh">${th.car}</span></div>
     <div class="tytxt" id="tytxt">${[...text].map((c, i) => `<span class="c${c === ' ' ? ' sp' : ''}" data-i="${i}">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('')}</div>
-    <div class="tystat"><span id="tyspd">⏱️ 0 зн/мин</span> <span id="tyacc">🎯 100%</span> <span id="typrg">0 из ${text.length}</span></div>
-    ${tyKbHtml({ blind, shift: needShift, punct: !!L.punct })}<p class="tyfing" id="tyfing">&nbsp;</p>
+    <div class="tystat"><span id="tyspd">⏱️ 0 зн/мин</span> <span id="tyacc">🎯 100%</span> <span id="tystk">🔥 ×0</span> <span id="typrg">0 из ${text.length}</span></div>
+    ${tyKbHtml({ blind, shift: needShift, punct: !!L.punct })}${tyHandsSvg()}<p class="tyfing" id="tyfing">&nbsp;</p>
     <small>Печатай на клавиатуре (или нажимай клавиши на экране). Ошибся — просто нажми нужную клавишу ещё раз.</small></div>`), screenId);
-  const chars = () => document.querySelectorAll('#tytxt .c'), kb = $('tykb');
+  const wrap = $('tywrap'), chars = () => document.querySelectorAll('#tytxt .c'), kb = $('tykb'), veh = $('tyveh');
+  const track = veh.parentNode, keyEl = c => { const lc = c.toLowerCase(); return kb.querySelector(`.tk[data-ch="${CSS.escape(lc)}"]`) || (c === ' ' ? kb.querySelector('.sp') : null); };
+  const moveCar = () => { const pct = text.length ? pos / text.length : 0; veh.style.left = `calc(${(pct * 84).toFixed(1)}% + 4px)`; };
   const show = () => {
     chars().forEach((e, i) => { e.classList.toggle('done', i < pos); e.classList.toggle('cur', i === pos); e.classList.toggle('err', bad.has(i)); });
     kb.querySelectorAll('.tk').forEach(b => b.classList.remove('next'));
     const c = text[pos]; if (c === undefined) return;
-    const lc = c.toLowerCase(), isUp = c !== lc, key = kb.querySelector(`.tk[data-ch="${CSS.escape(lc)}"]`) || (c === ' ' ? kb.querySelector('.sp') : null);
-    if (key) key.classList.add('next');
+    const lc = c.toLowerCase(), isUp = c !== lc, key = keyEl(c); if (key) key.classList.add('next');
     const sh = kb.querySelector('.shift'); if (sh) sh.classList.toggle('next', isUp || /[!?]/.test(c));
-    const f = TYPING.FINGER[lc]; $('tyfing').textContent = f === undefined ? '' : (blind ? '' : `Нажимай: ${TYPING.FNAME[f]}`);
+    const f = TYPING.FINGER[lc]; tyHandsSet(wrap, f === undefined ? null : f); $('tyfing').textContent = f === undefined ? '' : (blind ? '' : `Нажимай: ${TYPING.FNAME[f]}`);
   };
   const stat = () => {
     const mins = t0 ? Math.max(5, (Date.now() - t0) / 1000) / 60 : 0, acc = hits + errs ? Math.round(100 * hits / (hits + errs)) : 100;
-    $('tyspd').textContent = `⏱️ ${mins ? Math.round(pos / mins) : 0} зн/мин`; $('tyacc').textContent = `🎯 ${acc}%`; $('typrg').textContent = `${pos} из ${text.length}`;
+    $('tyspd').textContent = `⏱️ ${mins ? Math.round(pos / mins) : 0} зн/мин`; $('tyacc').textContent = `🎯 ${acc}%`; $('tystk').textContent = `🔥 ×${streak}`; $('typrg').textContent = `${pos} из ${text.length}`;
   };
   const finish = () => {
     mathKeyFn = null; const secs = Math.max(5, (Date.now() - t0) / 1000), spd = Math.round(text.length / (secs / 60)), acc = Math.round(100 * hits / (hits + errs));
     ctx.asked += text.length; ctx.ok += text.length - bad.size;
     S.tk = S.tk || {}; Object.keys(seen).forEach(c => { const r = S.tk[c] || (S.tk[c] = { n: 0, m: 0 }); r.n += seen[c]; r.m += miss[c] || 0; });
-    S.tkBest = S.tkBest || {}; if (acc >= 90) S.tkBest.spd = Math.max(S.tkBest.spd || 0, spd);
+    S.tkBest = S.tkBest || {}; const record = acc >= 90 && spd > (S.tkBest.spd || 0) && (S.tkBest.spd || 0) > 0; if (acc >= 90) S.tkBest.spd = Math.max(S.tkBest.spd || 0, spd);
     for (let i = 0; i < Math.min(text.length, 40); i++) logQ(i >= bad.size); save(); sfx(acc >= 85 ? 'win' : 'ok');
-    const again = acc < 80 && attempt < 2;
-    frame(ctx, `<div class="card center"><h2>${acc >= 95 ? '🌟 Отлично!' : acc >= 85 ? '👍 Хорошо!' : '💪 Ещё потренируемся'}</h2><p>Верно: <b>${acc}%</b> · Скорость: <b>${spd}</b> зн/мин</p>
-      ${bad.size ? `<p><small>Трудные места: ${[...new Set([...bad].map(i => text[i].toUpperCase()))].join(' ')}</small></p>` : '<p>Без единой ошибки! 🎉</p>'}
-      <p>${again ? '<button class="btn gold" id="ag">🔁 Ещё раз</button> <button class="btn sec" id="nx">Дальше ➜</button>' : '<button class="btn gold" id="nx">Дальше ➜</button>'}</p></div>`);
-    $('nx').onclick = cb; if ($('ag')) $('ag').onclick = () => typingRun(ctx, L, kind, last, cb, attempt + 1);
+    tyResult(ctx, L, { acc, spd, record, extra: best >= 8 ? `лучшая серия ×${best}` : '', hard: bad.size ? [...new Set([...bad].map(i => text[i].toUpperCase()))].join(' ') : '' }, acc < 80 && attempt < 2, cb, () => typingRun(ctx, L, kind, last, cb, attempt + 1));
   };
   const press = ch => {
     if (pos >= text.length) return;
     if (ch === 'Shift') { shiftOn = !shiftOn; kb.querySelector('.shift').classList.toggle('on', shiftOn); return; }
-    if (shiftOn) { if (/[а-я]/.test(ch)) ch = ch.toUpperCase(); else if (ch === ',') ch = ','; else if (ch === '?') ch = '?'; shiftOn = false; kb.querySelector('.shift').classList.remove('on'); }
+    if (shiftOn) { if (/[а-я]/.test(ch)) ch = ch.toUpperCase(); shiftOn = false; kb.querySelector('.shift').classList.remove('on'); }
     if (!t0) t0 = Date.now();
-    const target = text[pos], tl = target.toLowerCase(); seen[tl] = (seen[tl] || 0) + (pos in seen ? 0 : 0);
+    const target = text[pos], tl = target.toLowerCase(), key = keyEl(ch);
+    if (key) { key.classList.remove('press'); void key.offsetWidth; key.classList.add('press'); }
     if (ch === target) {
-      if (!bad.has(pos)) hits++; else hits++;
-      seen[tl] = (seen[tl] || 0) + 1; pos++;
+      hits++; streak++; best = Math.max(best, streak); seen[tl] = (seen[tl] || 0) + 1; pos++;
+      const f = TYPING.FINGER[tl]; tyPop(key, wrap, target === ' ' ? '·' : target.toUpperCase(), '#1b9e3e'); tyBeep(streak);
+      veh.classList.remove('hop'); void veh.offsetWidth; veh.classList.add('hop'); moveCar();
+      if ([5, 10, 20, 30, 40].includes(streak)) tyBanner(wrap, ['Класс!', 'Супер!', 'Ты на огне!', 'Невероятно!', 'Мастер!'][[5, 10, 20, 30, 40].indexOf(streak)]);
       if (pos >= text.length) { show(); stat(); return finish(); }
     } else {
-      errs++; bad.add(pos); miss[tl] = (miss[tl] || 0) + 1; sfx('bad');
+      errs++; streak = 0; bad.add(pos); miss[tl] = (miss[tl] || 0) + 1; sfx('bad'); tyPop(key, wrap, '✕', '#e8472b', true);
+      veh.classList.remove('wob'); void veh.offsetWidth; veh.classList.add('wob');
       const cur = chars()[pos]; if (cur) { cur.classList.remove('shake'); void cur.offsetWidth; cur.classList.add('shake'); }
     }
     show(); stat();
@@ -2245,7 +2291,48 @@ function typingRun(ctx, L, kind, last, cb, attempt) {
     const c = TYPING.charOf(e); if (c === null) return;
     e.preventDefault(); press(c);
   };
-  show(); stat();
+  show(); stat(); moveCar();
+}
+// «Буквопад»: буквы-пузыри падают сверху, нужно успеть напечатать каждую
+function typingRain(ctx, L, cb, attempt) {
+  attempt = attempt || 0; const th = tyTheme(L), N = 14, calm = !!S.focus, pool = [...(L.neu || L.keys)].filter(c => /[а-я]/.test(c)), base = [...L.keys].filter(c => /[а-я]/.test(c));
+  let spawned = 0, caught = 0, lost = 0, errs = 0, hits = 0, raf = 0, nextAt = 0, last = 0, speed = calm ? 34 : 46; const bub = [], seen = {}, miss = {};
+  const my = (frame(ctx, `<div class="card center tycard" id="tywrap"><h3>🫧 Буквопад: лови буквы!</h3>
+    <div class="tyrain" id="tyrain" style="background:${th.bg}"><div class="tyground">${th.goal}</div></div>
+    <div class="tystat"><span id="rcg">Поймано: 0</span> <span id="rcl">Упущено: 0</span> <span id="rcn">0 из ${N}</span></div>
+    ${tyKbHtml({})}${tyHandsSvg()}<p class="tyfing" id="tyfing">&nbsp;</p><small>Печатай букву, которая падает ниже всех. Промах не страшен — нажми ещё раз!</small></div>`), screenId);
+  const wrap = $('tywrap'), area = $('tyrain'), kb = $('tykb');
+  const keyEl = c => kb.querySelector(`.tk[data-ch="${CSS.escape(c)}"]`);
+  const lowest = () => bub.slice().sort((a, b) => b.y - a.y)[0];
+  const hint = () => { kb.querySelectorAll('.tk').forEach(b => b.classList.remove('next')); const t = lowest(); if (!t) { tyHandsSet(wrap, null); $('tyfing').textContent = ''; return; } const k = keyEl(t.ch); if (k) k.classList.add('next'); tyHandsSet(wrap, TYPING.FINGER[t.ch]); $('tyfing').textContent = `Нажимай: ${TYPING.FNAME[TYPING.FINGER[t.ch]]}`; };
+  const stat = () => { $('rcg').textContent = `Поймано: ${caught}`; $('rcl').textContent = `Упущено: ${lost}`; $('rcn').textContent = `${caught + lost} из ${N}`; };
+  const spawn = () => {
+    const ch = Math.random() < .7 ? pool[Math.floor(Math.random() * pool.length)] : base[Math.floor(Math.random() * base.length)], el = document.createElement('div'), w = area.clientWidth || 300;
+    el.className = 'tybub'; el.textContent = ch.toUpperCase(); el.style.background = TY_COL[TYPING.FINGER[ch] === undefined ? 8 : TYPING.FINGER[ch]];
+    const x = 8 + Math.random() * Math.max(10, w - 70); el.style.left = x + 'px'; area.appendChild(el); bub.push({ el, ch, y: -50 }); spawned++; hint();
+  };
+  const finish = () => {
+    cancelAnimationFrame(raf); mathKeyFn = null; const acc = Math.round(100 * caught / N);
+    ctx.asked += N; ctx.ok += caught; S.tk = S.tk || {}; Object.keys(seen).forEach(c => { const r = S.tk[c] || (S.tk[c] = { n: 0, m: 0 }); r.n += seen[c]; r.m += miss[c] || 0; });
+    for (let i = 0; i < N; i++) logQ(i < caught); save(); sfx(acc >= 70 ? 'win' : 'ok');
+    tyResult(ctx, L, { acc, spd: 0, extra: `поймано ${caught} из ${N}`, hard: Object.keys(miss).map(c => c.toUpperCase()).join(' ') }, acc < 60 && attempt < 2, cb, () => typingRain(ctx, L, cb, attempt + 1));
+  };
+  const tick = now => {
+    if (screenId !== my) return; const dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now; const H = area.clientHeight || 240;
+    if (spawned < N && now >= nextAt) { spawn(); nextAt = now + (calm ? 2300 : 1700); speed += 1.2; }
+    for (let i = bub.length - 1; i >= 0; i--) { const b = bub[i]; b.y += speed * dt; b.el.style.transform = `translateY(${b.y}px)`;
+      if (b.y > H - 56) { b.el.classList.add('splash'); setTimeout(() => b.el.remove(), 300); bub.splice(i, 1); lost++; miss[b.ch] = (miss[b.ch] || 0) + 1; seen[b.ch] = (seen[b.ch] || 0) + 1; sfx('bad'); stat(); hint(); } }
+    if (spawned >= N && !bub.length) return finish(); raf = requestAnimationFrame(tick);
+  };
+  const press = ch => {
+    ch = ch.toLowerCase(); if (!/[а-я]/.test(ch)) return; const k = keyEl(ch); if (k) { k.classList.remove('press'); void k.offsetWidth; k.classList.add('press'); }
+    const t = bub.filter(b => b.ch === ch).sort((a, b) => b.y - a.y)[0];
+    if (!t) { errs++; tyPop(k, wrap, '✕', '#e8472b', true); sfx('bad'); return; }
+    hits++; caught++; seen[ch] = (seen[ch] || 0) + 1; bub.splice(bub.indexOf(t), 1); t.el.classList.add('pop'); setTimeout(() => t.el.remove(), 300); tyPop(k, wrap, '+1', '#1b9e3e'); tyBeep(caught); stat(); hint();
+  };
+  kb.addEventListener('click', e => { const b = e.target.closest('.tk'); if (b) press(b.dataset.ch); });
+  mathKeyFn = e => { if (screenId !== my) return; const c = TYPING.charOf(e); if (c === null) return; e.preventDefault(); press(c); };
+  stat(); raf = requestAnimationFrame(tick);
 }
 function typingBoss() {
   const BS = W().boss, L = { id: BS.id, title: BS.title, icon: BS.icon, blind: true };

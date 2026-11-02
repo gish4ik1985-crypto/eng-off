@@ -656,3 +656,30 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
 
 /* запасные картинки эмодзи */
 .emo{display:inline-block;height:1.1em;width:1.1em;vertical-align:-.2em;pointer-events:none}
+
+/* тренажёр печати: цвет и движение */
+.tycard{overflow:hidden}
+.tytrack{position:relative;height:58px;border:3px solid var(--ink);border-radius:14px;margin:6px 0;overflow:hidden}
+.tyveh{position:absolute;left:4px;bottom:6px;font-size:2.2rem;transition:left .25s ease-out;line-height:1}.tyveh.hop{animation:tyhop .28s}.tyveh.wob{animation:tywob .3s}
+@keyframes tyhop{50%{transform:translateY(-10px) rotate(-6deg)}}@keyframes tywob{25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+.tygoal{position:absolute;right:8px;bottom:6px;font-size:2.2rem;line-height:1}.tydec{position:absolute;left:30%;top:6px;font-size:1.2rem;opacity:.75;animation:tyfloat 3s infinite ease-in-out}.tydec.d2{left:60%;top:22px;animation-delay:1.2s}
+@keyframes tyfloat{50%{transform:translateY(5px)}}
+.tytxt{box-shadow:0 4px 0 #0002}.tytxt .c.cur{animation:tyblink .9s infinite}@keyframes tyblink{50%{background:#ffd54a}}
+.tystat span{background:#fff;border:2px solid #1b1b1b;border-radius:999px;padding:2px 10px;font-size:.95rem}
+.tykb{padding:8px;background:linear-gradient(#e7ecff,#d9e0ff);border:3px solid var(--ink);border-radius:14px}
+.tk{box-shadow:0 4px 0 #0003,inset 0 -8px 10px #0001,inset 0 6px 8px #fff6;transition:transform .08s,box-shadow .08s}.tk.press{transform:translateY(3px);box-shadow:0 1px 0 #0003}
+.tyhands{width:100%;max-width:520px;height:auto;margin:2px auto 0;display:block}.tyhands .fg{stroke:#1b1b1b;stroke-width:2;transition:transform .15s,filter .15s}.tyhands .palm{stroke:#1b1b1b;stroke-width:2}
+.tyhands .fg.on{transform:translateY(-14px);stroke-width:4;filter:drop-shadow(0 0 8px #ffeb3b)}
+.tynewk{display:inline-flex;gap:6px}.tynewk span{display:inline-block;padding:4px 12px;border:3px solid #1b1b1b;border-radius:10px;font-size:1.5rem;font-weight:900}
+.tymiss{border:3px solid var(--ink);border-radius:12px;padding:8px 12px;margin:8px 0;font-weight:800}
+.typop{position:absolute;font-weight:900;font-size:1.3rem;pointer-events:none;transform:translate(-50%,0);animation:typopa .8s forwards;z-index:5;text-shadow:0 1px 0 #fff}.typop.bad{animation-name:typopb}
+@keyframes typopa{to{transform:translate(-50%,-48px) scale(1.4);opacity:0}}@keyframes typopb{to{transform:translate(-50%,-30px);opacity:0}}
+.tybanner{position:absolute;left:50%;top:44px;transform:translateX(-50%);font-size:1.8rem;font-weight:900;background:#ffd54a;border:3px solid #1b1b1b;border-radius:14px;padding:4px 18px;animation:tybn 1.3s forwards;z-index:6;white-space:nowrap}
+@keyframes tybn{0%{transform:translateX(-50%) scale(.3);opacity:0}20%{transform:translateX(-50%) scale(1.15);opacity:1}80%{opacity:1}100%{transform:translateX(-50%) translateY(-14px);opacity:0}}
+.tyconf{position:absolute;top:50px;font-size:1.4rem;animation:tycf 1.3s forwards;z-index:6}@keyframes tycf{to{transform:translateY(160px) rotate(300deg);opacity:0}}
+.tyres{border:3px solid var(--ink);border-radius:14px;padding:10px;margin:6px 0}.tycar{font-size:2rem}.tystars span{display:inline-block;font-size:2.6rem;filter:grayscale(1) opacity(.35);transform:scale(.6)}.tystars span.on{filter:none;animation:tystar .5s forwards}
+@keyframes tystar{0%{transform:scale(.2) rotate(-90deg)}70%{transform:scale(1.35) rotate(10deg)}100%{transform:scale(1)}}
+.tyrec{font-weight:900;color:#c07a00}
+.tyrain{position:relative;height:250px;border:3px solid var(--ink);border-radius:14px;overflow:hidden;margin:6px 0}.tyground{position:absolute;left:0;right:0;bottom:0;height:34px;background:#0003;text-align:center;font-size:1.5rem;line-height:34px}
+.tybub{position:absolute;top:0;width:54px;height:54px;border-radius:50%;border:3px solid #1b1b1b;text-align:center;line-height:48px;font-size:1.7rem;font-weight:900;box-shadow:inset -6px -8px 10px #0002,inset 6px 6px 8px #fff7}.tybub.pop{animation:mgboom .3s forwards}.tybub.splash{opacity:.2}
+@media (max-width:480px){.tyveh,.tygoal{font-size:1.7rem}.tybub{width:46px;height:46px;line-height:40px;font-size:1.4rem}}
