@@ -2,6 +2,7 @@
    игра сама находит такие значки и заменяет их картинками из папки emoji/ (Twemoji, CC BY 4.0, лежат в проекте — интернет не нужен).
    На современных устройствах ничего не меняется. Режим можно задать вручную: localStorage 'engAdventure_emoji' = 'on' (всегда картинки) / 'off' (никогда); в игре — «Родителям → Настройки». */
 (() => {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
   let mode = 'auto'; try { mode = localStorage.getItem('engAdventure_emoji') || 'auto'; } catch (e) {}
   if (mode === 'off' || !document.createTreeWalker || !window.MutationObserver) return;
   let RE;
