@@ -202,14 +202,14 @@ const defState = () => ({
   rate: 0.8, face: null, back: null, hand: null, title: null, pet: 'dragon', petName: 'Кубик',
   ach: {}, cnt: {}, totalDays: 0, maxStreak: 0, maxEm: 0, diagRun: false,
   prizes: [{ need: 5, text: '' }, { need: 12, text: '' }, { need: 25, text: '' }],
-  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, pworld: 0, lworld: 0, gworld: 0, off: {}, focus: false, hrs: {}, wds: {}, plan: { on: false }, wish: [], aworld: 0, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
+  subj: 'eng', mworld: 0, rworld: 0, oworld: 0, iworld: 0, pworld: 0, lworld: 0, gworld: 0, cworld: 0, tk: {}, tkBest: {}, off: {}, focus: false, hrs: {}, wds: {}, plan: { on: false }, wish: [], aworld: 0, izoDay: '', strict: false, itworld: 0, onlineTts: false, mt: {}, xp: 0, up: {}, inv: {}, potionOn: false, chestDay: '', goal: null, repDay: '', repCnt: {}, hwPaid: {}, schoolChild: '', sets: {}, log: {}, dlg: {}, songs: {}, audio: {}, lessons: {}, words: {}, streak: 0, lastDay: '', bonusGiven: {}, petXp: 0, mute: false, unlockAll: false, world: 0, gr: {}, diagDone: false
 });
 // предметы: английский (WORLDS) и математика (MWORLDS); у каждого свои миры
-const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'pdd' ? 'pdd' : S.subj === 'lit' ? 'lit' : S.subj === 'logic' ? 'logic' : S.subj === 'att' ? 'att' : S.subj === 'math' ? 'math' : 'eng';
-const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo' || S.subj === 'pdd' || S.subj === 'lit' || S.subj === 'logic' || S.subj === 'att'; // предметы с генерируемыми заданиями
-const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : S.subj === 'pdd' ? PWORLDS : S.subj === 'lit' ? LWORLDS : S.subj === 'logic' ? GWORLDS : S.subj === 'att' ? AWORLDS : MWORLDS;
+const skind = () => S.subj === 'it' ? 'it' : S.subj === 'ru' ? 'ru' : S.subj === 'ow' ? 'ow' : S.subj === 'izo' ? 'izo' : S.subj === 'pdd' ? 'pdd' : S.subj === 'lit' ? 'lit' : S.subj === 'logic' ? 'logic' : S.subj === 'att' ? 'att' : S.subj === 'pc' ? 'pc' : S.subj === 'math' ? 'math' : 'eng';
+const isGen = () => S.subj === 'math' || S.subj === 'ru' || S.subj === 'ow' || S.subj === 'izo' || S.subj === 'pdd' || S.subj === 'lit' || S.subj === 'logic' || S.subj === 'att' || S.subj === 'pc'; // предметы с генерируемыми заданиями
+const genWorlds = () => S.subj === 'ru' ? RWORLDS : S.subj === 'ow' ? OWORLDS : S.subj === 'izo' ? IWORLDS : S.subj === 'pdd' ? PWORLDS : S.subj === 'lit' ? LWORLDS : S.subj === 'logic' ? GWORLDS : S.subj === 'att' ? AWORLDS : S.subj === 'pc' ? CWORLDS : MWORLDS;
 const WS = () => isGen() ? genWorlds() : WORLDS;
-const widxRaw = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.subj === 'pdd' ? (S.pworld || 0) : S.subj === 'lit' ? (S.lworld || 0) : S.subj === 'logic' ? (S.gworld || 0) : S.subj === 'att' ? (S.aworld || 0) : S.world;
+const widxRaw = () => S.subj === 'it' ? (S.itworld || 0) : S.subj === 'pc' ? (S.cworld || 0) : S.subj === 'math' ? (S.mworld || 0) : S.subj === 'ru' ? (S.rworld || 0) : S.subj === 'ow' ? (S.oworld || 0) : S.subj === 'izo' ? (S.iworld || 0) : S.subj === 'pdd' ? (S.pworld || 0) : S.subj === 'lit' ? (S.lworld || 0) : S.subj === 'logic' ? (S.gworld || 0) : S.subj === 'att' ? (S.aworld || 0) : S.world;
 // классы (миры), которые родитель скрыл для ученика, не показываются: S.offW[предмет][id босса мира] = true
 const wOn = (wd, subj) => !(S.offW && S.offW[subj || S.subj] && S.offW[subj || S.subj][wd.boss.id]);
 const wDone = wd => !!(S.lessons[wd.boss.id] || {}).done, wStarted = wd => wd.lessons.some(l => (S.lessons[l.id] || {}).done);
@@ -650,7 +650,7 @@ function applyTheme() {
    Вкусняшки 🍪 — только за учёбу (каждые 4 верных ответа), играть с ним — тоже через вопросы. */
 const PET_ACC = [[3, '🎀', 'Бантик'], [7, '🎩', 'Шляпа'], [14, '👑', 'Корона'], [30, '🌈', 'Радуга']];
 // желания питомца — всегда про учёбу. s — предмет (желание выпадает, только если предмет включён у ребёнка)
-const PET_SUBJ_TXT = { eng: 'по английскому', math: 'по математике', ru: 'по русскому языку', ow: 'по окружающему миру', lit: 'по чтению', pdd: 'по ПДД', logic: 'по логике', att: 'на внимание' };
+const PET_SUBJ_TXT = { eng: 'по английскому', math: 'по математике', ru: 'по русскому языку', ow: 'по окружающему миру', lit: 'по чтению', pdd: 'по ПДД', logic: 'по логике', att: 'на внимание', pc: 'по компьютеру' };
 const PET_WISHES = [
   { k: 'ok', n: 15, t: 'Ответь верно на 15 вопросов в любых предметах — я буду за тебя болеть!' },
   { k: 'ok', n: 25, t: 'Давай сегодня 25 верных ответов? Это будет праздник!' },
@@ -1137,6 +1137,8 @@ function mergeState(a, b) {
   m.cnt = keyed(a.cnt, b.cnt, (p, q) => Math.max(p, q));
   m.mt = keyed(a.mt, b.mt, (p, q) => (p.seen || 0) >= (q.seen || 0) ? p : q);
   m.mf = keyed(a.mf, b.mf, (p, q) => (p.s || 0) >= (q.s || 0) ? p : q);
+  m.tk = keyed(a.tk, b.tk, (p, q) => (p.n || 0) >= (q.n || 0) ? p : q);
+  m.tkBest = keyed(a.tkBest, b.tkBest, (p, q) => Math.max(p, q));
   m.hw = keyed(a.hw, b.hw, (p, q) => Object.assign({}, p, q, { done: Math.max(p.done || 0, q.done || 0) || undefined, t: Math.max(p.t || 0, q.t || 0) }));
   m.up = keyed(a.up, b.up, (p, q) => Math.max(p, q));
   ['hrs', 'wds'].forEach(k => { m[k] = keyed(a[k], b[k], (p, q) => (p.q || 0) >= (q.q || 0) ? p : q); });
@@ -1544,7 +1546,7 @@ function missionCard() {
     : [[nW ? '💪' : '✅', nW ? 'Тренировка' : 'Слабых мест нет', !nW || (log.tr || 0) >= 1, training], ['📘', 'Новый урок', (log.les || 0) >= 1, playNext], ['🎧', 'Аудирование', (log.aud || 0) >= 1, listening]];
   const all = steps.every(x => x[2]), bonusKey = today() + 'M' + sj;
   if (all && !S.bonusGiven[bonusKey]) { S.bonusGiven[bonusKey] = 1; S.emeralds += 8; addXp(10); save(); setTimeout(() => toast('🎯 Задание дня выполнено! +8 💎'), 300); }
-  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', pdd: 'ПДД и ОБЖ', lit: 'литературному чтению', logic: 'логике', att: 'вниманию', eng: 'английскому', it: 'итальянскому' }[sj];
+  const name = { math: 'математике', ru: 'русскому языку', ow: 'окружающему миру', izo: 'ИЗО', pdd: 'ПДД и ОБЖ', lit: 'литературному чтению', logic: 'логике', att: 'вниманию', pc: 'компьютеру', eng: 'английскому', it: 'итальянскому' }[sj];
   const notes = [];
   if (f.exams.length) { const e = f.exams[0]; notes.push(`📅 По ${name}: «${esc(e.text)}» ${e.days === 0 ? 'сегодня' : e.days === 1 ? 'завтра' : 'через ' + mpl(e.days, ['день', 'дня', 'дней'])}. Потренируемся заранее!`); }
   if (f.focus) notes.push(`📌 В дневнике по ${name}: ${esc(f.reasons.join(', '))}. Сегодня больше повторяем.`);
@@ -1581,7 +1583,7 @@ function nextIdx() {
 // Два уровня, чтобы ребёнок не путался: сначала главный экран (крупно: играть, предметы, магазин, награды),
 // и только внутри предмета — карта уроков, тренировка и задание дня.
 let homeView = true;
-const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS], pdd: ['🚦', 'ПДД и ОБЖ', () => PWORLDS], lit: ['📖', 'Литературное чтение', () => LWORLDS], logic: ['🧩', 'Логика и шахматы', () => GWORLDS], att: ['🎯', 'Внимание', () => AWORLDS] };
+const SUBJ_META = { eng: ['🇬🇧', 'Английский', () => EN_PACK.WORLDS], it: ['🇮🇹', 'Итальянский', () => IT_PACK.WORLDS], math: ['🧮', 'Математика', () => MWORLDS], ru: ['📝', 'Русский язык', () => RWORLDS], ow: ['🌍', 'Окружающий мир', () => OWORLDS], izo: ['🎨', 'ИЗО', () => IWORLDS], pdd: ['🚦', 'ПДД и ОБЖ', () => PWORLDS], lit: ['📖', 'Литературное чтение', () => LWORLDS], logic: ['🧩', 'Логика и шахматы', () => GWORLDS], att: ['🎯', 'Внимание', () => AWORLDS], pc: ['💻', 'Компьютер', () => CWORLDS] };
 const subjProgress = key => { const ws = SUBJ_META[key][2](); let d = 0, n = 0; ws.forEach(w => { if (!wOn(w, key)) return; w.lessons.forEach(l => { n++; if ((S.lessons[l.id] || {}).done) d++; }); }); return [d, n]; };
 /* ---------- домашние задания из дневника: ребёнок видит их в игре, открывает страницы учебника, отмечает «сделано» и проверяет себя ---------- */
 function hwTasks() {
@@ -1716,7 +1718,7 @@ function map() {
   app.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
     const k = +b.dataset.w;
     if (!worldOpen(k)) return toast('Следующий класс откроется, когда ты полностью пройдёшь предыдущий (вместе с боссом) 🔒');
-    if (S.subj === 'it') S.itworld = k; else if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else if (S.subj === 'pdd') S.pworld = k; else if (S.subj === 'lit') S.lworld = k; else if (S.subj === 'logic') S.gworld = k; else if (S.subj === 'att') S.aworld = k; else S.world = k;
+    if (S.subj === 'it') S.itworld = k; else if (S.subj === 'math') S.mworld = k; else if (S.subj === 'ru') S.rworld = k; else if (S.subj === 'ow') S.oworld = k; else if (S.subj === 'izo') S.iworld = k; else if (S.subj === 'pdd') S.pworld = k; else if (S.subj === 'lit') S.lworld = k; else if (S.subj === 'logic') S.gworld = k; else if (S.subj === 'att') S.aworld = k; else if (S.subj === 'pc') S.cworld = k; else S.world = k;
     save(); map();
   });
   app.querySelectorAll('.node').forEach(n => n.onclick = () => {
@@ -1780,6 +1782,10 @@ function startLesson(i) {
     ctx.steps.push(['Вставь слово', cb => gapQuiz({ ctx, counted: true, items: sample(L.gaps, Math.min(6, L.gaps.length)) }, cb)]);
     ctx.steps.push(['Собери предложение', cb => sentBuild(ctx, sample(L.sents, Math.min(3, L.sents.length)), cb)]);
     ctx.steps.push(['Мини-тест', cb => gapQuiz({ ctx, counted: true, title: 'Мини-тест', items: sample(L.gaps, Math.min(5, L.gaps.length)) }, cb)]);
+  } else if (L.type === 'typing') { // клавиатурный тренажёр
+    ctx.steps.push(['Подготовка', cb => typingIntro(ctx, L, cb)]);
+    const ks = L.kinds || [];
+    ks.forEach((k, n) => ctx.steps.push(['Печатаем ' + (n + 1), cb => typingRun(ctx, L, k, n === ks.length - 1, cb)]));
   } else if (L.kids) { // уроки для малышей: слушаем и показываем картинки, без письма и чтения предложений
     const wu = warmupWords(L).slice(0, 4);
     if (wu.length) ctx.steps.push(['Разминка', cb => quiz({ ctx, mode: 'listen', counted: false, title: '🔥 Разминка: вспомни старые слова', items: wu }, cb)]);
@@ -2118,6 +2124,7 @@ function reward(ctx) {
 /* ---------- босс ---------- */
 function startBoss() {
   if (S.subj === 'att') return attBoss();
+  if (W().typingBoss) return typingBoss();
   if (isGen()) return mathBoss();
   const BS = W().boss, bi = BS.bossIcon || '👾';
   const vocab = [].concat(...W().lessons.filter(l => l.words).map(l => l.words)).filter((x, k, a) => a.indexOf(x) === k);
@@ -2135,6 +2142,112 @@ function startBoss() {
     ['Бой: слова', cb => quiz({ ctx, boss: true, bossIcon: bi, counted: true, mode: k => modes[k % 3], items: sample(vocab, gaps.length ? 8 : 10) }, cb)]
   ];
   if (gaps.length) ctx.steps.push(['Бой: грамматика', cb => gapQuiz({ ctx, boss: true, bossIcon: bi, counted: true, items: sample(gaps, 6) }, cb)]);
+  runSteps(ctx, () => reward(ctx));
+}
+
+/* ---------- клавиатурный тренажёр ---------- */
+const TY_COL = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff', '#e8e8e8'];
+// клавиатура на экране: цвет клавиши — палец, которым её нажимают; mark — клавиши, которые подсвечиваем; blind — буквы на клавишах скрыты
+function tyKbHtml(o) {
+  o = o || {}; const mk = o.mark || '', key = c => {
+    const f = TYPING.FINGER[c], bump = c === 'а' || c === 'о';
+    return `<button class="tk${mk.includes(c) ? ' new' : ''}${bump ? ' bump' : ''}" data-ch="${c}" style="background:${TY_COL[f === undefined ? 8 : f]}">${o.blind ? '' : c.toUpperCase()}</button>`;
+  };
+  const rows = TYPING.ROWS.map((r, i) => `<div class="tkr r${i}">${i === 2 && o.shift ? '<button class="tk shift" data-ch="Shift">⇧</button>' : ''}${r.map(key).join('')}</div>`).join('');
+  const extra = o.punct ? `<div class="tkr">${[',', '!', '?', '-'].map(c => `<button class="tk" data-ch="${c}" style="background:#e8e8e8">${c}</button>`).join('')}</div>` : '';
+  return `<div class="tykb" id="tykb">${rows}${extra}<div class="tkr"><button class="tk sp" data-ch=" " style="background:${TY_COL[8]}">пробел</button></div></div>`;
+}
+const tyLegend = () => `<div class="tyleg">${TYPING.FNAME.slice(0, 8).map((n, i) => `<span style="background:${TY_COL[i]}">${n}</span>`).join('')}</div>`;
+function typingIntro(ctx, L, cb) {
+  const posture = L.intro === 'posture';
+  frame(ctx, `<div class="card center"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
+    ${posture ? `<ul class="tytips"><li>🪑 Сиди прямо, спина опирается на стул, ноги стоят на полу.</li><li>🖥️ Экран — на расстоянии вытянутой руки, чуть ниже уровня глаз.</li><li>🖐️ Пальцы лежат на <b>домашнем ряду</b>: левая рука — <b>Ф Ы В А</b>, правая — <b>О Л Д Ж</b>. На клавишах <b>А</b> и <b>О</b> есть бугорки: по ним пальцы находят «дом».</li><li>👀 Смотри на экран, а не на клавиши. Печатай всеми пальцами.</li><li>⏱️ Занимайся по 10–15 минут, потом перерыв.</li></ul>`
+      : `<p>Новые клавиши: <b>${[...L.neu].map(c => c.toUpperCase()).join(' ')}</b> (подсвечены на клавиатуре).</p><p><small>Цвет клавиши показывает палец. Нажимай правильным пальцем и возвращай его «домой».</small></p>`}
+    ${tyKbHtml({ mark: posture ? 'фывапролдж' : L.neu, shift: !!(L.caps || L.punct), punct: !!L.punct })}${tyLegend()}
+    <p><button class="btn gold" id="go">${posture ? 'Понятно ➜' : 'Начинаем ➜'}</button></p></div>`);
+  $('go').onclick = cb;
+}
+// текст упражнения нужного вида
+function tyText(L, kind) {
+  const T = TYPING, cap = w => w[0].toUpperCase() + w.slice(1);
+  if (kind === 'custom' && L.caps) { const names = ['Маша', 'Саша', 'Даша', 'Миша', 'Паша', 'Лена', 'Вова', 'Коля', 'Катя', 'Оля', 'Москва', 'Россия', 'Волга']; return T.shuffle(names).slice(0, 6).join(' '); }
+  if (kind === 'custom' && L.punct) return T.shuffle(T.SENT.filter(x => /[,!?]/.test(x))).slice(0, 2).join(' ');
+  if (kind === 'sentences') return T.shuffle(T.SENT).slice(0, 2).join(' ');
+  if (kind === 'story') return T.STORY.replace(/ё/g, 'е').slice(0, 130).replace(/\s+\S*$/, '.');
+  if (kind === 'weak') {
+    const st = S.tk || {}, ch = Object.keys(st).filter(c => st[c].n >= 3 && /[а-я]/.test(c)).sort((a, b) => st[b].m / st[b].n - st[a].m / st[a].n).slice(0, 5).join('') || 'фываолдж';
+    return T.line(T.ROWS.flat().filter(x => x !== '.').join(''), ch, 'words', 34) || T.drill(ch, ch, 34);
+  }
+  return T.line(L.keys, L.neu, kind === 'custom' ? 'words' : kind, 34);
+}
+function typingRun(ctx, L, kind, last, cb, attempt) {
+  attempt = attempt || 0;
+  const text = tyText(L, kind), blind = !!(L.blind || (L.blindLast && last));
+  const needShift = /[А-Я!?]/.test(text) || (L.caps || L.punct);
+  let pos = 0, hits = 0, errs = 0, t0 = 0, shiftOn = false; const bad = new Set(), miss = {}, seen = {};
+  const my = (frame(ctx, `<div class="card center"><h3>${L.icon} ${L.title}</h3>
+    <div class="tytxt" id="tytxt">${[...text].map((c, i) => `<span class="c${c === ' ' ? ' sp' : ''}" data-i="${i}">${c === ' ' ? '&nbsp;' : esc(c)}</span>`).join('')}</div>
+    <div class="tystat"><span id="tyspd">⏱️ 0 зн/мин</span> <span id="tyacc">🎯 100%</span> <span id="typrg">0 из ${text.length}</span></div>
+    ${tyKbHtml({ blind, shift: needShift, punct: !!L.punct })}<p class="tyfing" id="tyfing">&nbsp;</p>
+    <small>Печатай на клавиатуре (или нажимай клавиши на экране). Ошибся — просто нажми нужную клавишу ещё раз.</small></div>`), screenId);
+  const chars = () => document.querySelectorAll('#tytxt .c'), kb = $('tykb');
+  const show = () => {
+    chars().forEach((e, i) => { e.classList.toggle('done', i < pos); e.classList.toggle('cur', i === pos); e.classList.toggle('err', bad.has(i)); });
+    kb.querySelectorAll('.tk').forEach(b => b.classList.remove('next'));
+    const c = text[pos]; if (c === undefined) return;
+    const lc = c.toLowerCase(), isUp = c !== lc, key = kb.querySelector(`.tk[data-ch="${CSS.escape(lc)}"]`) || (c === ' ' ? kb.querySelector('.sp') : null);
+    if (key) key.classList.add('next');
+    const sh = kb.querySelector('.shift'); if (sh) sh.classList.toggle('next', isUp || /[!?]/.test(c));
+    const f = TYPING.FINGER[lc]; $('tyfing').textContent = f === undefined ? '' : (blind ? '' : `Нажимай: ${TYPING.FNAME[f]}`);
+  };
+  const stat = () => {
+    const mins = t0 ? Math.max(5, (Date.now() - t0) / 1000) / 60 : 0, acc = hits + errs ? Math.round(100 * hits / (hits + errs)) : 100;
+    $('tyspd').textContent = `⏱️ ${mins ? Math.round(pos / mins) : 0} зн/мин`; $('tyacc').textContent = `🎯 ${acc}%`; $('typrg').textContent = `${pos} из ${text.length}`;
+  };
+  const finish = () => {
+    mathKeyFn = null; const secs = Math.max(5, (Date.now() - t0) / 1000), spd = Math.round(text.length / (secs / 60)), acc = Math.round(100 * hits / (hits + errs));
+    ctx.asked += text.length; ctx.ok += text.length - bad.size;
+    S.tk = S.tk || {}; Object.keys(seen).forEach(c => { const r = S.tk[c] || (S.tk[c] = { n: 0, m: 0 }); r.n += seen[c]; r.m += miss[c] || 0; });
+    S.tkBest = S.tkBest || {}; if (acc >= 90) S.tkBest.spd = Math.max(S.tkBest.spd || 0, spd);
+    for (let i = 0; i < Math.min(text.length, 40); i++) logQ(i >= bad.size); save(); sfx(acc >= 85 ? 'win' : 'ok');
+    const again = acc < 80 && attempt < 2;
+    frame(ctx, `<div class="card center"><h2>${acc >= 95 ? '🌟 Отлично!' : acc >= 85 ? '👍 Хорошо!' : '💪 Ещё потренируемся'}</h2><p>Верно: <b>${acc}%</b> · Скорость: <b>${spd}</b> зн/мин</p>
+      ${bad.size ? `<p><small>Трудные места: ${[...new Set([...bad].map(i => text[i].toUpperCase()))].join(' ')}</small></p>` : '<p>Без единой ошибки! 🎉</p>'}
+      <p>${again ? '<button class="btn gold" id="ag">🔁 Ещё раз</button> <button class="btn sec" id="nx">Дальше ➜</button>' : '<button class="btn gold" id="nx">Дальше ➜</button>'}</p></div>`);
+    $('nx').onclick = cb; if ($('ag')) $('ag').onclick = () => typingRun(ctx, L, kind, last, cb, attempt + 1);
+  };
+  const press = ch => {
+    if (pos >= text.length) return;
+    if (ch === 'Shift') { shiftOn = !shiftOn; kb.querySelector('.shift').classList.toggle('on', shiftOn); return; }
+    if (shiftOn) { if (/[а-я]/.test(ch)) ch = ch.toUpperCase(); else if (ch === ',') ch = ','; else if (ch === '?') ch = '?'; shiftOn = false; kb.querySelector('.shift').classList.remove('on'); }
+    if (!t0) t0 = Date.now();
+    const target = text[pos], tl = target.toLowerCase(); seen[tl] = (seen[tl] || 0) + (pos in seen ? 0 : 0);
+    if (ch === target) {
+      if (!bad.has(pos)) hits++; else hits++;
+      seen[tl] = (seen[tl] || 0) + 1; pos++;
+      if (pos >= text.length) { show(); stat(); return finish(); }
+    } else {
+      errs++; bad.add(pos); miss[tl] = (miss[tl] || 0) + 1; sfx('bad');
+      const cur = chars()[pos]; if (cur) { cur.classList.remove('shake'); void cur.offsetWidth; cur.classList.add('shake'); }
+    }
+    show(); stat();
+  };
+  kb.addEventListener('click', e => { const b = e.target.closest('.tk'); if (b) press(b.dataset.ch); });
+  mathKeyFn = e => {
+    if (screenId !== my) return;
+    if (e.key === 'Shift') return;
+    const c = TYPING.charOf(e); if (c === null) return;
+    e.preventDefault(); press(c);
+  };
+  show(); stat();
+}
+function typingBoss() {
+  const BS = W().boss, L = { id: BS.id, title: BS.title, icon: BS.icon, blind: true };
+  const ctx = { L: { id: BS.id, title: BS.title }, i: -1, asked: 0, ok: 0, boss: true };
+  ctx.steps = [
+    ['Испытание', cb => { frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><p>Клавиатура на экране спрячет буквы. Печатай, как научился!</p><button class="btn gold" id="fi">Начинаем ⌨️</button></div>`); $('fi').onclick = cb; }],
+    ['Текст', cb => typingRun(ctx, L, 'story', true, cb)]
+  ];
   runSteps(ctx, () => reward(ctx));
 }
 
@@ -2170,8 +2283,8 @@ function mathNote(sp, ok) {
   r.last = today();
 }
 const mixSpecs = (gens, n) => shuffle(Array.from({ length: n }, (_, k) => specOf(gens[k % gens.length])));
-const subjPrefix = () => S.subj === 'ru' ? 'r_' : S.subj === 'ow' ? 'o_' : S.subj === 'izo' ? 'i_' : S.subj === 'pdd' ? 'p_' : S.subj === 'lit' ? 'l_' : S.subj === 'logic' ? 'g_' : S.subj === 'att' ? 'a_' : '';
-const mathWeak = (pref = subjPrefix()) => Object.keys(S.mt || {}).filter(k => pref ? k.startsWith(pref) : !/^[roiplga]_/.test(k)).filter(k => {
+const subjPrefix = () => S.subj === 'ru' ? 'r_' : S.subj === 'ow' ? 'o_' : S.subj === 'izo' ? 'i_' : S.subj === 'pdd' ? 'p_' : S.subj === 'lit' ? 'l_' : S.subj === 'logic' ? 'g_' : S.subj === 'att' ? 'a_' : S.subj === 'pc' ? 'c_' : '';
+const mathWeak = (pref = subjPrefix()) => Object.keys(S.mt || {}).filter(k => pref ? k.startsWith(pref) : !/^[roiplgac]_/.test(k)).filter(k => {
   const r = S.mt[k]; if (!r || (r.seen || 0) < 3) return false;
   const h = r.hist || [];
   return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7;
@@ -4364,7 +4477,7 @@ const BK = {
     });
   }
 };
-const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['pdd', 'ПДД и ОБЖ'], ['lit', 'Литературное чтение'], ['logic', 'Логика и шахматы'], ['att', 'Внимание'], ['eng', 'Английский'], ['it', 'Итальянский'], ['other', 'Другое']];
+const BK_SUBJ = [['math', 'Математика'], ['ru', 'Русский язык'], ['ow', 'Окружающий мир'], ['izo', 'ИЗО'], ['pdd', 'ПДД и ОБЖ'], ['lit', 'Литературное чтение'], ['logic', 'Логика и шахматы'], ['att', 'Внимание'], ['pc', 'Компьютер'], ['eng', 'Английский'], ['it', 'Итальянский'], ['other', 'Другое']];
 function booksHtml() {
   const sel = (id, arr) => `<select id="${id}" style="font:inherit;font-size:1.05rem;padding:6px;border:3px solid #1b1b1b;border-radius:8px">${arr.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>`;
   return `<p>Сфотографируйте <b>оглавление</b> учебника (и, если есть, рабочей тетради), чтобы игра совпала с вашими темами. Фото остаются на этом устройстве.</p>
@@ -4874,7 +4987,8 @@ const SUBJ_ACH = {
   pdd: ['Пешеход', 'Знаток знаков', 'Безопасный герой', 'Хранитель дороги', 'Осторожный'],
   lit: ['Первая страница', 'Читатель', 'Книголюб', 'Хранитель сказок', 'Внимательный читатель'],
   logic: ['Первая загадка', 'Смекалистый', 'Логик', 'Шахматный боец', 'Стратег'],
-  att: ['Внимательный', 'Зоркий', 'Сосредоточенный', 'Победитель Рассеянности', 'Мастер внимания']
+  att: ['Внимательный', 'Зоркий', 'Сосредоточенный', 'Победитель Рассеянности', 'Мастер внимания'],
+  pc: ['Новичок', 'Знаток компьютера', 'Печатник', 'Мастер клавиатуры', 'Компьютерный гуру']
 };
 const subjLessons = k => [].concat(...SUBJ_META[k][2]().map(w => w.lessons));
 const subjDone = k => subjLessons(k).filter(l => (S.lessons[l.id] || {}).done);
@@ -5143,7 +5257,7 @@ function familyReport() {
   const t0 = today(), days = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 6)), prev = [0, 1, 2, 3, 4, 5, 6].map(k => addDays(t0, k - 13));
   const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
   const agg = (st, ds) => { const r = { sec: 0, q: 0, ok: 0, act: 0 }; ds.forEach(d => { const x = (st.log || {})[d]; if (x && (x.sec || x.q)) { r.act++; r.sec += x.sec || 0; r.q += x.q || 0; r.ok += x.ok || 0; } }); return r; };
-  const subj = [['eng', '🇬🇧 Английский', EN_PACK.WORLDS], ['it', '🇮🇹 Итальянский', IT_PACK.WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS], ['pdd', '🚦 ПДД и ОБЖ', PWORLDS], ['lit', '📖 Лит. чтение', LWORLDS], ['logic', '🧩 Логика', GWORLDS], ['att', '🎯 Внимание', AWORLDS]];
+  const subj = [['eng', '🇬🇧 Английский', EN_PACK.WORLDS], ['it', '🇮🇹 Итальянский', IT_PACK.WORLDS], ['math', '🧮 Математика', MWORLDS], ['ru', '📝 Русский', RWORLDS], ['ow', '🌍 Окр. мир', OWORLDS], ['izo', '🎨 ИЗО', IWORLDS], ['pdd', '🚦 ПДД и ОБЖ', PWORLDS], ['lit', '📖 Лит. чтение', LWORLDS], ['logic', '🧩 Логика', GWORLDS], ['att', '🎯 Внимание', AWORLDS], ['pc', '💻 Компьютер', CWORLDS]];
   const weakOf = st => Object.keys(st.mt || {}).filter(k => { const r = st.mt[k]; if (!r || (r.seen || 0) < 3) return false; const h = r.hist || []; return (h.length >= 3 ? h.reduce((a, b) => a + b, 0) / h.length : 1 - (r.miss || 0) / r.seen) < 0.7; })
     .map(k => MTOP[k.slice(0, -1)]).filter((x, i, a) => x && a.indexOf(x) === i).slice(0, 5);
   const kids = visPlayers().map(pl => {

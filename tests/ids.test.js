@@ -10,7 +10,7 @@ test('номера уроков и боссов не повторяются ме
   const ctx = { console, Math, localStorage: { getItem() { return null; } } }; ctx.window = ctx; vm.createContext(ctx);
   for (const f of order) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8') + '\n;', ctx, { filename: f });
   const seen = new Map(), dups = [];
-  for (const n of ['EN_PACK.WORLDS', 'IT_PACK.WORLDS', 'MWORLDS', 'RWORLDS', 'OWORLDS', 'IWORLDS', 'PWORLDS', 'LWORLDS', 'GWORLDS', 'AWORLDS']) {
+  for (const n of ['EN_PACK.WORLDS', 'IT_PACK.WORLDS', 'MWORLDS', 'RWORLDS', 'OWORLDS', 'IWORLDS', 'PWORLDS', 'LWORLDS', 'GWORLDS', 'AWORLDS', 'CWORLDS']) {
     vm.runInContext(n, ctx).forEach(w => [w.boss].concat(w.lessons).forEach(l => {
       const where = n + ' / ' + w.name + ' / ' + l.title;
       if (seen.has(l.id)) dups.push(l.id + ': ' + seen.get(l.id) + '  <>  ' + where); else seen.set(l.id, where);

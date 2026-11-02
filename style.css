@@ -626,3 +626,20 @@ html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}
 .mkt{display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;font-size:1.15rem;background:#fff;border:3px solid var(--ink);border-radius:10px;padding:4px 12px;cursor:pointer}
 .mkt small{font-size:.8rem}.mkt.sel{background:#ffd54a;box-shadow:0 0 0 3px #1b1b1b inset}
 @media (max-width:480px){.mk{font-size:1.4rem;line-height:2.1}.mkt{padding:3px 8px;font-size:1rem}}
+
+/* компьютер: фото и тренажёр */
+.pcfig{margin:8px auto;text-align:center}.pcimg{max-width:100%;max-height:240px;border:3px solid var(--ink);border-radius:12px;background:#fff}.pcfig figcaption{font-size:.7rem;color:#777;margin-top:2px}
+.qpic .pcimg{max-height:200px}
+.pcdesk{background:#9ad0ff;border:3px solid var(--ink);border-radius:10px;padding:8px;margin:8px 0;text-align:left;min-height:150px;position:relative}.pcicons{display:flex;gap:14px;font-size:1.6rem}.pcicons small{font-size:.6rem}
+.pcwin{background:#fff;border:2px solid var(--ink);border-radius:6px;margin:8px 20px;padding:0 0 8px;font-size:.8rem}.pcbar{background:#3a66c8;color:#fff;padding:2px 6px;display:flex;justify-content:space-between}.pctask{background:#2b2b44;color:#fff;border-radius:4px;padding:3px 8px;font-size:.75rem}
+.tytxt{font-family:'Courier New',monospace;font-size:1.9rem;line-height:1.7;background:#fff;border:3px solid var(--ink);border-radius:12px;padding:10px;margin:8px 0;text-align:left;word-break:break-word}
+.tytxt .c{display:inline-block;min-width:.6em;color:#999;border-bottom:3px solid transparent;text-align:center}.tytxt .c.done{color:#1b9e3e}.tytxt .c.cur{color:#000;background:#ffe066;border-bottom-color:#1b1b1b;border-radius:4px}.tytxt .c.err.done{color:#e08a00}.tytxt .c.shake{animation:tyshake .25s}
+@keyframes tyshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px);background:#ff8a8a}75%{transform:translateX(4px);background:#ff8a8a}}
+.tystat{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;font-weight:800;margin:4px 0}
+.tykb{display:inline-block;margin:6px auto;user-select:none;-webkit-user-select:none}.tkr{display:flex;justify-content:center;gap:4px;margin:4px 0}.tkr.r1{margin-left:14px}.tkr.r2{margin-left:34px}
+.tk{font:inherit;font-weight:900;font-size:1.05rem;min-width:30px;height:38px;padding:0 4px;border:2px solid #1b1b1b;border-radius:7px;cursor:pointer;color:#1b1b1b;touch-action:manipulation}.tk.sp{min-width:200px}.tk.shift{min-width:46px;background:#ddd}.tk.shift.on{background:#ffd54a}
+.tk.bump{border-bottom:6px solid #1b1b1b}.tk.new{box-shadow:0 0 0 3px #e8472b}.tk.next{animation:tynext .8s infinite;box-shadow:0 0 0 4px #1b1b1b}
+@keyframes tynext{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.tyfing{min-height:1.3em;font-weight:800}.tyleg{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;font-size:.72rem;margin:4px 0}.tyleg span{padding:2px 6px;border-radius:6px;border:1px solid #888}
+.tytips{text-align:left;max-width:520px;margin:8px auto;padding-left:20px}.tytips li{margin:6px 0}
+@media (max-width:480px){.tk{min-width:25px;height:34px;font-size:.9rem}.tkr{gap:3px}.tkr.r1{margin-left:8px}.tkr.r2{margin-left:20px}.tk.sp{min-width:150px}.tytxt{font-size:1.5rem}}
