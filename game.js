@@ -1748,6 +1748,7 @@ function examGrade(ctx, cb) {
   $('go').onclick = cb;
 }
 function startLesson(i) {
+  UPD.resume = { subj: S.subj, i };
   if (tmGate()) return; tmInLesson = true;
   const L = W().lessons[i], ctx = { L, i, asked: 0, ok: 0 };
   ctx.steps = [];
@@ -2359,6 +2360,12 @@ function mouseBoss() {
   ctx.steps = [['Испытание', cb => { frame(ctx, `<div class="card center"><h1>${BS.icon} ${BS.title}</h1><div class="bigemoji">${BS.bossIcon}</div><p>${BS.story}</p><button class="btn gold" id="fi">Начинаем 🖱️</button></div>`); $('fi').onclick = cb; }]];
   ['click', 'small', 'dbl', 'right', 'drag', 'scroll', 'path'].forEach(k => ctx.steps.push([MG[k][0], cb => mouseGame(ctx, L, k, cb, { n: k === 'path' ? 2 : 3, title: MG[k][0] })]));
   runSteps(ctx, () => reward(ctx));
+}
+
+// после обновления страницы открываем урок, который ребёнок выбрал перед этим
+function resumeAfterUpdate() {
+  let r = null; try { r = JSON.parse(sessionStorage.getItem('engResume') || 'null'); sessionStorage.removeItem('engResume'); } catch (e) {}
+  if (r && r.subj === S.subj && r.i >= 0) setTimeout(() => { if (document.getElementById('play') || document.querySelector('.node')) startLesson(r.i); }, 500);
 }
 
 /* ---------- математика ---------- */
@@ -4060,7 +4067,21 @@ const tmRoll = () => { if (TM.day !== today()) { TM.day = today(); TM.used = 0; 
 const tmLimit = () => (TM.min + (TM.extra || 0)) * 60;
 const tmUp = () => { tmRoll(); return !!TM.on && !!getPin() && TM.used >= tmLimit(); };
 // вызывается в начале экранов: если время вышло — закрываем программу (экран под замком не меняется)
-function tmGate() { if (restNow()) { restShowLock(); return true; } if (!tmUp()) return false; tmShowLock(); return true; }
+/* Обновление игры применяется только в безопасный момент: не во время урока, а когда ребёнок что-то открывает (вернулся на карту, выбрал другой урок и т. п.).
+   Новую версию мы узнаём по смене сервис-воркера (controllerchange); сама страница при этом не перезагружается. Перед обновлением всё сохраняется,
+   а если ребёнок выбрал урок — после обновления этот урок откроется сам. */
+const UPD = { ready: false, resume: null };
+window.ENG_UPD = UPD; // для проверки: ENG_UPD.ready = true имитирует «вышла новая версия»
+function applyUpdate() {
+  let last = 0; try { last = +sessionStorage.getItem('engUpdAt') || 0; } catch (e) {}
+  if (!UPD.ready || Date.now() - last < 60000) return false; // не чаще раза в минуту: защита от повторных перезагрузок
+  UPD.ready = false;
+  try { sessionStorage.setItem('engUpdAt', String(Date.now())); if (UPD.resume) sessionStorage.setItem('engResume', JSON.stringify(UPD.resume)); } catch (e) {}
+  try { save(); } catch (e) {}
+  toast('🔄 Обновляю игру… всё сохранено'); setTimeout(() => location.reload(), 350);
+  return true;
+}
+function tmGate() { const rs = UPD.resume; UPD.resume = null; if (UPD.ready) { UPD.resume = rs; if (applyUpdate()) return true; UPD.resume = null; } if (restNow()) { restShowLock(); return true; } if (!tmUp()) return false; tmShowLock(); return true; }
 let admFails = 0, admLock = 0;
 const adminLogin = (name, pw) => String(name || '').trim().toLowerCase() === ADMIN_NAME.toLowerCase() && adminCheck(pw);
 function pinEntry(box, ok) {
@@ -4280,6 +4301,10 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.p
 const swOk = () => 'serviceWorker' in navigator && /^https?:$/.test(location.protocol);
 if (swOk()) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  { let had = !!navigator.serviceWorker.controller; // новая версия установилась и взяла управление: применим её, когда ребёнок что-то откроет
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) UPD.ready = true; had = true; });
+    const chk = () => { if (navigator.onLine && document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); };
+    setInterval(chk, 15 * 60 * 1000); document.addEventListener('visibilitychange', chk); }
   navigator.serviceWorker.ready.then(() => { // один раз сообщаем, что игра теперь есть на устройстве
     try { if (localStorage.getItem('engAdventure_offmsg')) return; localStorage.setItem('engAdventure_offmsg', '1'); } catch (e) { return; }
     toast('✅ Игра сохранена на устройстве — теперь откроется и без интернета');
@@ -5887,6 +5912,6 @@ applyTheme();
 syncSoon(true); restPoll();
 cloudAuto().then(ch => { if (ch && PR.list.length && !S.name) players(); });
 if (famLink && !cloudOn() && cloudUrl()) cloudScreen(() => (PR.list.length ? players() : welcome()), famLink);
-else if (visPlayers().length) { const au = autoUser(); if (au) { PR.cur = au.id; pwMark(); useProfile(au.id); } else loginScreen(); } // вошедший ранее игрок остаётся в системе; иначе — вход по логину и паролю
+else if (visPlayers().length) { const au = autoUser(); if (au) { PR.cur = au.id; pwMark(); useProfile(au.id); resumeAfterUpdate(); } else loginScreen(); } // вошедший ранее игрок остаётся в системе; иначе — вход по логину и паролю
 else welcome();
 })();
