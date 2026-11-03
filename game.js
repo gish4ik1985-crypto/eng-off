@@ -2187,7 +2187,7 @@ function typingIntro(ctx, L, cb) {
   const posture = L.intro === 'posture', th = tyTheme(L);
   frame(ctx, `<div class="card center tycard"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
     ${posture ? `<ul class="tytips"><li>🪑 Сиди прямо, спина опирается на стул, ноги стоят на полу.</li><li>🖥️ Экран — на расстоянии вытянутой руки, чуть ниже уровня глаз.</li><li>🖐️ Пальцы лежат на <b>домашнем ряду</b>: левая рука — <b>Ф Ы В А</b>, правая — <b>О Л Д Ж</b>. На клавишах <b>А</b> и <b>О</b> есть бугорки: по ним пальцы находят «дом».</li><li>👀 Смотри на экран, а не на клавиши. Печатай всеми пальцами.</li><li>⏱️ Занимайся по 10–15 минут, потом перерыв.</li></ul>`
-      : `<p>Новые клавиши: <b class="tynewk">${[...L.neu].map(c => `<span style="background:${TY_COL[TYPING.FINGER[c] === undefined ? 8 : TYPING.FINGER[c]]}">${c.toUpperCase()}</span>`).join('')}</b></p><div class="tymiss" style="background:${th.bg};color:${th.dark ? '#fff' : '#222'}">Сегодня ты ${th.car} летишь к цели ${th.goal} — тема «${th.name}»!</div><p><small>Цвет клавиши показывает палец. Нажимай нужным пальцем и возвращай его «домой».</small></p>`}
+      : `<div class="pchow"><b>📌 Как печатать:</b><ol class="pchowl"><li>Смотри на текст: <b>жёлтая буква</b> — та, которую нужно напечатать.</li><li>Найди её на клавиатуре (клавиша подпрыгивает) и нажми <b>тем пальцем</b>, который поднялся на руках.</li><li>Ошибся? Просто нажми правильную клавишу ещё раз.</li><li>На планшете нажимай клавиши прямо на экране.</li></ol></div><p>Новые клавиши: <b class="tynewk">${[...L.neu].map(c => `<span style="background:${TY_COL[TYPING.FINGER[c] === undefined ? 8 : TYPING.FINGER[c]]}">${c.toUpperCase()}</span>`).join('')}</b></p><div class="tymiss" style="background:${th.bg};color:${th.dark ? '#fff' : '#222'}">Сегодня ты ${th.car} летишь к цели ${th.goal} — тема «${th.name}»!</div><p><small>Цвет клавиши показывает палец. Нажимай нужным пальцем и возвращай его «домой».</small></p>`}
     ${tyKbHtml({ mark: posture ? 'фывапролдж' : L.neu, shift: !!(L.caps || L.punct), punct: !!L.punct })}${tyHandsSvg()}${tyLegend()}
     <p><button class="btn gold big" id="go">${posture ? 'Понятно ➜' : 'Поехали! ➜'}</button></p></div>`);
   // подсвечиваем по очереди пальцы для новых клавиш
@@ -2353,7 +2353,8 @@ const COARSE = () => { try { return matchMedia('(pointer: coarse)').matches; } c
 function mouseIntro(ctx, L, cb) {
   const touch = COARSE();
   frame(ctx, `<div class="card center"><h2>${L.icon} ${L.title}</h2><div class="story">${L.story}</div>
-    ${L.photo ? `<img class="pcimg" src="pc/photos/${L.photo}.jpg" alt="">` : ''}<p>${touch ? (L.tipTouch || L.tip) : L.tip}</p>
+    ${L.photo ? `<img class="pcimg" src="pc/photos/${L.photo}.jpg" alt="" onerror="this.outerHTML='<span class=pcnone>🖱️</span>'">` : ''}<p>${touch ? (L.tipTouch || L.tip) : L.tip}</p>
+    ${(L.how || []).length ? `<div class="pchow"><b>📌 Как играть:</b><ol class="pchowl">${L.how.map(x => `<li>${x}</li>`).join('')}</ol></div>` : ''}
     <p><small>${touch ? 'Это планшет: нажимай пальцем.' : 'Ошибки не страшны: цель в том, чтобы рука запомнила движения.'}</small></p><button class="btn gold" id="go">Играем ➜</button></div>`);
   $('go').onclick = cb;
 }

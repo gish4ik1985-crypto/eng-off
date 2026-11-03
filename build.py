@@ -15,6 +15,7 @@ html = re.sub(r'(<script src="[^"?]+|<link rel="stylesheet" href="[^"?]+)(\?v=\w
 files = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'config.js']
 files += re.findall(r'<(?:script src|link rel="stylesheet" href)="([^"]+\?v=\w+)"', html)
 school = root / 'school'
+files += sorted(p.relative_to(root).as_posix() for p in (root / 'pc' / 'photos').glob('*.jpg'))  # фото раздела «Компьютер» — чтобы показывались и без интернета
 files += ['school/', 'school/index.html'] + sorted(p.relative_to(root).as_posix() for p in [school / 'icon.svg', *school.glob('css/*.css'), *school.glob('js/*.js')])
 for f in files:
     assert f.endswith('/') or (root / f.split('?')[0]).is_file(), 'нет файла ' + f
